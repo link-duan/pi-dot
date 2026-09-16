@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import { Brain } from "lucide-react";
 import { userText, type ToolLiveState } from "@/chat/state";
 import { useChat } from "@/chat/store";
@@ -9,11 +9,10 @@ import { MarkdownBody } from "./MarkdownBody";
 import { PiIcon } from "./PiIcon";
 import { ToolCard } from "./ToolCard";
 
-export function Transcript() {
+export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
   const messages = useChat((state) => state.messages);
   const toolLive = useChat((state) => state.toolLive);
   const isStreaming = useChat((state) => state.isStreaming);
-  const scroller = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
   const [hasMessages, setHasMessages] = useState(false);
 
@@ -22,15 +21,15 @@ export function Transcript() {
   }, [messages.length]);
 
   useEffect(() => {
-    const node = scroller.current;
+    const node = scrollerRef.current;
     if (!node || !stickToBottom.current) return;
     node.scrollTop = node.scrollHeight;
-  }, [messages, toolLive, isStreaming]);
+  }, [messages, toolLive, isStreaming, scrollerRef]);
 
   return (
     <div
-      ref={scroller}
-      className="min-h-0 flex-1 overflow-y-auto px-6 py-6"
+      ref={scrollerRef}
+      className="min-h-0 flex-1 overflow-y-auto px-6"
       onScroll={(event) => {
         const node = event.currentTarget;
         stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
@@ -42,7 +41,7 @@ export function Transcript() {
           <p className="mt-3 text-xs text-muted-foreground">Send pi a prompt.</p>
         </div>
       ) : (
-        <div className="mx-auto flex max-w-3xl flex-col">
+        <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-6">
           {messages.map((message, index) => (
             <MessageRow
               key={messageKey(message, index)}

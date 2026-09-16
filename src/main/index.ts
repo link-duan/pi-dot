@@ -75,7 +75,8 @@ function createWindow(): void {
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
     titleBarStyle: process.platform === "darwin" ? "hidden" : "default",
-    trafficLightPosition: { x: 18, y: 18 },
+    // 12px lights, vertically centered in the 36px (h-9) overlay with the session history icon
+    trafficLightPosition: { x: 18, y: 12 },
     webPreferences: {
       preload: join(import.meta.dirname, "../preload/index.mjs"),
       contextIsolation: true,
