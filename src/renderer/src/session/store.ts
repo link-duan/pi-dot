@@ -48,7 +48,7 @@ function snapshotPatch(snapshot: SessionSnapshot) {
     sessionId: snapshot.state.sessionId ?? null,
     sessionFile: snapshot.state.sessionFile ?? null,
     connection: "ready" as const,
-    error: snapshot.models.length === 0 ? "没有可用模型。请先在终端运行 pi 并完成 /login。" : null,
+    error: snapshot.models.length === 0 ? "No models available. Run pi in a terminal and complete /login first." : null,
     models: snapshot.models,
     model: snapshot.state.model ?? snapshot.models[0] ?? null,
     thinkingLevel: snapshot.state.thinkingLevel,

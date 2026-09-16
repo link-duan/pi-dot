@@ -25,9 +25,9 @@ export function FolderPicker() {
             <PiIcon className="size-5.5 text-foreground" />
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">打开项目</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Open project</h1>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            选择一个本地目录，连接本机 pi 智能助手。
+            Choose a local folder to connect to pi.
           </p>
 
           <div className="mt-7 flex flex-col gap-2.5">
@@ -48,7 +48,7 @@ export function FolderPicker() {
                       {folderName(lastCwd)}
                     </span>
                     <span className="rounded border border-border/50 bg-muted/40 px-1 py-0.2 font-mono text-[9px] text-muted-foreground uppercase">
-                      最近
+                      Recent
                     </span>
                   </div>
                   <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground/80">
@@ -76,7 +76,7 @@ export function FolderPicker() {
               className="h-9.5 w-full rounded-xl text-xs font-medium shadow-xs"
             >
               <FolderOpen className="size-3.5" />
-              <span>{lastCwd ? "选择其他工作目录" : "打开工作目录"}</span>
+              <span>{lastCwd ? "Choose another folder" : "Open folder"}</span>
             </Button>
           </div>
 

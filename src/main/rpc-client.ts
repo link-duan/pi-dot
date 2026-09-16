@@ -96,7 +96,7 @@ export class RpcClient {
 
     child.once("exit", (code, signal) => {
       const error = new Error(
-        `pi 进程已退出 (code=${code ?? "null"} signal=${signal ?? "null"}). ${this.stderr.trim()}`.trim(),
+        `pi process exited (code=${code ?? "null"} signal=${signal ?? "null"}). ${this.stderr.trim()}`.trim(),
       );
       for (const pending of this.pending.values()) {
         pending.reject(error);
@@ -115,7 +115,7 @@ export class RpcClient {
     } catch (error) {
       await this.stop();
       const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`无法连接 pi RPC：${detail}${this.stderr ? `\n${this.stderr}` : ""}`);
+      throw new Error(`Failed to connect to pi RPC: ${detail}${this.stderr ? `\n${this.stderr}` : ""}`);
     }
   }
 
@@ -249,7 +249,7 @@ export class RpcClient {
     return new Promise<T>((resolve, reject) => {
       const timeout = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`等待 ${String(command.type)} 响应超时。${this.stderr}`));
+        reject(new Error(`Timed out waiting for ${String(command.type)}. ${this.stderr}`));
       }, 30000);
 
       this.pending.set(id, {

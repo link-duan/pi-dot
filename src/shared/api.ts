@@ -8,6 +8,7 @@ import type {
 } from "./protocol";
 
 export interface PiApi {
+  homedir: string;
   chooseFolder(): Promise<string | null>;
   getLastCwd(): Promise<string | null>;
   start(cwd: string): Promise<SessionSnapshot>;

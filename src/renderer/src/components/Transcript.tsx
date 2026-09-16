@@ -1,7 +1,10 @@
 import { memo, useEffect, useRef, useState } from "react";
+import { Brain } from "lucide-react";
 import { userText, type ToolLiveState } from "@/chat/state";
 import { useChat } from "@/chat/store";
+import { thinkingSummary } from "@/lib/format";
 import type { AgentMessage, AssistantMessage } from "@shared/protocol";
+import { ActivityRow } from "./ActivityRow";
 import { MarkdownBody } from "./MarkdownBody";
 import { PiIcon } from "./PiIcon";
 import { ToolCard } from "./ToolCard";
@@ -36,10 +39,10 @@ export function Transcript() {
       {!hasMessages ? (
         <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
           <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
-          <p className="mt-3 text-xs text-muted-foreground">给 pi 一条指令。</p>
+          <p className="mt-3 text-xs text-muted-foreground">Send pi a prompt.</p>
         </div>
       ) : (
-        <div className="mx-auto flex max-w-3xl flex-col gap-6">
+        <div className="mx-auto flex max-w-3xl flex-col">
           {messages.map((message, index) => (
             <MessageRow
               key={messageKey(message, index)}
@@ -82,7 +85,7 @@ const MessageRow = memo(function MessageRow({
 }) {
   if (message.role === "user") {
     return (
-      <div className="flex justify-end">
+      <div className="my-4 flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-2.5 text-[13.5px] leading-relaxed text-foreground whitespace-pre-wrap shadow-xs select-text dark:bg-muted/60">
           {userText(message)}
         </div>
@@ -103,7 +106,7 @@ const MessageRow = memo(function MessageRow({
       <div className="my-2 flex items-center justify-center gap-2">
         <div className="h-px flex-1 bg-border/50" />
         <span className="rounded-full border border-border/50 bg-muted/50 px-2.5 py-0.5 text-[10px] font-mono text-muted-foreground uppercase">
-          上下文已压缩
+          Context compacted
         </span>
         <div className="h-px flex-1 bg-border/50" />
       </div>
@@ -125,40 +128,42 @@ function AssistantRow({
   const lastTextIndex = message.content.reduce((last, block, index) => (block.type === "text" ? index : last), -1);
 
   return (
-    <div className="flex flex-col gap-2.5 select-text">
+    <div className="flex flex-col select-text">
       {message.content.map((block, contentIndex) => {
         if (block.type === "thinking") {
           const thinking = block.thinking;
-          if (!thinking) return null;
+          if (!thinking?.trim()) return null;
+          const inProgress = streaming && contentIndex === message.content.length - 1;
           return (
-            <details
+            <ActivityRow
               key={`thinking-${message.timestamp}-${contentIndex}`}
-              className="group/thinking my-1 overflow-hidden rounded-lg border border-border/50 bg-muted/20 text-xs transition-colors hover:border-border/80"
+              icon={Brain}
+              label={inProgress ? "Thinking" : "Thought"}
+              summary={thinkingSummary(thinking)}
             >
-              <summary className="flex cursor-pointer select-none items-center gap-2 px-3 py-2 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground">
-                <span className="size-1.5 rounded-full bg-muted-foreground/60 group-open/thinking:bg-foreground" />
-                <span>思考过程</span>
-                <span className="ml-auto text-[10px] text-muted-foreground/50">展开/折叠</span>
-              </summary>
-              <div className="border-t border-border/40 bg-neutral-950/20 p-3 font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground dark:bg-black/30">
+              <div className="max-h-80 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
                 {thinking}
               </div>
-            </details>
+            </ActivityRow>
           );
         }
         if (block.type === "text") {
           const text = block.text;
-          if (!text) return null;
+          if (!text?.trim()) return null;
           const key = `text-${message.timestamp}-${contentIndex}`;
           if (streaming && contentIndex === lastTextIndex) {
             return (
-              <div key={key} className="whitespace-pre-wrap text-[14px] leading-relaxed">
+              <div key={key} className="py-1.5 whitespace-pre-wrap text-[14px] leading-relaxed">
                 {text}
                 <span className="ml-1 inline-block h-3.5 w-1.5 animate-pulse rounded-xs bg-foreground/70 align-middle" />
               </div>
             );
           }
-          return <MarkdownBody key={key} text={text} />;
+          return (
+            <div key={key} className="py-1.5">
+              <MarkdownBody text={text} />
+            </div>
+          );
         }
         if (block.type === "toolCall") {
           return <ToolCard key={block.id} name={block.name} args={block.arguments} live={toolLive[block.id]} />;

@@ -27,7 +27,7 @@ export function ChatPage() {
                 className="font-medium underline underline-offset-2 hover:opacity-80"
                 onClick={() => void openCwd(cwd)}
               >
-                重连
+                Reconnect
               </button>
             ) : null}
             <button
@@ -35,7 +35,7 @@ export function ChatPage() {
               className="font-medium underline underline-offset-2 hover:opacity-80"
               onClick={() => void leave()}
             >
-              更换目录
+              Change folder
             </button>
           </div>
         </div>

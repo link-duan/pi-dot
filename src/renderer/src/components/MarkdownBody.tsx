@@ -31,17 +31,17 @@ function CodeBlock({
           type="button"
           onClick={() => void handleCopy()}
           className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-neutral-400 transition-colors hover:bg-white/10 hover:text-neutral-200"
-          aria-label="复制代码"
+          aria-label="Copy code"
         >
           {copied ? (
             <>
               <Check className="size-3 text-emerald-400" />
-              <span className="text-emerald-400">已复制</span>
+              <span className="text-emerald-400">Copied</span>
             </>
           ) : (
             <>
               <Copy className="size-3" />
-              <span>复制</span>
+              <span>Copy</span>
             </>
           )}
         </button>

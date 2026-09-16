@@ -49,7 +49,7 @@ export function ModelSelect() {
       }}
     >
       <DropdownMenuTrigger
-        aria-label="选择模型和思考等级"
+        aria-label="Select model and thinking level"
         disabled={disabled}
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
@@ -59,14 +59,14 @@ export function ModelSelect() {
           "disabled:opacity-40",
         )}
       >
-        <span className="min-w-0 truncate text-foreground">{model?.name ?? "选择模型"}</span>
+        <span className="min-w-0 truncate text-foreground">{model?.name ?? "Select model"}</span>
         {model ? <span className="shrink-0 text-muted-foreground">{THINKING_LEVEL_LABELS[thinkingLevel]}</span> : null}
         <ChevronDownIcon className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="end" className="w-48" sideOffset={6}>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            <span className="shrink-0">思考</span>
+            <span className="shrink-0">Thinking</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
               {THINKING_LEVEL_LABELS[thinkingLevel]}
             </span>
@@ -93,17 +93,17 @@ export function ModelSelect() {
           }}
         >
           <DropdownMenuSubTrigger>
-            <span className="shrink-0">模型</span>
+            <span className="shrink-0">Model</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
-              {model?.name ?? "未选择"}
+              {model?.name ?? "None"}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-72 overflow-hidden overflow-y-hidden p-0">
             <div className="p-1 pb-0">
               <Input
                 value={query}
-                aria-label="搜索模型"
-                placeholder="搜索可用模型..."
+                aria-label="Search models"
+                placeholder="Search models..."
                 className="h-8 text-sm"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
@@ -114,7 +114,7 @@ export function ModelSelect() {
             </div>
             <div className="scroll-fade max-h-[min(calc(20rem-2.5rem),calc(var(--available-height)-2.5rem))] overflow-y-auto overscroll-contain p-1">
               {filteredModels.length === 0 ? (
-                <div className="px-2 py-3 text-center text-sm text-muted-foreground">没有匹配的模型</div>
+                <div className="px-2 py-3 text-center text-sm text-muted-foreground">No matching models</div>
               ) : (
                 <DropdownMenuRadioGroup
                   value={model ? modelKey(model) : ""}

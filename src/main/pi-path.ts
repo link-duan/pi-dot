@@ -57,7 +57,7 @@ export function resolvePiPath(envPath?: string): string {
     }
   }
 
-  throw new Error("找不到 pi。请先安装 @mariozechner/pi-coding-agent，并确认终端里可以运行 `pi`。");
+  throw new Error("Could not find pi. Install @mariozechner/pi-coding-agent and make sure `pi` runs in your terminal.");
 }
 
 export function spawnEnv(): NodeJS.ProcessEnv {

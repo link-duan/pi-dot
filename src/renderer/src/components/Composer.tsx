@@ -36,14 +36,14 @@ export function Composer() {
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 p-2 shadow-xl shadow-black/5 backdrop-blur-md transition-all duration-200 focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-ring/20 dark:bg-[#121316]/95 dark:shadow-black/50">
         <label className="sr-only" htmlFor="prompt-input">
-          指令
+          Prompt
         </label>
         <textarea
           ref={textareaRef}
           id="prompt-input"
           value={text}
           rows={1}
-          placeholder="输入指令... (Enter 发送, Shift+Enter 换行)"
+          placeholder="Message... (Enter to send, Shift+Enter for newline)"
           className="field-sizing-content min-h-[44px] max-h-48 w-full resize-none border-0 bg-transparent px-2.5 py-1.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
@@ -62,7 +62,7 @@ export function Composer() {
                 type="button"
                 onClick={() => void openFolder()}
                 className="flex max-w-56 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                title={`当前目录: ${cwd} (点击切换)`}
+                title={`Current folder: ${cwd} (click to change)`}
               >
                 <Folder className="size-3 shrink-0" />
                 <span className="truncate">{folderName(cwd)}</span>
@@ -72,7 +72,7 @@ export function Composer() {
             {isStreaming ? (
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Spinner className="size-3" />
-                <span>生成中</span>
+                <span>Generating</span>
               </div>
             ) : null}
           </div>
@@ -87,7 +87,7 @@ export function Composer() {
                 size="icon-sm"
                 variant="secondary"
                 className="rounded-full shadow-xs"
-                aria-label="停止生成"
+                aria-label="Stop"
                 onClick={() => void abort()}
               >
                 <Square className="size-3 fill-current" />
@@ -98,7 +98,7 @@ export function Composer() {
                 size="icon-sm"
                 className="rounded-full shadow-xs transition-opacity"
                 disabled={!canSend}
-                aria-label="发送指令"
+                aria-label="Send"
               >
                 <ArrowUp className="size-3.5" />
               </Button>

@@ -1,3 +1,4 @@
+import { homedir } from "node:os";
 import { contextBridge, ipcRenderer } from "electron";
 import type { PiApi } from "@shared/api";
 import { IPC } from "@shared/ipc";
@@ -10,6 +11,7 @@ import type {
 } from "@shared/protocol";
 
 const api: PiApi = {
+  homedir: homedir(),
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder) as Promise<string | null>,
   getLastCwd: () => ipcRenderer.invoke(IPC.getLastCwd) as Promise<string | null>,
   start: (cwd: string) => ipcRenderer.invoke(IPC.start, cwd) as Promise<SessionSnapshot>,

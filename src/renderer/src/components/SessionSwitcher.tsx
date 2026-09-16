@@ -58,8 +58,8 @@ export function SessionSwitcher() {
         size="icon-sm"
         variant="ghost"
         className="app-no-drag text-muted-foreground"
-        aria-label="历史会话"
-        title="历史会话 (Ctrl+R)"
+        aria-label="Session history"
+        title="Session history (Ctrl+R)"
         onClick={() => setOpen(true)}
       >
         <History />
@@ -68,18 +68,18 @@ export function SessionSwitcher() {
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        title="历史会话"
-        description="搜索并切换当前项目的会话"
+        title="Session history"
+        description="Search and switch sessions in this project"
       >
-        <CommandInput placeholder="搜索会话..." />
+        <CommandInput placeholder="Search sessions..." />
         <CommandList>
           {items === null ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">加载中...</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">Loading...</div>
           ) : items.length === 0 ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">没有历史会话</div>
+            <div className="py-6 text-center text-sm text-muted-foreground">No sessions</div>
           ) : (
             <>
-              <CommandEmpty>没有匹配的会话</CommandEmpty>
+              <CommandEmpty>No matching sessions</CommandEmpty>
               {groupByTime(items).map(({ group, items: groupItems }) => (
                 <CommandGroup key={group} heading={TIME_GROUP_LABELS[group]}>
                   {groupItems.map((item) => {
@@ -119,8 +119,8 @@ export function SessionSwitcher() {
           )}
         </CommandList>
         <div className="flex shrink-0 items-center gap-3 border-t px-3.5 py-1.5 text-[11px] text-muted-foreground">
-          <span>↑↓ 选择</span>
-          <span>↵ 打开</span>
+          <span>↑↓ Select</span>
+          <span>↵ Open</span>
         </div>
       </CommandDialog>
     </>

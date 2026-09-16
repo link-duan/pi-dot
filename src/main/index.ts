@@ -100,7 +100,7 @@ function createWindow(): void {
 function registerIpc(): void {
   ipcMain.handle(IPC.chooseFolder, async () => {
     const result = await dialog.showOpenDialog(window!, {
-      title: "选择工作目录",
+      title: "Choose working directory",
       properties: ["openDirectory"],
     });
     return result.canceled ? null : (result.filePaths[0] ?? null);
@@ -141,7 +141,7 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.prompt, async (_event, text: string) => {
-    if (!client) throw new Error("尚未连接 pi");
+    if (!client) throw new Error("Not connected to pi");
     await client.prompt(text);
   });
 
@@ -151,12 +151,12 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.setModel, async (_event, provider: string, modelId: string) => {
-    if (!client) throw new Error("尚未连接 pi");
+    if (!client) throw new Error("Not connected to pi");
     return client.setModel(provider, modelId);
   });
 
   ipcMain.handle(IPC.setThinkingLevel, async (_event, level: ThinkingLevel) => {
-    if (!client) throw new Error("尚未连接 pi");
+    if (!client) throw new Error("Not connected to pi");
     return client.setThinkingLevel(level);
   });
 
@@ -166,9 +166,9 @@ function registerIpc(): void {
   });
 
   ipcMain.handle(IPC.switchSession, async (_event, sessionPath: string) => {
-    if (!client) throw new Error("尚未连接 pi");
+    if (!client) throw new Error("Not connected to pi");
     const { cancelled } = await client.switchSession(sessionPath);
-    if (cancelled) throw new Error("切换会话被取消");
+    if (cancelled) throw new Error("Session switch cancelled");
     return snapshotOf(client);
   });
 
