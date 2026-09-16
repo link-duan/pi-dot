@@ -1,0 +1,155 @@
+export type ConnectionStatus = "disconnected" | "connecting" | "ready" | "error";
+
+export const THINKING_LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
+
+export type ThinkingLevel = (typeof THINKING_LEVELS)[number];
+
+export const THINKING_LEVEL_LABELS: Record<ThinkingLevel, string> = {
+  off: "Off",
+  minimal: "Min",
+  low: "Low",
+  medium: "Med",
+  high: "High",
+  xhigh: "xHigh",
+  max: "Max",
+};
+
+export function isThinkingLevel(value: unknown): value is ThinkingLevel {
+  return typeof value === "string" && (THINKING_LEVELS as readonly string[]).includes(value);
+}
+
+export function asThinkingLevel(value: unknown): ThinkingLevel | undefined {
+  return isThinkingLevel(value) ? value : undefined;
+}
+
+export function parseThinkingLevels(value: unknown): ThinkingLevel[] {
+  if (!Array.isArray(value)) return ["off"];
+  const levels = value.filter(isThinkingLevel);
+  return levels.length > 0 ? levels : ["off"];
+}
+
+export interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+}
+
+export interface ModelSelection {
+  model: ModelInfo;
+  thinkingLevel: ThinkingLevel;
+  thinkingLevels: ThinkingLevel[];
+}
+
+export interface RpcSessionState {
+  model?: ModelInfo | null;
+  thinkingLevel: ThinkingLevel;
+  isStreaming: boolean;
+  sessionFile?: string;
+  sessionId?: string;
+  messageCount: number;
+}
+
+export interface TextContent {
+  type: "text";
+  text: string;
+}
+
+export interface ThinkingContent {
+  type: "thinking";
+  thinking: string;
+}
+
+export interface ImageContent {
+  type: "image";
+  data?: string;
+  mimeType?: string;
+}
+
+export interface ToolCallContent {
+  type: "toolCall";
+  id: string;
+  name: string;
+  arguments: unknown;
+}
+
+export type ContentBlock = TextContent | ThinkingContent | ImageContent | ToolCallContent;
+
+export interface UserMessage {
+  role: "user";
+  content: string | ContentBlock[];
+  timestamp: number;
+}
+
+export interface AssistantMessage {
+  role: "assistant";
+  content: ContentBlock[];
+  model?: string;
+  provider?: string;
+  stopReason?: string;
+  errorMessage?: string;
+  timestamp: number;
+}
+
+export interface ToolResultMessage {
+  role: "toolResult";
+  toolCallId: string;
+  toolName: string;
+  content: ContentBlock[];
+  isError: boolean;
+  timestamp: number;
+}
+
+export interface CompactionSummaryMessage {
+  role: "compactionSummary";
+  summary: string;
+  timestamp: number;
+}
+
+export type AgentMessage =
+  | UserMessage
+  | AssistantMessage
+  | ToolResultMessage
+  | CompactionSummaryMessage;
+
+export type RpcEvent =
+  | { type: "agent_start" }
+  | { type: "agent_end" }
+  | { type: "message_start"; message: AgentMessage }
+  | { type: "message_update"; message: AgentMessage }
+  | { type: "message_end"; message: AgentMessage }
+  | { type: "tool_execution_start"; toolCallId: string; toolName: string; args?: unknown }
+  | { type: "tool_execution_update"; toolCallId: string; toolName: string; args?: unknown; partialResult?: unknown }
+  | { type: "tool_execution_end"; toolCallId: string; toolName: string; result?: unknown; isError?: boolean };
+
+export interface SessionSnapshot {
+  cwd: string;
+  state: RpcSessionState;
+  messages: AgentMessage[];
+  models: ModelInfo[];
+  thinkingLevels: ThinkingLevel[];
+}
+
+const RPC_EVENT_TYPES = new Set<string>([
+  "agent_start",
+  "agent_end",
+  "message_start",
+  "message_update",
+  "message_end",
+  "tool_execution_start",
+  "tool_execution_update",
+  "tool_execution_end",
+]);
+
+const MESSAGE_ROLES = new Set<string>(["user", "assistant", "toolResult", "compactionSummary"]);
+
+export function isAgentMessage(value: unknown): value is AgentMessage {
+  if (!value || typeof value !== "object") return false;
+  return MESSAGE_ROLES.has((value as { role?: unknown }).role as string);
+}
+
+export function asRpcEvent(value: unknown): RpcEvent | null {
+  if (!value || typeof value !== "object") return null;
+  const type = (value as { type?: unknown }).type;
+  if (typeof type !== "string" || !RPC_EVENT_TYPES.has(type)) return null;
+  return value as RpcEvent;
+}

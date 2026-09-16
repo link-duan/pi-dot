@@ -1,0 +1,13 @@
+export const IPC = {
+  chooseFolder: "pi:chooseFolder",
+  getLastCwd: "pi:getLastCwd",
+  start: "pi:start",
+  stop: "pi:stop",
+  prompt: "pi:prompt",
+  abort: "pi:abort",
+  setModel: "pi:setModel",
+  setThinkingLevel: "pi:setThinkingLevel",
+  openExternal: "pi:openExternal",
+  event: "pi:event",
+  status: "pi:status",
+} as const;
