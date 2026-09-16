@@ -1,5 +1,6 @@
 import { useSession } from "@/session/store";
 import { Composer } from "./Composer";
+import { SessionSwitcher } from "./SessionSwitcher";
 import { Transcript } from "./Transcript";
 
 export function ChatPage() {
@@ -12,7 +13,9 @@ export function ChatPage() {
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       {/* Frameless window drag area - provides breathing room for macOS native traffic lights without any visual header bar */}
-      <div className="app-drag h-9 w-full shrink-0 select-none" />
+      <div className="app-drag flex h-9 w-full shrink-0 items-center justify-end px-2 select-none">
+        <SessionSwitcher />
+      </div>
 
       {error ? (
         <div className="app-no-drag mx-4 mb-2 flex items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2 text-xs text-destructive shadow-sm">

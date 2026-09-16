@@ -1,7 +1,13 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { PiApi } from "@shared/api";
 import { IPC } from "@shared/ipc";
-import type { ConnectionStatus, RpcEvent, SessionSnapshot, ThinkingLevel } from "@shared/protocol";
+import type {
+  ConnectionStatus,
+  RpcEvent,
+  SessionListItem,
+  SessionSnapshot,
+  ThinkingLevel,
+} from "@shared/protocol";
 
 const api: PiApi = {
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder) as Promise<string | null>,
@@ -13,6 +19,9 @@ const api: PiApi = {
   setModel: (provider: string, modelId: string) =>
     ipcRenderer.invoke(IPC.setModel, provider, modelId),
   setThinkingLevel: (level: ThinkingLevel) => ipcRenderer.invoke(IPC.setThinkingLevel, level),
+  listSessions: (cwd: string) => ipcRenderer.invoke(IPC.listSessions, cwd) as Promise<SessionListItem[]>,
+  switchSession: (sessionPath: string) =>
+    ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
   onEvent: (cb: (event: RpcEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: RpcEvent) => cb(payload);

@@ -7,6 +7,8 @@ export const IPC = {
   abort: "pi:abort",
   setModel: "pi:setModel",
   setThinkingLevel: "pi:setThinkingLevel",
+  listSessions: "pi:listSessions",
+  switchSession: "pi:switchSession",
   openExternal: "pi:openExternal",
   event: "pi:event",
   status: "pi:status",

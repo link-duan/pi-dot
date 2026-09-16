@@ -1,11 +1,20 @@
 import { createChatState, hydrateMessages } from "@/chat/state";
 import { useChat } from "@/chat/store";
-import type { ConnectionStatus, ModelInfo, ModelSelection, ThinkingLevel } from "@shared/protocol";
+import type {
+  ConnectionStatus,
+  ModelInfo,
+  ModelSelection,
+  SessionListItem,
+  SessionSnapshot,
+  ThinkingLevel,
+} from "@shared/protocol";
 import { create } from "zustand";
 
 interface SessionStore {
   lastCwd: string | null;
   cwd: string | null;
+  sessionId: string | null;
+  sessionFile: string | null;
   connection: ConnectionStatus;
   error: string | null;
   models: ModelInfo[];
@@ -20,6 +29,8 @@ interface SessionStore {
   abort: () => Promise<void>;
   setModel: (provider: string, modelId: string) => Promise<void>;
   setThinkingLevel: (level: ThinkingLevel) => Promise<void>;
+  listSessions: () => Promise<SessionListItem[]>;
+  switchSession: (sessionPath: string) => Promise<void>;
 }
 
 function selectionPatch(selection: ModelSelection) {
@@ -30,9 +41,26 @@ function selectionPatch(selection: ModelSelection) {
   };
 }
 
+function snapshotPatch(snapshot: SessionSnapshot) {
+  return {
+    cwd: snapshot.cwd,
+    lastCwd: snapshot.cwd,
+    sessionId: snapshot.state.sessionId ?? null,
+    sessionFile: snapshot.state.sessionFile ?? null,
+    connection: "ready" as const,
+    error: snapshot.models.length === 0 ? "没有可用模型。请先在终端运行 pi 并完成 /login。" : null,
+    models: snapshot.models,
+    model: snapshot.state.model ?? snapshot.models[0] ?? null,
+    thinkingLevel: snapshot.state.thinkingLevel,
+    thinkingLevels: snapshot.thinkingLevels,
+  };
+}
+
 export const useSession = create<SessionStore>((set, get) => ({
   lastCwd: null,
   cwd: null,
+  sessionId: null,
+  sessionFile: null,
   connection: "disconnected",
   error: null,
   models: [],
@@ -55,16 +83,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     useChat.setState(createChatState());
     try {
       const snapshot = await window.pi.start(cwd);
-      set({
-        cwd: snapshot.cwd,
-        lastCwd: snapshot.cwd,
-        connection: "ready",
-        error: snapshot.models.length === 0 ? "没有可用模型。请先在终端运行 pi 并完成 /login。" : null,
-        models: snapshot.models,
-        model: snapshot.state.model ?? snapshot.models[0] ?? null,
-        thinkingLevel: snapshot.state.thinkingLevel,
-        thinkingLevels: snapshot.thinkingLevels,
-      });
+      set(snapshotPatch(snapshot));
       useChat.setState(hydrateMessages(snapshot.messages));
     } catch (error) {
       set({
@@ -82,6 +101,8 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
     set({
       cwd: null,
+      sessionId: null,
+      sessionFile: null,
       connection: "disconnected",
       error: null,
       models: [],
@@ -124,6 +145,23 @@ export const useSession = create<SessionStore>((set, get) => ({
     try {
       const selection = await window.pi.setThinkingLevel(level);
       set({ ...selectionPatch(selection), error: null });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) });
+    }
+  },
+
+  listSessions: async () => {
+    const cwd = get().cwd;
+    if (!cwd) return [];
+    return window.pi.listSessions(cwd);
+  },
+
+  switchSession: async (sessionPath: string) => {
+    if (get().sessionFile === sessionPath) return;
+    try {
+      const snapshot = await window.pi.switchSession(sessionPath);
+      set(snapshotPatch(snapshot));
+      useChat.setState(hydrateMessages(snapshot.messages));
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) });
     }

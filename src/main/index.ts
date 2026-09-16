@@ -1,9 +1,10 @@
 import { join } from "node:path";
-import { app, BrowserWindow, dialog, ipcMain, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { IPC } from "@shared/ipc";
 import type { ConnectionStatus, SessionSnapshot, ThinkingLevel } from "@shared/protocol";
 import { readLastCwd, writeLastCwd } from "./last-cwd";
 import { RpcClient } from "./rpc-client";
+import { listProjectSessions } from "./sessions";
 
 let window: BrowserWindow | null = null;
 let client: RpcClient | null = null;
@@ -26,6 +27,41 @@ async function stopClient(): Promise<void> {
 
 function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? "#09090b" : "#ffffff";
+}
+
+function installMenu(): void {
+  const isMac = process.platform === "darwin";
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(isMac ? [{ role: "appMenu" as const }] : []),
+      { role: "fileMenu" },
+      { role: "editMenu" },
+      {
+        label: "View",
+        submenu: [
+          { role: "reload", accelerator: isMac ? "Cmd+R" : "F5" },
+          { role: "toggleDevTools" },
+          { type: "separator" },
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
+      },
+      { role: "windowMenu" },
+    ]),
+  );
+}
+
+async function snapshotOf(next: RpcClient): Promise<SessionSnapshot> {
+  const [state, messages, models, thinkingLevels] = await Promise.all([
+    next.getState(),
+    next.getMessages(),
+    next.getAvailableModels(),
+    next.getAvailableThinkingLevels(),
+  ]);
+  return { cwd: next.cwd, state, messages, models, thinkingLevels };
 }
 
 function createWindow(): void {
@@ -85,17 +121,12 @@ function registerIpc(): void {
     });
     try {
       await next.start();
-      const [state, messages, models, thinkingLevels] = await Promise.all([
-        next.getState(),
-        next.getMessages(),
-        next.getAvailableModels(),
-        next.getAvailableThinkingLevels(),
-      ]);
+      const snapshot = await snapshotOf(next);
       client = next;
       writeLastCwd(cwd);
       window?.setTitle(`pi — ${cwd}`);
       sendStatus("ready");
-      return { cwd, state, messages, models, thinkingLevels };
+      return snapshot;
     } catch (error) {
       await next.stop();
       const message = error instanceof Error ? error.message : String(error);
@@ -129,6 +160,18 @@ function registerIpc(): void {
     return client.setThinkingLevel(level);
   });
 
+  ipcMain.handle(IPC.listSessions, async (_event, cwd: string) => {
+    if (typeof cwd !== "string" || !cwd) return [];
+    return listProjectSessions(cwd);
+  });
+
+  ipcMain.handle(IPC.switchSession, async (_event, sessionPath: string) => {
+    if (!client) throw new Error("尚未连接 pi");
+    const { cancelled } = await client.switchSession(sessionPath);
+    if (cancelled) throw new Error("切换会话被取消");
+    return snapshotOf(client);
+  });
+
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return;
     await shell.openExternal(url);
@@ -136,6 +179,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  installMenu();
   registerIpc();
   createWindow();
 

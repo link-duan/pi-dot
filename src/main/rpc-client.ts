@@ -39,7 +39,7 @@ export class RpcClient {
   private stopReading: (() => void) | null = null;
   private stopping = false;
 
-  constructor(private cwd: string) {}
+  constructor(readonly cwd: string) {}
 
   onEvent(listener: (event: RpcEvent) => void): () => void {
     this.listeners.push(listener);
@@ -199,6 +199,11 @@ export class RpcClient {
   async setThinkingLevel(level: ThinkingLevel): Promise<ModelSelection> {
     await this.send({ type: "set_thinking_level", level });
     return this.getModelSelection();
+  }
+
+  async switchSession(sessionPath: string): Promise<{ cancelled: boolean }> {
+    const data = await this.send<{ cancelled?: boolean }>({ type: "switch_session", sessionPath });
+    return { cancelled: Boolean(data?.cancelled) };
   }
 
   private async getModelSelection(): Promise<ModelSelection> {

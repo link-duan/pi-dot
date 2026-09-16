@@ -129,6 +129,15 @@ export interface SessionSnapshot {
   thinkingLevels: ThinkingLevel[];
 }
 
+export interface SessionListItem {
+  id: string;
+  path: string;
+  modified: string;
+  name?: string;
+  firstMessage?: string;
+  messageCount: number;
+}
+
 const RPC_EVENT_TYPES = new Set<string>([
   "agent_start",
   "agent_end",
