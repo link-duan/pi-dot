@@ -1,5 +1,5 @@
 import { ArrowUp, Folder, Square } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { useChat } from "@/chat/store";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -7,7 +7,7 @@ import { folderName } from "@/lib/path";
 import { useSession } from "@/session/store";
 import { ModelSelect } from "./ModelSelect";
 
-export function Composer() {
+export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cwd = useSession((state) => state.cwd);
@@ -28,13 +28,17 @@ export function Composer() {
 
   return (
     <form
-      className="shrink-0 px-4 pt-1 pb-4"
+      className="relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
       }}
+      onWheel={(event) => {
+        if (event.target !== event.currentTarget) return;
+        scrollerRef.current?.scrollBy({ top: event.deltaY });
+      }}
     >
-      <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 p-2 shadow-xl shadow-black/5 backdrop-blur-md transition-all duration-200 focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-ring/20 dark:bg-[#121316]/95 dark:shadow-black/50">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>
@@ -44,7 +48,7 @@ export function Composer() {
           value={text}
           rows={1}
           placeholder="Message..."
-          className="scroll-fade field-sizing-content max-h-[calc(8.5lh+0.75rem)] w-full resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-1.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="scroll-fade field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -54,19 +58,21 @@ export function Composer() {
           }}
         />
 
-        <div className="flex items-center justify-between pt-1 pr-1 pl-1 text-xs">
+        <div className="flex items-center justify-between px-0.5 text-xs">
           {/* Left: Working directory & Streaming indicator */}
           <div className="flex items-center gap-2">
             {cwd ? (
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => void openFolder()}
-                className="flex max-w-56 items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-mono text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="max-w-56 font-mono text-[11px] text-muted-foreground"
                 title={`Current folder: ${cwd} (click to change)`}
               >
                 <Folder className="size-3 shrink-0" />
                 <span className="truncate">{folderName(cwd)}</span>
-              </button>
+              </Button>
             ) : null}
 
             {isStreaming ? (

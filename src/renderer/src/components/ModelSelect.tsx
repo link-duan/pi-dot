@@ -54,8 +54,6 @@ export function ModelSelect() {
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
           "h-7 max-w-64 gap-2 px-2 text-[11.5px] text-muted-foreground transition-colors duration-150",
-          "hover:bg-neutral-200/80 dark:hover:bg-white/10",
-          "data-popup-open:bg-neutral-200/80 dark:data-popup-open:bg-white/10",
           "disabled:opacity-40",
         )}
       >

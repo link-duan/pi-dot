@@ -29,7 +29,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
   return (
     <div
       ref={scrollerRef}
-      className="min-h-0 flex-1 overflow-y-auto px-6"
+      className="scroll-fade min-h-0 flex-1 overflow-y-auto px-6"
       onScroll={(event) => {
         const node = event.currentTarget;
         stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
@@ -41,7 +41,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
           <p className="mt-3 text-xs text-muted-foreground">Send pi a prompt.</p>
         </div>
       ) : (
-        <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-6">
+        <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
           {messages.map((message, index) => (
             <MessageRow
               key={messageKey(message, index)}

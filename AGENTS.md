@@ -1,0 +1,1 @@
+- Prefer color tokens; they work in both dark and light modes

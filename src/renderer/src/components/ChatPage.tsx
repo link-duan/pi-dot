@@ -16,12 +16,15 @@ export function ChatPage() {
     <div className="relative flex h-full flex-col bg-background text-foreground">
       {/* Overlay: keep macOS traffic-light drag space without pushing transcript down */}
       <div
-        className="app-drag absolute inset-x-0 top-0 z-10 flex h-9 items-center justify-end px-2 select-none"
+        className="absolute inset-x-0 top-0 z-10 flex h-9 items-center select-none"
         onWheel={(event) => {
           scrollerRef.current?.scrollBy({ top: event.deltaY });
         }}
       >
-        <SessionSwitcher />
+        <div className="app-drag h-full min-w-0 flex-1" />
+        <div className="app-no-drag flex items-center pr-2">
+          <SessionSwitcher />
+        </div>
       </div>
 
       {error ? (
@@ -49,7 +52,7 @@ export function ChatPage() {
       ) : null}
 
       <Transcript scrollerRef={scrollerRef} />
-      <Composer />
+      <Composer scrollerRef={scrollerRef} />
     </div>
   );
 }
