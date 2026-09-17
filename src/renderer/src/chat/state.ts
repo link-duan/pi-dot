@@ -1,7 +1,7 @@
 import {
   isAgentMessage,
   type AgentMessage,
-  type SessionEvent,
+  type SessionEventBody,
   type TextContent,
 } from '@shared/protocol'
 
@@ -26,13 +26,40 @@ export function createChatState(): ChatState {
   return { messages: [], toolLive: {}, isStreaming: false, assistantStreaming: false }
 }
 
-export function hydrateMessages(messages: unknown[]): ChatState {
+export function hydrateMessages(
+  messages: unknown[],
+  options?: { isStreaming?: boolean },
+): ChatState {
+  const next = messages.filter(isAgentMessage)
+  const isStreaming = Boolean(options?.isStreaming)
+  const last = next[next.length - 1]
   return {
-    messages: messages.filter(isAgentMessage),
-    toolLive: {},
-    isStreaming: false,
-    assistantStreaming: false,
+    messages: next,
+    toolLive: isStreaming ? inferRunningTools(next) : {},
+    isStreaming,
+    assistantStreaming: isStreaming && last?.role === 'assistant',
   }
+}
+
+function inferRunningTools(messages: AgentMessage[]): Record<string, ToolLiveState> {
+  const results = new Set<string>()
+  for (const message of messages) {
+    if (message.role === 'toolResult') results.add(message.toolCallId)
+  }
+  const toolLive: Record<string, ToolLiveState> = {}
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue
+    for (const block of message.content) {
+      if (block.type !== 'toolCall' || results.has(block.id)) continue
+      toolLive[block.id] = {
+        toolCallId: block.id,
+        toolName: block.name,
+        args: block.arguments,
+        status: 'running',
+      }
+    }
+  }
+  return toolLive
 }
 
 function replaceLastWithRole(messages: AgentMessage[], message: AgentMessage): AgentMessage[] {
@@ -54,12 +81,13 @@ function upsertTool(state: ChatState, next: ToolLiveState): ChatState {
   }
 }
 
-export function applySessionEvent(state: ChatState, event: SessionEvent): ChatState {
+export function applySessionEvent(state: ChatState, event: SessionEventBody): ChatState {
   switch (event.type) {
     case 'agent_start':
       return { ...state, isStreaming: true }
 
     case 'agent_end':
+      if (event.willRetry) return { ...state, isStreaming: true }
       return { ...state, isStreaming: false, assistantStreaming: false }
 
     case 'message_start': {

@@ -6,7 +6,6 @@ import {
   type ModelInfo,
   type ThinkingLevel,
 } from '@shared/protocol'
-import { useChat } from '@/chat/store'
 import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -35,8 +34,7 @@ export function ModelSelect() {
   const connection = useSession((state) => state.connection)
   const setModel = useSession((state) => state.setModel)
   const setThinkingLevel = useSession((state) => state.setThinkingLevel)
-  const isStreaming = useChat((state) => state.isStreaming)
-  const disabled = isStreaming || connection !== 'ready' || models.length === 0
+  const disabled = connection !== 'ready' || models.length === 0
 
   const [query, setQuery] = useState('')
 

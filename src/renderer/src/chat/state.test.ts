@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AssistantMessage, UserMessage } from '@shared/protocol'
-import { applySessionEvent, createChatState, userText } from './state'
+import { applySessionEvent, createChatState, hydrateMessages, userText } from './state'
 
 const user = (text: string): UserMessage => ({
   role: 'user',
@@ -12,6 +12,25 @@ const assistant = (text: string): AssistantMessage => ({
   role: 'assistant',
   content: [{ type: 'text', text }],
   timestamp: 2,
+})
+
+describe('hydrateMessages', () => {
+  it('restores streaming flags and unfinished tool calls', () => {
+    const state = hydrateMessages(
+      [
+        assistant('working'),
+        {
+          role: 'assistant',
+          content: [{ type: 'toolCall', id: 'call_1', name: 'bash', arguments: { command: 'ls' } }],
+          timestamp: 3,
+        },
+      ],
+      { isStreaming: true },
+    )
+    expect(state.isStreaming).toBe(true)
+    expect(state.assistantStreaming).toBe(true)
+    expect(state.toolLive.call_1).toMatchObject({ toolName: 'bash', status: 'running' })
+  })
 })
 
 describe('applySessionEvent', () => {
@@ -42,6 +61,13 @@ describe('applySessionEvent', () => {
       role: 'assistant',
       content: [{ type: 'text', text: 'Hello world' }],
     })
+  })
+
+  it('keeps streaming across a retrying agent_end', () => {
+    let state = createChatState()
+    state = applySessionEvent(state, { type: 'agent_start' })
+    state = applySessionEvent(state, { type: 'agent_end', willRetry: true })
+    expect(state.isStreaming).toBe(true)
   })
 
   it('keeps assistantStreaming off after message_end while tools still run', () => {

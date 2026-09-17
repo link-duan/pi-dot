@@ -2,6 +2,7 @@ import {
   type AgentSession,
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
+  type SessionStartEvent,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
   createAgentSessionServices,
@@ -34,10 +35,28 @@ export function isProjectTrusted(cwd: string, agentDir: string): boolean {
   return settings.getDefaultProjectTrust() === 'always'
 }
 
+class LiveSession {
+  unsubscribe: (() => void) | null = null
+  promptRun: Promise<unknown> | null = null
+
+  constructor(readonly runtime: AgentSessionRuntime) {}
+
+  get session(): AgentSession {
+    return this.runtime.session
+  }
+
+  get sessionFile(): string {
+    return this.session.sessionFile ?? this.session.sessionId
+  }
+}
+
 export class AgentHost {
-  private runtime: AgentSessionRuntime | null = null
-  private unsubscribe: (() => void) | null = null
+  private live = new Map<string, LiveSession>()
+  private active: LiveSession | null = null
   private listeners: Array<(event: SessionEvent) => void> = []
+  private agentDir: string | null = null
+  private createRuntime: CreateAgentSessionRuntimeFactory | null = null
+  private op: Promise<unknown> = Promise.resolve()
 
   constructor(readonly cwd: string) {}
 
@@ -48,79 +67,69 @@ export class AgentHost {
     }
   }
 
+  runningSessionFiles(): string[] {
+    const files: string[] = []
+    for (const live of this.live.values()) {
+      if (live.promptRun || live.session.isStreaming) files.push(live.sessionFile)
+    }
+    return files
+  }
+
   async start(): Promise<void> {
-    if (this.runtime) throw new Error('Agent already started')
+    return this.enqueue(async () => {
+      if (this.active) throw new Error('Agent already started')
 
-    const agentDir = getAgentDir()
-    const projectTrusted = isProjectTrusted(this.cwd, agentDir)
-    const settingsManager = SettingsManager.create(this.cwd, agentDir, { projectTrusted })
+      const agentDir = getAgentDir()
+      const projectTrusted = isProjectTrusted(this.cwd, agentDir)
+      const settingsManager = SettingsManager.create(this.cwd, agentDir, { projectTrusted })
 
-    const createRuntime: CreateAgentSessionRuntimeFactory = async ({
-      cwd,
-      agentDir: nextAgentDir,
-      sessionManager,
-      sessionStartEvent,
-    }) => {
-      const trusted = isProjectTrusted(cwd, nextAgentDir)
-      const services = await createAgentSessionServices({
+      this.agentDir = agentDir
+      this.createRuntime = async ({
         cwd,
         agentDir: nextAgentDir,
-        settingsManager: SettingsManager.create(cwd, nextAgentDir, { projectTrusted: trusted }),
-        modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
-      })
-      return {
-        ...(await createAgentSessionFromServices({
+        sessionManager,
+        sessionStartEvent,
+      }) => {
+        const trusted = isProjectTrusted(cwd, nextAgentDir)
+        const services = await createAgentSessionServices({
+          cwd,
+          agentDir: nextAgentDir,
+          settingsManager: SettingsManager.create(cwd, nextAgentDir, { projectTrusted: trusted }),
+          modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
+        })
+        return {
+          ...(await createAgentSessionFromServices({
+            services,
+            sessionManager,
+            sessionStartEvent,
+          })),
           services,
-          sessionManager,
-          sessionStartEvent,
-        })),
-        services,
-        diagnostics: services.diagnostics,
+          diagnostics: services.diagnostics,
+        }
       }
-    }
 
-    const runtime = await createAgentSessionRuntime(createRuntime, {
-      cwd: this.cwd,
-      agentDir,
-      sessionManager: SessionManager.create(this.cwd, settingsManager.getSessionDir()),
+      const live = await this.createLive(
+        SessionManager.create(this.cwd, settingsManager.getSessionDir()),
+      )
+      this.live.set(live.sessionFile, live)
+      this.active = live
     })
-
-    const errors = runtime.diagnostics.filter((item) => item.type === 'error')
-    if (errors.length > 0) {
-      await runtime.dispose()
-      throw new Error(errors.map((item) => item.message).join('\n'))
-    }
-
-    this.runtime = runtime
-    runtime.setRebindSession(() => this.bindSession())
-    try {
-      await this.bindSession()
-    } catch (error) {
-      await this.stop()
-      throw error
-    }
-
-    void runtime.session.modelRuntime
-      .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
-      .catch(() => {})
   }
 
   async stop(): Promise<void> {
-    const runtime = this.runtime
-    if (!runtime) return
-    this.unsubscribe?.()
-    this.unsubscribe = null
-    this.runtime = null
-    try {
-      await runtime.session.abort()
-    } catch {
-      // still dispose
-    }
-    await runtime.dispose()
+    return this.enqueue(async () => {
+      const sessions = [...this.live.values()]
+      this.live.clear()
+      this.active = null
+      this.createRuntime = null
+      this.agentDir = null
+      await Promise.all(sessions.map((session) => this.disposeLive(session)))
+    })
   }
 
   async prompt(message: string): Promise<void> {
-    const session = this.session
+    const live = this.requireActive()
+    const session = live.session
     await new Promise<void>((resolve, reject) => {
       let settled = false
       const succeed = () => {
@@ -133,15 +142,21 @@ export class AgentHost {
         settled = true
         reject(error instanceof Error ? error : new Error(String(error)))
       }
-      void session
-        .prompt(message, {
-          source: 'rpc',
-          preflightResult: (ok) => {
-            if (ok) succeed()
-            else fail(new Error('Prompt rejected'))
-          },
+      const run = session.prompt(message, {
+        source: 'rpc',
+        preflightResult: (ok) => {
+          if (ok) succeed()
+          else fail(new Error('Prompt rejected'))
+        },
+      })
+      live.promptRun = run
+      void run.finally(() => {
+        if (live.promptRun === run) live.promptRun = null
+        void this.enqueue(async () => {
+          await this.discardIfUnused(live)
         })
-        .catch(fail)
+      })
+      void run.catch(fail)
     })
   }
 
@@ -188,20 +203,56 @@ export class AgentHost {
   }
 
   async switchSession(sessionPath: string): Promise<{ cancelled: boolean }> {
-    return this.requireRuntime().switchSession(sessionPath)
+    return this.enqueue(async () => {
+      if (this.requireActive().sessionFile === sessionPath) return { cancelled: false }
+
+      const existing = this.live.get(sessionPath)
+      const previous = this.requireActive()
+      if (existing) {
+        this.active = existing
+        await this.discardIfUnused(previous)
+        return { cancelled: false }
+      }
+
+      const next = await this.createLive(
+        SessionManager.open(sessionPath, previous.session.sessionManager.getSessionDir(), this.cwd),
+        { type: 'session_start', reason: 'resume', previousSessionFile: previous.sessionFile },
+      )
+      this.live.set(next.sessionFile, next)
+      this.active = next
+      await this.discardIfUnused(previous)
+      return { cancelled: false }
+    })
   }
 
   async newSession(): Promise<{ cancelled: boolean }> {
-    return this.requireRuntime().newSession()
+    return this.enqueue(async () => {
+      const previous = this.requireActive()
+      if (!previous.promptRun && previous.session.messages.length === 0) {
+        return { cancelled: false }
+      }
+      const next = await this.createLive(
+        SessionManager.create(this.cwd, previous.session.sessionManager.getSessionDir()),
+        {
+          type: 'session_start',
+          reason: 'new',
+          previousSessionFile: previous.sessionFile,
+        },
+      )
+      this.live.set(next.sessionFile, next)
+      this.active = next
+      await this.discardIfUnused(previous)
+      return { cancelled: false }
+    })
   }
 
   private get session(): AgentSession {
-    return this.requireRuntime().session
+    return this.requireActive().session
   }
 
-  private requireRuntime(): AgentSessionRuntime {
-    if (!this.runtime) throw new Error('Not connected to pi')
-    return this.runtime
+  private requireActive(): LiveSession {
+    if (!this.active) throw new Error('No active session')
+    return this.active
   }
 
   private getModelSelection(): ModelSelection {
@@ -213,31 +264,95 @@ export class AgentHost {
     }
   }
 
-  private async bindSession(): Promise<void> {
-    const runtime = this.requireRuntime()
-    const session = runtime.session
-    this.unsubscribe?.()
+  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
+    const run = this.op.then(fn, fn)
+    this.op = run.then(
+      () => undefined,
+      () => undefined,
+    )
+    return run
+  }
+
+  private async createLive(
+    sessionManager: SessionManager,
+    sessionStartEvent?: SessionStartEvent,
+  ): Promise<LiveSession> {
+    const createRuntime = this.createRuntime
+    const agentDir = this.agentDir
+    if (!createRuntime || !agentDir) throw new Error('Agent is not started')
+
+    const runtime = await createAgentSessionRuntime(createRuntime, {
+      cwd: this.cwd,
+      agentDir,
+      sessionManager,
+      sessionStartEvent,
+    })
+
+    const errors = runtime.diagnostics.filter((item) => item.type === 'error')
+    if (errors.length > 0) {
+      await runtime.dispose()
+      throw new Error(errors.map((item) => item.message).join('\n'))
+    }
+
+    const live = new LiveSession(runtime)
+    try {
+      await this.bindSession(live)
+    } catch (error) {
+      await runtime.dispose()
+      throw error
+    }
+
+    void runtime.session.modelRuntime
+      .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+      .catch(() => {})
+
+    return live
+  }
+
+  private async discardIfUnused(live: LiveSession): Promise<void> {
+    if (live === this.active) return
+    if (live.promptRun) return
+    if (this.live.get(live.sessionFile) !== live) return
+    this.live.delete(live.sessionFile)
+    await this.disposeLive(live)
+  }
+
+  private async disposeLive(live: LiveSession): Promise<void> {
+    live.unsubscribe?.()
+    live.unsubscribe = null
+    try {
+      await live.runtime.session.abort()
+    } catch {
+      // still dispose
+    }
+    await live.runtime.dispose()
+  }
+
+  private async bindSession(live: LiveSession): Promise<void> {
+    const session = live.session
+    live.unsubscribe?.()
     await session.bindExtensions({
       mode: 'rpc',
       commandContextActions: {
         waitForIdle: () => session.waitForIdle(),
-        newSession: (options) => runtime.newSession(options),
+        newSession: () => this.newSession(),
         fork: async (entryId, options) => {
-          const result = await runtime.fork(entryId, options)
+          const result = await live.runtime.fork(entryId, options)
           return { cancelled: result.cancelled }
         },
         navigateTree: async (targetId, options) => {
           const result = await session.navigateTree(targetId, options)
           return { cancelled: result.cancelled }
         },
-        switchSession: (sessionPath, options) => runtime.switchSession(sessionPath, options),
+        switchSession: (sessionPath) => this.switchSession(sessionPath),
         reload: () => session.reload(),
       },
     })
-    this.unsubscribe = session.subscribe((event) => {
-      const mapped = toSessionEvent(event)
-      if (!mapped) return
-      for (const listener of this.listeners) listener(mapped)
+    live.unsubscribe = session.subscribe((event) => {
+      const mapped = toSessionEvent(event, live.sessionFile)
+      if (mapped) {
+        for (const listener of this.listeners) listener(mapped)
+      }
     })
   }
 }

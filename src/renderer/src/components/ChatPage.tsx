@@ -15,8 +15,9 @@ export function ChatPage() {
   const leave = useSession((state) => state.leave)
   const newSession = useSession((state) => state.newSession)
   const isStreaming = useChat((state) => state.isStreaming)
+  const hasMessages = useChat((state) => state.messages.length > 0)
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const canCreate = connection === 'ready' && !isStreaming
+  const canCreate = connection === 'ready' && (isStreaming || hasMessages)
 
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">

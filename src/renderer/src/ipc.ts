@@ -1,14 +1,32 @@
-import { applySessionEvent } from '@/chat/state'
+import { applyIncomingEvent, chatCache } from '@/session/events'
 import { useChat } from '@/chat/store'
 import { useSession } from '@/session/store'
 import type { SessionEvent } from '@shared/protocol'
 
 let bound = false
-let pendingUpdate: SessionEvent | null = null
+const pendingUpdates = new Map<string, SessionEvent>()
 let raf = 0
 
-function apply(event: SessionEvent): void {
-  useChat.setState((state) => applySessionEvent(state, event))
+function dispatch(event: SessionEvent): void {
+  const next = applyIncomingEvent(event, {
+    activeFile: useSession.getState().sessionFile,
+    running: useSession.getState().runningSessionFiles,
+    activeChat: useChat.getState(),
+    cache: chatCache,
+  })
+  if (next.running !== useSession.getState().runningSessionFiles) {
+    useSession.setState({ runningSessionFiles: next.running })
+  }
+  if (next.activeChat !== useChat.getState()) {
+    useChat.setState(next.activeChat)
+  }
+}
+
+function flushPending(sessionFile: string): void {
+  const queued = pendingUpdates.get(sessionFile)
+  if (!queued) return
+  pendingUpdates.delete(sessionFile)
+  dispatch(queued)
 }
 
 export function bindIpc(): void {
@@ -17,23 +35,19 @@ export function bindIpc(): void {
 
   window.pi.onEvent((event) => {
     if (event.type === 'message_update') {
-      pendingUpdate = event
+      pendingUpdates.set(event.sessionFile, event)
       if (!raf) {
         raf = requestAnimationFrame(() => {
           raf = 0
-          const queued = pendingUpdate
-          pendingUpdate = null
-          if (queued) apply(queued)
+          const queued = [...pendingUpdates.values()]
+          pendingUpdates.clear()
+          for (const item of queued) dispatch(item)
         })
       }
       return
     }
-    if (pendingUpdate) {
-      const queued = pendingUpdate
-      pendingUpdate = null
-      apply(queued)
-    }
-    apply(event)
+    flushPending(event.sessionFile)
+    dispatch(event)
   })
 
   window.pi.onStatus((status, error) => {

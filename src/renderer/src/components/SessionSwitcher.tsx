@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { History } from 'lucide-react'
 import type { SessionListItem } from '@shared/protocol'
-import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import {
   CommandDialog,
   CommandEmpty,
@@ -20,10 +20,10 @@ export function SessionSwitcher() {
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const sessionFile = useSession((state) => state.sessionFile)
   const connection = useSession((state) => state.connection)
+  const runningSessionFiles = useSession((state) => state.runningSessionFiles)
   const listSessions = useSession((state) => state.listSessions)
   const switchSession = useSession((state) => state.switchSession)
-  const isStreaming = useChat((state) => state.isStreaming)
-  const canSwitch = connection === 'ready' && !isStreaming
+  const canSwitch = connection === 'ready'
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
@@ -84,6 +84,7 @@ export function SessionSwitcher() {
                   {groupItems.map((item) => {
                     const title = sessionTitle(item)
                     const current = item.path === sessionFile
+                    const running = runningSessionFiles.includes(item.path)
                     return (
                       <CommandItem
                         key={item.path}
@@ -97,12 +98,16 @@ export function SessionSwitcher() {
                           void switchSession(item.path).then(() => setOpen(false))
                         }}
                       >
-                        <span
-                          className={cn(
-                            'size-1.5 shrink-0 rounded-full',
-                            current ? 'bg-foreground' : 'bg-muted-foreground/55',
-                          )}
-                        />
+                        {running ? (
+                          <Spinner className="size-3" aria-label="Running" />
+                        ) : (
+                          <span
+                            className={cn(
+                              'size-1.5 shrink-0 rounded-full',
+                              current ? 'bg-foreground' : 'bg-muted-foreground/55',
+                            )}
+                          />
+                        )}
                         <span className="min-w-0 flex-1 truncate text-muted-foreground group-data-selected/command-item:text-foreground">
                           {title}
                         </span>

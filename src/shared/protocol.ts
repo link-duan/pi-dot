@@ -111,9 +111,9 @@ export type AgentMessage =
   | ToolResultMessage
   | CompactionSummaryMessage
 
-export type SessionEvent =
+export type SessionEventBody =
   | { type: 'agent_start' }
-  | { type: 'agent_end' }
+  | { type: 'agent_end'; willRetry?: boolean }
   | { type: 'message_start'; message: AgentMessage }
   | { type: 'message_update'; message: AgentMessage }
   | { type: 'message_end'; message: AgentMessage }
@@ -133,6 +133,8 @@ export type SessionEvent =
       isError?: boolean
     }
 
+export type SessionEvent = SessionEventBody & { sessionFile: string }
+
 export interface SessionSnapshot {
   cwd: string
   state: SessionState
@@ -148,6 +150,7 @@ export interface SessionListItem {
   name?: string
   firstMessage?: string
   messageCount: number
+  running?: boolean
 }
 
 const MESSAGE_ROLES = new Set<string>(['user', 'assistant', 'toolResult', 'compactionSummary'])

@@ -6,14 +6,17 @@ import appIcon from '../../resources/icon-dock.png?asset'
 import { applyAgentEnv } from './agent-env'
 import { AgentHost } from './agent-host'
 import { readLastCwd, writeLastCwd } from './last-cwd'
-import { listProjectSessions } from './sessions'
+import { listProjectSessions, withRunning } from './sessions'
 
 if (!app.isPackaged) {
   app.commandLine.appendSwitch('remote-debugging-port', '9222')
 }
 
 let window: BrowserWindow | null = null
-let client: AgentHost | null = null
+let host: AgentHost | null = null
+let allowClose = false
+let isQuitting = false
+let confirming = false
 
 function sendStatus(status: ConnectionStatus, error?: string): void {
   window?.webContents.send(IPC.status, status, error)
@@ -23,12 +26,48 @@ function sendEvent(event: unknown): void {
   window?.webContents.send(IPC.event, event)
 }
 
-async function stopClient(): Promise<void> {
-  const current = client
-  client = null
+async function stopHost(): Promise<void> {
+  const current = host
+  host = null
   if (current) {
     await current.stop()
   }
+}
+
+function runningCount(): number {
+  return host?.runningSessionFiles().length ?? 0
+}
+
+async function confirmStopRunning(kind: 'close' | 'quit'): Promise<boolean> {
+  const count = runningCount()
+  if (count === 0) return true
+  const owner = window
+  if (!owner) return true
+  const result = await dialog.showMessageBox(owner, {
+    type: 'warning',
+    buttons: ['Cancel', kind === 'quit' ? 'Stop and quit' : 'Stop and close'],
+    defaultId: 0,
+    cancelId: 0,
+    message: count === 1 ? 'A session is still running.' : `${count} sessions are still running.`,
+    detail: 'Closing now will stop running work.',
+  })
+  return result.response === 1
+}
+
+function confirmThen(kind: 'close' | 'quit', proceed: () => Promise<void>): void {
+  if (confirming) return
+  confirming = true
+  void (async () => {
+    try {
+      if (!(await confirmStopRunning(kind))) return
+      allowClose = true
+      if (kind === 'quit') isQuitting = true
+      await stopHost()
+      await proceed()
+    } finally {
+      confirming = false
+    }
+  })()
 }
 
 function windowBackground(): string {
@@ -60,14 +99,14 @@ function installMenu(): void {
   )
 }
 
-async function snapshotOf(next: AgentHost): Promise<SessionSnapshot> {
-  const [state, messages, models, thinkingLevels] = await Promise.all([
-    next.getState(),
-    next.getMessages(),
-    next.getAvailableModels(),
-    next.getAvailableThinkingLevels(),
-  ])
-  return { cwd: next.cwd, state, messages, models, thinkingLevels }
+function snapshotOf(next: AgentHost): SessionSnapshot {
+  return {
+    cwd: next.cwd,
+    state: next.getState(),
+    messages: next.getMessages(),
+    models: next.getAvailableModels(),
+    thinkingLevels: next.getAvailableThinkingLevels(),
+  }
 }
 
 function createWindow(): void {
@@ -93,6 +132,18 @@ function createWindow(): void {
   })
 
   window.on('ready-to-show', () => window?.show())
+  window.on('close', (event) => {
+    if (allowClose || isQuitting) return
+    if (runningCount() === 0) return
+    event.preventDefault()
+    confirmThen('close', async () => {
+      window?.close()
+    })
+  })
+  window.on('closed', () => {
+    window = null
+    if (!isQuitting) allowClose = false
+  })
   window.webContents.setWindowOpenHandler((details) => {
     void shell.openExternal(details.url)
     return { action: 'deny' }
@@ -117,14 +168,14 @@ function registerIpc(): void {
   ipcMain.handle(IPC.getLastCwd, () => readLastCwd())
 
   ipcMain.handle(IPC.start, async (_event, cwd: string): Promise<SessionSnapshot> => {
-    await stopClient()
+    await stopHost()
     sendStatus('connecting')
     const next = new AgentHost(cwd)
     next.onEvent((event) => sendEvent(event))
     try {
       await next.start()
-      const snapshot = await snapshotOf(next)
-      client = next
+      const snapshot = snapshotOf(next)
+      host = next
       writeLastCwd(cwd)
       window?.setTitle(`pi — ${cwd}`)
       sendStatus('ready')
@@ -138,47 +189,49 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.stop, async () => {
-    await stopClient()
+    await stopHost()
     sendStatus('disconnected')
   })
 
   ipcMain.handle(IPC.prompt, async (_event, text: string) => {
-    if (!client) throw new Error('Not connected to pi')
-    await client.prompt(text)
+    if (!host) throw new Error('No active session')
+    await host.prompt(text)
   })
 
   ipcMain.handle(IPC.abort, async () => {
-    if (!client) return
-    await client.abort()
+    if (!host) return
+    await host.abort()
   })
 
   ipcMain.handle(IPC.setModel, async (_event, provider: string, modelId: string) => {
-    if (!client) throw new Error('Not connected to pi')
-    return client.setModel(provider, modelId)
+    if (!host) throw new Error('No active session')
+    return host.setModel(provider, modelId)
   })
 
   ipcMain.handle(IPC.setThinkingLevel, async (_event, level: ThinkingLevel) => {
-    if (!client) throw new Error('Not connected to pi')
-    return client.setThinkingLevel(level)
+    if (!host) throw new Error('No active session')
+    return host.setThinkingLevel(level)
   })
 
   ipcMain.handle(IPC.listSessions, async (_event, cwd: string) => {
     if (typeof cwd !== 'string' || !cwd) return []
-    return listProjectSessions(cwd)
+    const items = await listProjectSessions(cwd)
+    if (!host || host.cwd !== cwd) return items
+    return withRunning(items, host.runningSessionFiles())
   })
 
   ipcMain.handle(IPC.switchSession, async (_event, sessionPath: string) => {
-    if (!client) throw new Error('Not connected to pi')
-    const { cancelled } = await client.switchSession(sessionPath)
+    if (!host) throw new Error('No active session')
+    const { cancelled } = await host.switchSession(sessionPath)
     if (cancelled) throw new Error('Session switch cancelled')
-    return snapshotOf(client)
+    return snapshotOf(host)
   })
 
   ipcMain.handle(IPC.newSession, async () => {
-    if (!client) throw new Error('Not connected to pi')
-    const { cancelled } = await client.newSession()
+    if (!host) throw new Error('No active session')
+    const { cancelled } = await host.newSession()
     if (cancelled) throw new Error('New session cancelled')
-    return snapshotOf(client)
+    return snapshotOf(host)
   })
 
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
@@ -209,6 +262,16 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', () => {
-  void stopClient()
+app.on('before-quit', (event) => {
+  if (isQuitting) return
+  event.preventDefault()
+  if (runningCount() > 0) {
+    confirmThen('quit', async () => {
+      app.quit()
+    })
+    return
+  }
+  isQuitting = true
+  allowClose = true
+  void stopHost().then(() => app.quit())
 })

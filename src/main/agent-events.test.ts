@@ -8,11 +8,27 @@ const assistant = {
   timestamp: 1,
 }
 
+const sessionFile = '/tmp/sess.jsonl'
+
 describe('toSessionEvent', () => {
-  it('forwards lifecycle events without extra fields', () => {
-    expect(toSessionEvent({ type: 'agent_start' })).toEqual({ type: 'agent_start' })
-    expect(toSessionEvent({ type: 'agent_end', messages: [], willRetry: false })).toEqual({
+  it('forwards lifecycle events with the session file', () => {
+    expect(toSessionEvent({ type: 'agent_start' }, sessionFile)).toEqual({
+      type: 'agent_start',
+      sessionFile,
+    })
+    expect(
+      toSessionEvent({ type: 'agent_end', messages: [], willRetry: false }, sessionFile),
+    ).toEqual({
       type: 'agent_end',
+      sessionFile,
+      willRetry: false,
+    })
+    expect(
+      toSessionEvent({ type: 'agent_end', messages: [], willRetry: true }, sessionFile),
+    ).toEqual({
+      type: 'agent_end',
+      sessionFile,
+      willRetry: true,
     })
   })
 
@@ -22,30 +38,41 @@ describe('toSessionEvent', () => {
       message: assistant,
       assistantMessageEvent: { type: 'text_delta', contentIndex: 0, delta: 'o' },
     } as AgentSessionEvent
-    expect(toSessionEvent(event)).toEqual({ type: 'message_update', message: assistant })
+    expect(toSessionEvent(event, sessionFile)).toEqual({
+      type: 'message_update',
+      message: assistant,
+      sessionFile,
+    })
   })
 
   it('drops unknown roles and non-UI events', () => {
     expect(
-      toSessionEvent({
-        type: 'message_end',
-        message: { role: 'bashExecution', command: 'ls', timestamp: 1 },
-      } as AgentSessionEvent),
+      toSessionEvent(
+        {
+          type: 'message_end',
+          message: { role: 'bashExecution', command: 'ls', timestamp: 1 },
+        } as AgentSessionEvent,
+        sessionFile,
+      ),
     ).toBeNull()
-    expect(toSessionEvent({ type: 'turn_start' })).toBeNull()
-    expect(toSessionEvent({ type: 'agent_settled' })).toBeNull()
+    expect(toSessionEvent({ type: 'turn_start' }, sessionFile)).toBeNull()
+    expect(toSessionEvent({ type: 'agent_settled' }, sessionFile)).toBeNull()
   })
 
   it('forwards tool execution by toolCallId', () => {
     expect(
-      toSessionEvent({
-        type: 'tool_execution_start',
-        toolCallId: 'call_1',
-        toolName: 'bash',
-        args: { command: 'ls' },
-      }),
+      toSessionEvent(
+        {
+          type: 'tool_execution_start',
+          toolCallId: 'call_1',
+          toolName: 'bash',
+          args: { command: 'ls' },
+        },
+        sessionFile,
+      ),
     ).toEqual({
       type: 'tool_execution_start',
+      sessionFile,
       toolCallId: 'call_1',
       toolName: 'bash',
       args: { command: 'ls' },
