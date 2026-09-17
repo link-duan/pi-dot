@@ -13,6 +13,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
   const messages = useChat((state) => state.messages)
   const toolLive = useChat((state) => state.toolLive)
   const isStreaming = useChat((state) => state.isStreaming)
+  const assistantStreaming = useChat((state) => state.assistantStreaming)
   const stickToBottom = useRef(true)
   const hasMessages = messages.length > 0
 
@@ -43,7 +44,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
               key={messageKey(message, index)}
               message={message}
               toolLive={toolLive}
-              streaming={isStreaming && index === lastAssistantIndex(messages)}
+              streaming={assistantStreaming && index === lastAssistantIndex(messages)}
             />
           ))}
         </div>
@@ -120,45 +121,26 @@ function AssistantRow({
   toolLive: Record<string, ToolLiveState>
   streaming: boolean
 }) {
-  const lastTextIndex = message.content.reduce(
-    (last, block, index) => (block.type === 'text' ? index : last),
-    -1,
-  )
-
   return (
     <div className="flex flex-col select-text">
       {message.content.map((block, contentIndex) => {
         if (block.type === 'thinking') {
           const thinking = block.thinking
-          if (!thinking?.trim()) return null
           const inProgress = streaming && contentIndex === message.content.length - 1
+          if (!thinking?.trim() && !inProgress) return null
           return (
-            <ActivityRow
+            <ThinkingRow
               key={`thinking-${message.timestamp}-${contentIndex}`}
-              icon={Brain}
-              label={inProgress ? 'Thinking' : 'Thought'}
-              summary={thinkingSummary(thinking)}
-            >
-              <div className="max-h-80 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
-                {thinking}
-              </div>
-            </ActivityRow>
+              thinking={thinking}
+              inProgress={inProgress}
+            />
           )
         }
         if (block.type === 'text') {
           const text = block.text
           if (!text?.trim()) return null
-          const key = `text-${message.timestamp}-${contentIndex}`
-          if (streaming && contentIndex === lastTextIndex) {
-            return (
-              <div key={key} className="py-1.5 text-[14px] leading-relaxed whitespace-pre-wrap">
-                {text}
-                <span className="ml-1 inline-block h-3.5 w-1.5 animate-pulse rounded-xs bg-foreground/70 align-middle" />
-              </div>
-            )
-          }
           return (
-            <div key={key} className="py-1.5">
+            <div key={`text-${message.timestamp}-${contentIndex}`} className="py-1.5">
               <MarkdownBody text={text} />
             </div>
           )
@@ -170,6 +152,7 @@ function AssistantRow({
               name={block.name}
               args={block.arguments}
               live={toolLive[block.id]}
+              pending={streaming && contentIndex === message.content.length - 1}
             />
           )
         }
@@ -181,5 +164,33 @@ function AssistantRow({
         </div>
       ) : null}
     </div>
+  )
+}
+
+function ThinkingRow({ thinking, inProgress }: { thinking: string; inProgress: boolean }) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!inProgress) return
+    const node = bodyRef.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [inProgress, thinking])
+
+  return (
+    <ActivityRow
+      icon={Brain}
+      label={inProgress ? 'Thinking' : 'Thought'}
+      summary={thinkingSummary(thinking)}
+      running={inProgress}
+    >
+      {thinking.trim() ? (
+        <div
+          ref={bodyRef}
+          className="max-h-80 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground"
+        >
+          {thinking}
+        </div>
+      ) : null}
+    </ActivityRow>
   )
 }

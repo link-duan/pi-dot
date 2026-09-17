@@ -18,12 +18,15 @@ export function ActivityRow({
   error?: boolean
   children?: ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [userOpen, setUserOpen] = useState<boolean | null>(null)
+  const [autoOpened, setAutoOpened] = useState(false)
   const expandable = Boolean(children)
+  if (running && expandable && !autoOpened) setAutoOpened(true)
+  const open = userOpen ?? (autoOpened || Boolean(running && expandable))
 
   const iconSlot = (
     <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
-      {open ? (
+      {open && !running ? (
         <ChevronRight className="size-3.5 rotate-90" />
       ) : (
         <>
@@ -42,7 +45,12 @@ export function ActivityRow({
             )}
           </span>
           {expandable ? (
-            <ChevronRight className="pointer-events-none invisible absolute inset-0 m-auto size-3.5 group-hover/row:visible" />
+            <ChevronRight
+              className={cn(
+                'pointer-events-none invisible absolute inset-0 m-auto size-3.5 group-hover/row:visible',
+                open && 'rotate-90',
+              )}
+            />
           ) : null}
         </>
       )}
@@ -69,7 +77,7 @@ export function ActivityRow({
         <button
           type="button"
           aria-expanded={open}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => setUserOpen(!open)}
           className="group/row inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left text-[13px] leading-4 select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
         >
           {iconSlot}

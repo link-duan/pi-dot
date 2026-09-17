@@ -19,14 +19,20 @@ export interface ChatState {
   messages: AgentMessage[]
   toolLive: Record<string, ToolLiveState>
   isStreaming: boolean
+  assistantStreaming: boolean
 }
 
 export function createChatState(): ChatState {
-  return { messages: [], toolLive: {}, isStreaming: false }
+  return { messages: [], toolLive: {}, isStreaming: false, assistantStreaming: false }
 }
 
 export function hydrateMessages(messages: unknown[]): ChatState {
-  return { messages: messages.filter(isAgentMessage), toolLive: {}, isStreaming: false }
+  return {
+    messages: messages.filter(isAgentMessage),
+    toolLive: {},
+    isStreaming: false,
+    assistantStreaming: false,
+  }
 }
 
 function replaceLastWithRole(messages: AgentMessage[], message: AgentMessage): AgentMessage[] {
@@ -54,17 +60,29 @@ export function applySessionEvent(state: ChatState, event: SessionEvent): ChatSt
       return { ...state, isStreaming: true }
 
     case 'agent_end':
-      return { ...state, isStreaming: false }
+      return { ...state, isStreaming: false, assistantStreaming: false }
 
     case 'message_start': {
       if (!event.message?.role) return state
-      return { ...state, messages: [...state.messages, event.message] }
+      return {
+        ...state,
+        messages: [...state.messages, event.message],
+        assistantStreaming: event.message.role === 'assistant' ? true : state.assistantStreaming,
+      }
     }
 
-    case 'message_update':
-    case 'message_end': {
+    case 'message_update': {
       if (!event.message?.role) return state
       return { ...state, messages: replaceLastWithRole(state.messages, event.message) }
+    }
+
+    case 'message_end': {
+      if (!event.message?.role) return state
+      return {
+        ...state,
+        messages: replaceLastWithRole(state.messages, event.message),
+        assistantStreaming: event.message.role === 'assistant' ? false : state.assistantStreaming,
+      }
     }
 
     case 'tool_execution_start': {

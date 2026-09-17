@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { ToolLiveState } from '@/chat/state'
 import {
   FilePenLine,
@@ -48,13 +49,16 @@ export function ToolCard({
   name,
   args,
   live,
+  pending,
 }: {
   name: string
   args: unknown
   live?: ToolLiveState
+  pending?: boolean
 }) {
   const cwd = useSession((state) => state.cwd)
-  const running = live?.status === 'running'
+  const resultRef = useRef<HTMLPreElement>(null)
+  const running = live?.status === 'running' || (pending && live?.status !== 'done')
   const result = live?.result ?? live?.partialResult
   const resultText = asText(result)
   const error = Boolean(live?.isError)
@@ -62,6 +66,12 @@ export function ToolCard({
   const argsText = prettyJson(payload)
   const hasArgs = Boolean(argsText) && argsText !== '{}' && argsText !== 'null'
   const hasDetails = hasArgs || Boolean(resultText)
+
+  useEffect(() => {
+    if (!running) return
+    const node = resultRef.current
+    if (node) node.scrollTop = node.scrollHeight
+  }, [running, resultText])
 
   return (
     <ActivityRow
@@ -80,6 +90,7 @@ export function ToolCard({
           ) : null}
           {resultText ? (
             <pre
+              ref={resultRef}
               className={`mt-2 max-h-64 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap ${
                 error ? 'text-destructive' : 'text-muted-foreground'
               }`}
