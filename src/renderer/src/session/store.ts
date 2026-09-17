@@ -30,6 +30,7 @@ interface SessionStore {
   setThinkingLevel: (level: ThinkingLevel) => Promise<void>
   listSessions: () => Promise<SessionListItem[]>
   switchSession: (sessionPath: string) => Promise<void>
+  newSession: () => Promise<void>
 }
 
 function selectionPatch(selection: ModelSelection) {
@@ -157,6 +158,16 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (get().sessionFile === sessionPath) return
     try {
       const snapshot = await window.pi.switchSession(sessionPath)
+      set(snapshotPatch(snapshot))
+      useChat.setState(hydrateMessages(snapshot.messages))
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+
+  newSession: async () => {
+    try {
+      const snapshot = await window.pi.newSession()
       set(snapshotPatch(snapshot))
       useChat.setState(hydrateMessages(snapshot.messages))
     } catch (error) {

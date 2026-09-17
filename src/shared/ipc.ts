@@ -9,6 +9,7 @@ export const IPC = {
   setThinkingLevel: 'pi:setThinkingLevel',
   listSessions: 'pi:listSessions',
   switchSession: 'pi:switchSession',
+  newSession: 'pi:newSession',
   openExternal: 'pi:openExternal',
   event: 'pi:event',
   status: 'pi:status',

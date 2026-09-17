@@ -1,5 +1,8 @@
 import { useRef } from 'react'
+import { Plus } from 'lucide-react'
+import { useChat } from '@/chat/store'
 import { useSession } from '@/session/store'
+import { Button } from '@/components/ui/button'
 import { Composer } from './Composer'
 import { SessionSwitcher } from './SessionSwitcher'
 import { Transcript } from './Transcript'
@@ -10,7 +13,10 @@ export function ChatPage() {
   const error = useSession((state) => state.error)
   const openCwd = useSession((state) => state.openCwd)
   const leave = useSession((state) => state.leave)
+  const newSession = useSession((state) => state.newSession)
+  const isStreaming = useChat((state) => state.isStreaming)
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const canCreate = connection === 'ready' && !isStreaming
 
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
@@ -24,6 +30,18 @@ export function ChatPage() {
         />
         <div className="app-no-drag flex items-center pr-2">
           <SessionSwitcher />
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="app-no-drag text-muted-foreground"
+            aria-label="New session"
+            title="New session"
+            disabled={!canCreate}
+            onClick={() => void newSession()}
+          >
+            <Plus />
+          </Button>
         </div>
       </div>
 

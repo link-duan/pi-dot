@@ -19,6 +19,7 @@ export interface PiApi {
   setThinkingLevel(level: ThinkingLevel): Promise<ModelSelection>
   listSessions(cwd: string): Promise<SessionListItem[]>
   switchSession(sessionPath: string): Promise<SessionSnapshot>
+  newSession(): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void

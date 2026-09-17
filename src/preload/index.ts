@@ -25,6 +25,7 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.listSessions, cwd) as Promise<SessionListItem[]>,
   switchSession: (sessionPath: string) =>
     ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
+  newSession: () => ipcRenderer.invoke(IPC.newSession) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
   onEvent: (cb: (event: SessionEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SessionEvent) => cb(payload)

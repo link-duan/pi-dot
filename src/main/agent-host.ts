@@ -191,6 +191,10 @@ export class AgentHost {
     return this.requireRuntime().switchSession(sessionPath)
   }
 
+  async newSession(): Promise<{ cancelled: boolean }> {
+    return this.requireRuntime().newSession()
+  }
+
   private get session(): AgentSession {
     return this.requireRuntime().session
   }

@@ -174,6 +174,13 @@ function registerIpc(): void {
     return snapshotOf(client)
   })
 
+  ipcMain.handle(IPC.newSession, async () => {
+    if (!client) throw new Error('Not connected to pi')
+    const { cancelled } = await client.newSession()
+    if (cancelled) throw new Error('New session cancelled')
+    return snapshotOf(client)
+  })
+
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return
     await shell.openExternal(url)
