@@ -182,6 +182,7 @@ function ThinkingRow({ thinking, inProgress }: { thinking: string; inProgress: b
       label={inProgress ? 'Thinking' : 'Thought'}
       summary={thinkingSummary(thinking)}
       running={inProgress}
+      defaultOpen
     >
       {thinking.trim() ? (
         <div
