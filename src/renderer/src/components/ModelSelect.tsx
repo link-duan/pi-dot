@@ -1,6 +1,11 @@
 import { useMemo, useState } from "react";
 import { ChevronDownIcon } from "lucide-react";
-import { isThinkingLevel, THINKING_LEVEL_LABELS, type ModelInfo, type ThinkingLevel } from "@shared/protocol";
+import {
+  isThinkingLevel,
+  THINKING_LEVEL_LABELS,
+  type ModelInfo,
+  type ThinkingLevel,
+} from "@shared/protocol";
 import { useChat } from "@/chat/store";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -38,7 +43,9 @@ export function ModelSelect() {
   const filteredModels = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return models;
-    return models.filter((item) => `${item.provider} ${item.name} ${item.id}`.toLowerCase().includes(needle));
+    return models.filter((item) =>
+      `${item.provider} ${item.name} ${item.id}`.toLowerCase().includes(needle),
+    );
   }, [models, query]);
 
   return (
@@ -53,12 +60,18 @@ export function ModelSelect() {
         disabled={disabled}
         className={cn(
           buttonVariants({ variant: "ghost", size: "sm" }),
-          "h-7 max-w-64 gap-2 px-2 text-[11.5px] text-muted-foreground transition-colors duration-150",
+          "h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150",
           "disabled:opacity-40",
         )}
       >
-        <span className="min-w-0 truncate text-foreground">{model?.name ?? "Select model"}</span>
-        {model ? <span className="shrink-0 text-muted-foreground">{THINKING_LEVEL_LABELS[thinkingLevel]}</span> : null}
+        <span className="min-w-0 truncate text-muted-foreground capitalize">
+          {model?.name ?? "Select model"}
+        </span>
+        {model ? (
+          <span className="shrink-0 text-muted-foreground">
+            {THINKING_LEVEL_LABELS[thinkingLevel]}
+          </span>
+        ) : null}
         <ChevronDownIcon className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="end" className="w-48" sideOffset={6}>
@@ -105,14 +118,17 @@ export function ModelSelect() {
                 className="h-8 text-sm"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter") return;
+                  if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter")
+                    return;
                   event.stopPropagation();
                 }}
               />
             </div>
-            <div className="scroll-fade max-h-[min(calc(20rem-2.5rem),calc(var(--available-height)-2.5rem))] overflow-y-auto overscroll-contain p-1">
+            <div className="max-h-[min(calc(20rem-2.5rem),calc(var(--available-height)-2.5rem))] scroll-fade overflow-y-auto overscroll-contain p-1">
               {filteredModels.length === 0 ? (
-                <div className="px-2 py-3 text-center text-sm text-muted-foreground">No matching models</div>
+                <div className="px-2 py-3 text-center text-sm text-muted-foreground">
+                  No matching models
+                </div>
               ) : (
                 <DropdownMenuRadioGroup
                   value={model ? modelKey(model) : ""}
@@ -122,10 +138,16 @@ export function ModelSelect() {
                   }}
                 >
                   {filteredModels.map((item) => (
-                    <DropdownMenuRadioItem key={modelKey(item)} value={modelKey(item)} className="py-1.5">
+                    <DropdownMenuRadioItem
+                      key={modelKey(item)}
+                      value={modelKey(item)}
+                      className="py-1.5"
+                    >
                       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="truncate text-sm">{item.name}</span>
-                        <span className="truncate text-xs text-muted-foreground">{item.provider}</span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {item.provider}
+                        </span>
                       </div>
                     </DropdownMenuRadioItem>
                   ))}
