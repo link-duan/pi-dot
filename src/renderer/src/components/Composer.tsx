@@ -1,41 +1,41 @@
-import { ArrowUp, Folder, Square } from "lucide-react";
-import { useRef, useState, type RefObject } from "react";
-import { useChat } from "@/chat/store";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { folderName } from "@/lib/path";
-import { useSession } from "@/session/store";
-import { ModelSelect } from "./ModelSelect";
+import { ArrowUp, Folder, Square } from 'lucide-react'
+import { useRef, useState, type RefObject } from 'react'
+import { useChat } from '@/chat/store'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { folderName } from '@/lib/path'
+import { useSession } from '@/session/store'
+import { ModelSelect } from './ModelSelect'
 
 export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
-  const [text, setText] = useState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const cwd = useSession((state) => state.cwd);
-  const connection = useSession((state) => state.connection);
-  const send = useSession((state) => state.send);
-  const abort = useSession((state) => state.abort);
-  const openFolder = useSession((state) => state.openFolder);
-  const isStreaming = useChat((state) => state.isStreaming);
+  const [text, setText] = useState('')
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const cwd = useSession((state) => state.cwd)
+  const connection = useSession((state) => state.connection)
+  const send = useSession((state) => state.send)
+  const abort = useSession((state) => state.abort)
+  const openFolder = useSession((state) => state.openFolder)
+  const isStreaming = useChat((state) => state.isStreaming)
 
-  const canSend = connection === "ready" && text.trim().length > 0 && !isStreaming;
+  const canSend = connection === 'ready' && text.trim().length > 0 && !isStreaming
 
   function submit() {
-    const next = text.trim();
-    if (!next || isStreaming || connection !== "ready") return;
-    setText("");
-    void send(next);
+    const next = text.trim()
+    if (!next || isStreaming || connection !== 'ready') return
+    setText('')
+    void send(next)
   }
 
   return (
     <form
       className="relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3"
       onSubmit={(event) => {
-        event.preventDefault();
-        submit();
+        event.preventDefault()
+        submit()
       }}
       onWheel={(event) => {
-        if (event.target !== event.currentTarget) return;
-        scrollerRef.current?.scrollBy({ top: event.deltaY });
+        if (event.target !== event.currentTarget) return
+        scrollerRef.current?.scrollBy({ top: event.deltaY })
       }}
     >
       <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
@@ -48,12 +48,12 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
           value={text}
           rows={1}
           placeholder="Message..."
-          className="scroll-fade field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault();
-              submit();
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault()
+              submit()
             }
           }}
         />
@@ -113,5 +113,5 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
         </div>
       </div>
     </form>
-  );
+  )
 }

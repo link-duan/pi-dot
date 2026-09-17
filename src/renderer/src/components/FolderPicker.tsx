@@ -1,17 +1,17 @@
-import { ArrowRight, CornerDownLeft, Folder, FolderOpen } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { folderName } from "@/lib/path";
-import { useSession } from "@/session/store";
-import { PiLogo } from "./PiIcon";
+import { ArrowRight, CornerDownLeft, Folder, FolderOpen } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
+import { folderName } from '@/lib/path'
+import { useSession } from '@/session/store'
+import { PiLogo } from './PiIcon'
 
 export function FolderPicker() {
-  const lastCwd = useSession((state) => state.lastCwd);
-  const connection = useSession((state) => state.connection);
-  const error = useSession((state) => state.error);
-  const openFolder = useSession((state) => state.openFolder);
-  const openCwd = useSession((state) => state.openCwd);
-  const busy = connection === "connecting";
+  const lastCwd = useSession((state) => state.lastCwd)
+  const connection = useSession((state) => state.connection)
+  const error = useSession((state) => state.error)
+  const openFolder = useSession((state) => state.openFolder)
+  const openCwd = useSession((state) => state.openCwd)
+  const busy = connection === 'connecting'
 
   return (
     <main className="flex h-full flex-col bg-background text-foreground select-none">
@@ -46,7 +46,7 @@ export function FolderPicker() {
                     <span className="truncate text-xs font-medium text-foreground">
                       {folderName(lastCwd)}
                     </span>
-                    <span className="rounded border border-border/50 bg-muted/40 px-1 py-0.2 font-mono text-[9px] text-muted-foreground uppercase">
+                    <span className="py-0.2 rounded border border-border/50 bg-muted/40 px-1 font-mono text-[9px] text-muted-foreground uppercase">
                       Recent
                     </span>
                   </div>
@@ -71,11 +71,11 @@ export function FolderPicker() {
             <Button
               disabled={busy}
               onClick={() => void openFolder()}
-              variant={lastCwd ? "outline" : "default"}
+              variant={lastCwd ? 'outline' : 'default'}
               className="h-9.5 w-full rounded-xl text-xs font-medium shadow-xs"
             >
               <FolderOpen className="size-3.5" />
-              <span>{lastCwd ? "Choose another folder" : "Open folder"}</span>
+              <span>{lastCwd ? 'Choose another folder' : 'Open folder'}</span>
             </Button>
           </div>
 
@@ -87,5 +87,5 @@ export function FolderPicker() {
         </div>
       </div>
     </main>
-  );
+  )
 }

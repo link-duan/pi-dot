@@ -16,10 +16,6 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": [
-    "src/renderer/src/**/*",
-    "src/preload/*.d.ts",
-    "src/shared/**/*"
-  ],
+  "include": ["src/renderer/src/**/*", "src/preload/*.d.ts", "src/shared/**/*"],
   "exclude": ["src/**/*.test.ts"]
 }

@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { History } from "lucide-react";
-import type { SessionListItem } from "@shared/protocol";
-import { useChat } from "@/chat/store";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from 'react'
+import { History } from 'lucide-react'
+import type { SessionListItem } from '@shared/protocol'
+import { useChat } from '@/chat/store'
+import { Button } from '@/components/ui/button'
 import {
   CommandDialog,
   CommandEmpty,
@@ -10,46 +10,45 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { cn } from "@/lib/utils";
-import { formatRelativeTime, groupByTime, sessionTitle, TIME_GROUP_LABELS } from "@/lib/format";
-import { useSession } from "@/session/store";
+} from '@/components/ui/command'
+import { cn } from '@/lib/utils'
+import { formatRelativeTime, groupByTime, sessionTitle, TIME_GROUP_LABELS } from '@/lib/format'
+import { useSession } from '@/session/store'
 
 export function SessionSwitcher() {
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<SessionListItem[] | null>(null);
-  const sessionFile = useSession((state) => state.sessionFile);
-  const connection = useSession((state) => state.connection);
-  const listSessions = useSession((state) => state.listSessions);
-  const switchSession = useSession((state) => state.switchSession);
-  const isStreaming = useChat((state) => state.isStreaming);
-  const canSwitch = connection === "ready" && !isStreaming;
+  const [open, setOpen] = useState(false)
+  const [items, setItems] = useState<SessionListItem[] | null>(null)
+  const sessionFile = useSession((state) => state.sessionFile)
+  const connection = useSession((state) => state.connection)
+  const listSessions = useSession((state) => state.listSessions)
+  const switchSession = useSession((state) => state.switchSession)
+  const isStreaming = useChat((state) => state.isStreaming)
+  const canSwitch = connection === 'ready' && !isStreaming
 
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
-      if (event.key.toLowerCase() !== "r" || !event.ctrlKey || event.metaKey || event.altKey) return;
-      event.preventDefault();
-      setOpen((current) => !current);
+      if (event.key.toLowerCase() !== 'r' || !event.ctrlKey || event.metaKey || event.altKey) return
+      event.preventDefault()
+      setOpen((current) => !current)
     }
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, []);
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setItems(null);
+    if (!open) return
+    let cancelled = false
     void listSessions()
       .then((next) => {
-        if (!cancelled) setItems(next);
+        if (!cancelled) setItems(next)
       })
       .catch(() => {
-        if (!cancelled) setItems([]);
-      });
+        if (!cancelled) setItems([])
+      })
     return () => {
-      cancelled = true;
-    };
-  }, [open, listSessions]);
+      cancelled = true
+    }
+  }, [open, listSessions])
 
   return (
     <>
@@ -83,35 +82,35 @@ export function SessionSwitcher() {
               {groupByTime(items).map(({ group, items: groupItems }) => (
                 <CommandGroup key={group} heading={TIME_GROUP_LABELS[group]}>
                   {groupItems.map((item) => {
-                    const title = sessionTitle(item);
-                    const current = item.path === sessionFile;
+                    const title = sessionTitle(item)
+                    const current = item.path === sessionFile
                     return (
                       <CommandItem
                         key={item.path}
-                        value={`${title} ${item.firstMessage ?? ""} ${item.id}`}
+                        value={`${title} ${item.firstMessage ?? ''} ${item.id}`}
                         disabled={!canSwitch && !current}
                         onSelect={() => {
                           if (current || !canSwitch) {
-                            setOpen(false);
-                            return;
+                            setOpen(false)
+                            return
                           }
-                          void switchSession(item.path).then(() => setOpen(false));
+                          void switchSession(item.path).then(() => setOpen(false))
                         }}
                       >
                         <span
                           className={cn(
-                            "size-1.5 shrink-0 rounded-full",
-                            current ? "bg-foreground" : "bg-muted-foreground/55",
+                            'size-1.5 shrink-0 rounded-full',
+                            current ? 'bg-foreground' : 'bg-muted-foreground/55',
                           )}
                         />
                         <span className="min-w-0 flex-1 truncate text-muted-foreground group-data-selected/command-item:text-foreground">
                           {title}
                         </span>
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                           {formatRelativeTime(item.modified)}
                         </span>
                       </CommandItem>
-                    );
+                    )
                   })}
                 </CommandGroup>
               ))}
@@ -124,5 +123,5 @@ export function SessionSwitcher() {
         </div>
       </CommandDialog>
     </>
-  );
+  )
 }

@@ -1,23 +1,17 @@
-import { Check, Copy } from "lucide-react";
-import { useState } from "react";
-import type { Components } from "react-markdown";
-import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { Check, Copy } from 'lucide-react'
+import { useState } from 'react'
+import type { Components } from 'react-markdown'
+import Markdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
-function CodeBlock({
-  language,
-  value,
-}: {
-  language: string;
-  value: string;
-}) {
-  const [copied, setCopied] = useState(false);
+function CodeBlock({ language, value }: { language: string; value: string }) {
+  const [copied, setCopied] = useState(false)
 
   async function handleCopy() {
     try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
     } catch {
       // ignore
     }
@@ -25,8 +19,8 @@ function CodeBlock({
 
   return (
     <div className="group/code relative my-3 overflow-hidden rounded-lg border border-border/70 bg-neutral-950 dark:border-white/10 dark:bg-[#0c0d0e]">
-      <div className="flex h-8 items-center justify-between border-b border-border/40 bg-neutral-900/60 px-3 text-[11px] font-mono text-neutral-400 dark:border-white/5 dark:bg-neutral-900/40">
-        <span>{language || "text"}</span>
+      <div className="flex h-8 items-center justify-between border-b border-border/40 bg-neutral-900/60 px-3 font-mono text-[11px] text-neutral-400 dark:border-white/5 dark:bg-neutral-900/40">
+        <span>{language || 'text'}</span>
         <button
           type="button"
           onClick={() => void handleCopy()}
@@ -50,7 +44,7 @@ function CodeBlock({
         <code>{value}</code>
       </pre>
     </div>
-  );
+  )
 }
 
 const components: Components = {
@@ -65,12 +59,12 @@ const components: Components = {
   ),
   pre: ({ children }) => <>{children}</>,
   code: ({ className, children, ...props }) => {
-    const match = /language-(\w+)/.exec(className || "");
-    const codeString = String(children).replace(/\n$/, "");
-    const isBlock = Boolean(match) || codeString.includes("\n");
+    const match = /language-(\w+)/.exec(className || '')
+    const codeString = String(children).replace(/\n$/, '')
+    const isBlock = Boolean(match) || codeString.includes('\n')
 
     if (isBlock) {
-      return <CodeBlock language={match ? match[1] : ""} value={codeString} />;
+      return <CodeBlock language={match ? match[1] : ''} value={codeString} />
     }
 
     return (
@@ -80,9 +74,9 @@ const components: Components = {
       >
         {children}
       </code>
-    );
+    )
   },
-};
+}
 
 export function MarkdownBody({ text }: { text: string }) {
   return (
@@ -91,5 +85,5 @@ export function MarkdownBody({ text }: { text: string }) {
         {text}
       </Markdown>
     </div>
-  );
+  )
 }

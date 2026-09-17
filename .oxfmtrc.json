@@ -3,5 +3,8 @@
   "sortTailwindcss": {
     "stylesheet": "./src/renderer/src/styles.css",
     "functions": ["clsx", "cn"]
-  }
+  },
+  "singleQuote": true,
+  "trailingComma": "all",
+  "semi": false
 }

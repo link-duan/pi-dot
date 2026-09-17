@@ -1,9 +1,9 @@
-import type { PiApi } from "@shared/api";
+import type { PiApi } from '@shared/api'
 
 declare global {
   interface Window {
-    pi: PiApi;
+    pi: PiApi
   }
 }
 
-export {};
+export {}

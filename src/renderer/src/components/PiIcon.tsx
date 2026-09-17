@@ -1,4 +1,4 @@
-export function PiIcon({ className = "size-5" }: { className?: string }) {
+export function PiIcon({ className = 'size-5' }: { className?: string }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -14,7 +14,7 @@ export function PiIcon({ className = "size-5" }: { className?: string }) {
       <path d="M8.9 6.9V17.2" />
       <path d="M15.6 6.9V15.3Q15.6 17.2 18.1 17.2" />
     </svg>
-  );
+  )
 }
 
 export function PiLogo({ className }: { className?: string }) {
@@ -27,17 +27,11 @@ export function PiLogo({ className }: { className?: string }) {
         </linearGradient>
       </defs>
       <rect width="1024" height="1024" fill="url(#pi-logo-bg)" />
-      <g
-        fill="none"
-        stroke="#F4F0E6"
-        strokeWidth="84"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <g fill="none" stroke="#F4F0E6" strokeWidth="84" strokeLinecap="round" strokeLinejoin="round">
         <path d="M270 388H754" />
         <path d="M400 388V752" />
         <path d="M640 388V688Q640 752 728 752" />
       </g>
     </svg>
-  );
+  )
 }

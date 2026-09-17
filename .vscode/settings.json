@@ -1,0 +1,8 @@
+{
+  "pendant.showThinking": true,
+  "pendant.scm.commitMessageInstructions": {
+    "model": "sm-grok/grok-4.6",
+    "thinking": "medium"
+  },
+  "editor.defaultFormatter": "oxc.oxc-vscode"
+}

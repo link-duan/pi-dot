@@ -1,13 +1,13 @@
-import { useMemo, useState } from "react";
-import { ChevronDownIcon } from "lucide-react";
+import { useMemo, useState } from 'react'
+import { ChevronDownIcon } from 'lucide-react'
 import {
   isThinkingLevel,
   THINKING_LEVEL_LABELS,
   type ModelInfo,
   type ThinkingLevel,
-} from "@shared/protocol";
-import { useChat } from "@/chat/store";
-import { buttonVariants } from "@/components/ui/button";
+} from '@shared/protocol'
+import { useChat } from '@/chat/store'
+import { buttonVariants } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,54 +18,54 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { useSession } from "@/session/store";
+} from '@/components/ui/dropdown-menu'
+import { Input } from '@/components/ui/input'
+import { cn } from '@/lib/utils'
+import { useSession } from '@/session/store'
 
 function modelKey(model: ModelInfo): string {
-  return `${model.provider}::${model.id}`;
+  return `${model.provider}::${model.id}`
 }
 
 export function ModelSelect() {
-  const models = useSession((state) => state.models);
-  const model = useSession((state) => state.model);
-  const thinkingLevel = useSession((state) => state.thinkingLevel);
-  const thinkingLevels = useSession((state) => state.thinkingLevels);
-  const connection = useSession((state) => state.connection);
-  const setModel = useSession((state) => state.setModel);
-  const setThinkingLevel = useSession((state) => state.setThinkingLevel);
-  const isStreaming = useChat((state) => state.isStreaming);
-  const disabled = isStreaming || connection !== "ready" || models.length === 0;
+  const models = useSession((state) => state.models)
+  const model = useSession((state) => state.model)
+  const thinkingLevel = useSession((state) => state.thinkingLevel)
+  const thinkingLevels = useSession((state) => state.thinkingLevels)
+  const connection = useSession((state) => state.connection)
+  const setModel = useSession((state) => state.setModel)
+  const setThinkingLevel = useSession((state) => state.setThinkingLevel)
+  const isStreaming = useChat((state) => state.isStreaming)
+  const disabled = isStreaming || connection !== 'ready' || models.length === 0
 
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('')
 
   const filteredModels = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return models;
+    const needle = query.trim().toLowerCase()
+    if (!needle) return models
     return models.filter((item) =>
       `${item.provider} ${item.name} ${item.id}`.toLowerCase().includes(needle),
-    );
-  }, [models, query]);
+    )
+  }, [models, query])
 
   return (
     <DropdownMenu
       disabled={disabled}
       onOpenChange={(open) => {
-        if (!open) setQuery("");
+        if (!open) setQuery('')
       }}
     >
       <DropdownMenuTrigger
         aria-label="Select model and thinking level"
         disabled={disabled}
         className={cn(
-          buttonVariants({ variant: "ghost", size: "sm" }),
-          "h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150",
-          "disabled:opacity-40",
+          buttonVariants({ variant: 'ghost', size: 'sm' }),
+          'h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150',
+          'disabled:opacity-40',
         )}
       >
         <span className="min-w-0 truncate text-muted-foreground capitalize">
-          {model?.name ?? "Select model"}
+          {model?.name ?? 'Select model'}
         </span>
         {model ? (
           <span className="shrink-0 text-muted-foreground">
@@ -86,7 +86,7 @@ export function ModelSelect() {
             <DropdownMenuRadioGroup
               value={thinkingLevel}
               onValueChange={(value) => {
-                if (isThinkingLevel(value)) void setThinkingLevel(value);
+                if (isThinkingLevel(value)) void setThinkingLevel(value)
               }}
             >
               {thinkingLevels.map((level: ThinkingLevel) => (
@@ -100,13 +100,13 @@ export function ModelSelect() {
         <DropdownMenuSeparator />
         <DropdownMenuSub
           onOpenChange={(open) => {
-            if (!open) setQuery("");
+            if (!open) setQuery('')
           }}
         >
           <DropdownMenuSubTrigger>
             <span className="shrink-0">Model</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
-              {model?.name ?? "None"}
+              {model?.name ?? 'None'}
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-72 overflow-hidden overflow-y-hidden p-0">
@@ -118,9 +118,9 @@ export function ModelSelect() {
                 className="h-8 text-sm"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter")
-                    return;
-                  event.stopPropagation();
+                  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter')
+                    return
+                  event.stopPropagation()
                 }}
               />
             </div>
@@ -131,10 +131,10 @@ export function ModelSelect() {
                 </div>
               ) : (
                 <DropdownMenuRadioGroup
-                  value={model ? modelKey(model) : ""}
+                  value={model ? modelKey(model) : ''}
                   onValueChange={(value) => {
-                    const next = models.find((item) => modelKey(item) === value);
-                    if (next) void setModel(next.provider, next.id);
+                    const next = models.find((item) => modelKey(item) === value)
+                    if (next) void setModel(next.provider, next.id)
                   }}
                 >
                   {filteredModels.map((item) => (
@@ -158,5 +158,5 @@ export function ModelSelect() {
         </DropdownMenuSub>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
+  )
 }
