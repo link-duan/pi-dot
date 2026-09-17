@@ -1,4 +1,4 @@
-# pi-ui
+# Pi Dot
 
 嵌入 [`pi`](https://github.com/earendil-works/pi) Agent SDK 的桌面壳：一个工作目录里可以开多个 Session，正在跑的可以切到后台继续。
 

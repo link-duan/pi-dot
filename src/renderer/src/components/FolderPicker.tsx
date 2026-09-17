@@ -24,9 +24,9 @@ export function FolderPicker() {
             <PiLogo className="block size-16" />
           </div>
 
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Open project</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pi Dot</h1>
           <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-            Choose a local folder to connect to pi.
+            Open a local folder.
           </p>
 
           <div className="mt-7 flex flex-col gap-2.5">

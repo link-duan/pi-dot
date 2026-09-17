@@ -115,7 +115,7 @@ function createWindow(): void {
     height: 740,
     minWidth: 720,
     minHeight: 560,
-    title: 'pi',
+    title: 'Pi Dot',
     icon: appIcon,
     show: false,
     backgroundColor: windowBackground(),
@@ -177,7 +177,7 @@ function registerIpc(): void {
       const snapshot = snapshotOf(next)
       host = next
       writeLastCwd(cwd)
-      window?.setTitle(`pi — ${cwd}`)
+      window?.setTitle(`Pi Dot — ${cwd}`)
       sendStatus('ready')
       return snapshot
     } catch (error) {
@@ -242,6 +242,7 @@ function registerIpc(): void {
 
 app.whenReady().then(() => {
   applyAgentEnv()
+  app.setName('Pi Dot')
   app.dock?.setIcon(appIcon)
   installMenu()
   registerIpc()
