@@ -17,27 +17,47 @@ export interface ToolLiveState {
 
 export interface ChatState {
   messages: AgentMessage[]
+  persistedAt: number[]
   toolLive: Record<string, ToolLiveState>
   isStreaming: boolean
   assistantStreaming: boolean
+  turnActive: boolean
+  turnStartedAt: number | null
+  turnEndedAt: number | null
 }
 
 export function createChatState(): ChatState {
-  return { messages: [], toolLive: {}, isStreaming: false, assistantStreaming: false }
+  return {
+    messages: [],
+    persistedAt: [],
+    toolLive: {},
+    isStreaming: false,
+    assistantStreaming: false,
+    turnActive: false,
+    turnStartedAt: null,
+    turnEndedAt: null,
+  }
 }
 
 export function hydrateMessages(
   messages: unknown[],
-  options?: { isStreaming?: boolean },
+  options?: { isStreaming?: boolean; persistedAt?: number[] },
 ): ChatState {
   const next = messages.filter(isAgentMessage)
   const isStreaming = Boolean(options?.isStreaming)
   const last = next[next.length - 1]
+  const assistantStreaming = isStreaming && last?.role === 'assistant'
+  const toolLive = isStreaming ? inferRunningTools(next) : {}
   return {
     messages: next,
-    toolLive: isStreaming ? inferRunningTools(next) : {},
+    persistedAt: syncPersistedAt(next, options?.persistedAt ?? []),
+    toolLive,
     isStreaming,
-    assistantStreaming: isStreaming && last?.role === 'assistant',
+    assistantStreaming,
+    turnActive:
+      assistantStreaming || Object.values(toolLive).some((tool) => tool.status === 'running'),
+    turnStartedAt: isStreaming ? Date.now() : null,
+    turnEndedAt: null,
   }
 }
 
@@ -81,34 +101,59 @@ function upsertTool(state: ChatState, next: ToolLiveState): ChatState {
   }
 }
 
+function syncPersistedAt(messages: AgentMessage[], persistedAt: number[]): number[] {
+  if (persistedAt.length === messages.length) return persistedAt
+  if (persistedAt.length > messages.length) return persistedAt.slice(0, messages.length)
+  const next = persistedAt.slice()
+  for (let i = persistedAt.length; i < messages.length; i++) {
+    next.push(messages[i]?.timestamp ?? 0)
+  }
+  return next
+}
+
+function withMessages(state: ChatState, messages: AgentMessage[]): ChatState {
+  return { ...state, messages, persistedAt: syncPersistedAt(messages, state.persistedAt) }
+}
+
 export function applySessionEvent(state: ChatState, event: SessionEventBody): ChatState {
   switch (event.type) {
     case 'agent_start':
-      return { ...state, isStreaming: true }
+      return {
+        ...state,
+        isStreaming: true,
+        turnStartedAt:
+          state.isStreaming && state.turnStartedAt != null ? state.turnStartedAt : Date.now(),
+        turnEndedAt: null,
+        turnActive: false,
+      }
 
     case 'agent_end':
       if (event.willRetry) return { ...state, isStreaming: true }
-      return { ...state, isStreaming: false, assistantStreaming: false }
+      return {
+        ...state,
+        isStreaming: false,
+        assistantStreaming: false,
+        turnEndedAt: Date.now(),
+      }
 
     case 'message_start': {
       if (!event.message?.role) return state
       return {
-        ...state,
-        messages: [...state.messages, event.message],
+        ...withMessages(state, [...state.messages, event.message]),
         assistantStreaming: event.message.role === 'assistant' ? true : state.assistantStreaming,
+        turnActive: event.message.role === 'assistant' ? true : state.turnActive,
       }
     }
 
     case 'message_update': {
       if (!event.message?.role) return state
-      return { ...state, messages: replaceLastWithRole(state.messages, event.message) }
+      return withMessages(state, replaceLastWithRole(state.messages, event.message))
     }
 
     case 'message_end': {
       if (!event.message?.role) return state
       return {
-        ...state,
-        messages: replaceLastWithRole(state.messages, event.message),
+        ...withMessages(state, replaceLastWithRole(state.messages, event.message)),
         assistantStreaming: event.message.role === 'assistant' ? false : state.assistantStreaming,
       }
     }
@@ -116,12 +161,15 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
     case 'tool_execution_start': {
       const toolCallId = String(event.toolCallId ?? '')
       if (!toolCallId) return state
-      return upsertTool(state, {
-        toolCallId,
-        toolName: String(event.toolName ?? ''),
-        args: event.args,
-        status: 'running',
-      })
+      return {
+        ...upsertTool(state, {
+          toolCallId,
+          toolName: String(event.toolName ?? ''),
+          args: event.args,
+          status: 'running',
+        }),
+        turnActive: true,
+      }
     }
 
     case 'tool_execution_update': {

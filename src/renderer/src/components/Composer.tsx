@@ -2,7 +2,6 @@ import { ArrowUp, Folder, Square } from 'lucide-react'
 import { useRef, useState, type RefObject } from 'react'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
-import { Spinner } from '@/components/ui/spinner'
 import { folderName } from '@/lib/path'
 import { useSession } from '@/session/store'
 import { ModelSelect } from './ModelSelect'
@@ -48,7 +47,7 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
           value={text}
           rows={1}
           placeholder="Message..."
-          className="field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="block field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -59,7 +58,6 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
         />
 
         <div className="flex items-center justify-between px-0.5 text-xs">
-          {/* Left: Working directory & Streaming indicator */}
           <div className="flex items-center gap-2">
             {cwd ? (
               <Button
@@ -67,19 +65,12 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
                 variant="ghost"
                 size="xs"
                 onClick={() => void openFolder()}
-                className="max-w-56 font-mono text-[11px] text-muted-foreground"
+                className="max-w-56 text-xs text-muted-foreground"
                 title={`Current folder: ${cwd} (click to change)`}
               >
                 <Folder className="size-3 shrink-0" />
                 <span className="truncate">{folderName(cwd)}</span>
               </Button>
-            ) : null}
-
-            {isStreaming ? (
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <Spinner className="size-3" />
-                <span>Generating</span>
-              </div>
             ) : null}
           </div>
 

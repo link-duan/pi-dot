@@ -139,6 +139,7 @@ export interface SessionSnapshot {
   cwd: string
   state: SessionState
   messages: AgentMessage[]
+  messagePersistedAt?: number[]
   models: ModelInfo[]
   thinkingLevels: ThinkingLevel[]
 }

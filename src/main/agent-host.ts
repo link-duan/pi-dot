@@ -23,6 +23,7 @@ import {
   type SessionState,
   type ThinkingLevel,
 } from '@shared/protocol'
+import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
 
 const MODEL_REFRESH_MS = 15_000
@@ -178,6 +179,14 @@ export class AgentHost {
 
   getMessages(): AgentMessage[] {
     return this.session.messages.filter(isAgentMessage) as AgentMessage[]
+  }
+
+  getMessagePersistedAt(): number[] {
+    const messages = this.getMessages()
+    return alignPersistedAt(
+      messages,
+      persistRecordsFromEntries(this.session.sessionManager.getBranch()),
+    )
   }
 
   getAvailableModels(): ModelInfo[] {

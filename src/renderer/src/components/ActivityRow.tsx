@@ -9,7 +9,9 @@ export function ActivityRow({
   summary,
   running,
   error,
+  open: openProp,
   defaultOpen = false,
+  onOpenChange,
   children,
 }: {
   icon: LucideIcon
@@ -17,12 +19,14 @@ export function ActivityRow({
   summary: string
   running?: boolean
   error?: boolean
+  open?: boolean
   defaultOpen?: boolean
+  onOpenChange?: (open: boolean) => void
   children?: ReactNode
 }) {
   const [userOpen, setUserOpen] = useState<boolean | null>(null)
   const expandable = Boolean(children)
-  const open = userOpen ?? (expandable && defaultOpen)
+  const open = openProp ?? userOpen ?? (expandable && defaultOpen)
 
   const iconSlot = (
     <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
@@ -77,7 +81,11 @@ export function ActivityRow({
         <button
           type="button"
           aria-expanded={open}
-          onClick={() => setUserOpen(!open)}
+          onClick={() => {
+            const next = !open
+            onOpenChange?.(next)
+            if (openProp === undefined) setUserOpen(next)
+          }}
           className="group/row inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left text-[13px] leading-4 select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
         >
           {iconSlot}

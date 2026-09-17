@@ -2,11 +2,23 @@ import { describe, expect, it } from 'vitest'
 import {
   formatRelativeTime,
   sessionTimeGroup,
+  formatElapsed,
   sessionTitle,
-  thinkingSummary,
   toolLabel,
   toolSummary,
 } from './format'
+
+describe('formatElapsed', () => {
+  it('uses tenths below one second and whole seconds after', () => {
+    expect(formatElapsed(0)).toBe('0.0s')
+    expect(formatElapsed(100)).toBe('0.1s')
+    expect(formatElapsed(940)).toBe('0.9s')
+    expect(formatElapsed(950)).toBe('1s')
+    expect(formatElapsed(12_000)).toBe('12s')
+    expect(formatElapsed(60_000)).toBe('1m')
+    expect(formatElapsed(90_000)).toBe('1m30s')
+  })
+})
 
 describe('sessionTitle', () => {
   it('prefers name over first message', () => {
@@ -78,12 +90,6 @@ describe('toolSummary', () => {
     expect(toolSummary('custom', { command: 'echo hi' })).toBe('echo hi')
     expect(toolSummary('custom', { path: '/tmp/x' })).toBe('/tmp/x')
     expect(toolSummary('bash', null)).toBe('')
-  })
-})
-
-describe('thinkingSummary', () => {
-  it('collapses whitespace into a single line', () => {
-    expect(thinkingSummary('  \nNeed to look at hooks\nmore')).toBe('Need to look at hooks more')
   })
 })
 

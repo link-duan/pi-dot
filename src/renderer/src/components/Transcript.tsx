@@ -1,9 +1,11 @@
-import { memo, useEffect, useRef, type RefObject } from 'react'
+import { Fragment, memo, useEffect, useRef, useState, type RefObject } from 'react'
 import { Brain } from 'lucide-react'
 import { userText, type ToolLiveState } from '@/chat/state'
 import { useChat } from '@/chat/store'
-import { thinkingSummary } from '@/lib/format'
+import { Spinner } from '@/components/ui/spinner'
+import { formatElapsed } from '@/lib/format'
 import type { AgentMessage, AssistantMessage } from '@shared/protocol'
+import { estimateTurnMs, userTurns } from '@shared/turns'
 import { ActivityRow } from './ActivityRow'
 import { MarkdownBody } from './MarkdownBody'
 import { PiIcon } from './PiIcon'
@@ -11,11 +13,16 @@ import { ToolCard } from './ToolCard'
 
 export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
   const messages = useChat((state) => state.messages)
+  const persistedAt = useChat((state) => state.persistedAt)
   const toolLive = useChat((state) => state.toolLive)
   const isStreaming = useChat((state) => state.isStreaming)
   const assistantStreaming = useChat((state) => state.assistantStreaming)
+  const turnActive = useChat((state) => state.turnActive)
+  const turnStartedAt = useChat((state) => state.turnStartedAt)
+  const turnEndedAt = useChat((state) => state.turnEndedAt)
   const stickToBottom = useRef(true)
   const hasMessages = messages.length > 0
+  const turns = userTurns(messages)
 
   useEffect(() => {
     const node = scrollerRef.current
@@ -32,14 +39,14 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
         stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80
       }}
     >
-      {!hasMessages ? (
+      {!hasMessages && !isStreaming ? (
         <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
           <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
           <p className="mt-3 text-xs text-muted-foreground">Send pi a prompt.</p>
         </div>
       ) : (
         <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
-          {messages.map((message, index) => (
+          {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
             <MessageRow
               key={messageKey(message, index)}
               message={message}
@@ -47,6 +54,38 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
               streaming={assistantStreaming && index === lastAssistantIndex(messages)}
             />
           ))}
+          {turns.map((turn, turnIndex) => {
+            const isLast = turnIndex === turns.length - 1
+            const status = turnStatus({
+              isLast,
+              isStreaming,
+              turnActive,
+              turnStartedAt,
+              turnEndedAt,
+              messages,
+              persistedAt,
+              turn,
+            })
+            return (
+              <Fragment key={turn.start}>
+                {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
+                  const index = turn.start + offset
+                  return (
+                    <MessageRow
+                      key={messageKey(message, index)}
+                      message={message}
+                      toolLive={toolLive}
+                      streaming={assistantStreaming && index === lastAssistantIndex(messages)}
+                    />
+                  )
+                })}
+                {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
+              </Fragment>
+            )
+          })}
+          {isStreaming && turns.length === 0 && turnStartedAt != null ? (
+            <TurnStatus kind="waiting" startedAt={turnStartedAt} endedAt={null} />
+          ) : null}
         </div>
       )}
     </div>
@@ -61,6 +100,76 @@ function messageKey(message: AgentMessage, fallback: number): string {
     return `${message.role}-${message.timestamp}`
   }
   return `${message.role}-${fallback}`
+}
+
+function turnStatus({
+  isLast,
+  isStreaming,
+  turnActive,
+  turnStartedAt,
+  turnEndedAt,
+  messages,
+  persistedAt,
+  turn,
+}: {
+  isLast: boolean
+  isStreaming: boolean
+  turnActive: boolean
+  turnStartedAt: number | null
+  turnEndedAt: number | null
+  messages: AgentMessage[]
+  persistedAt: number[]
+  turn: { start: number; end: number }
+}): { kind: 'waiting' | 'working' | 'worked'; startedAt: number; endedAt: number | null } | null {
+  if (isStreaming && isLast && turnStartedAt != null) {
+    return {
+      kind: turnActive ? 'working' : 'waiting',
+      startedAt: turnStartedAt,
+      endedAt: null,
+    }
+  }
+  if (isLast && turnStartedAt != null && turnEndedAt != null) {
+    return { kind: 'worked', startedAt: turnStartedAt, endedAt: turnEndedAt }
+  }
+  const estimated = estimateTurnMs(messages, persistedAt, turn)
+  if (estimated == null) return null
+  return { kind: 'worked', startedAt: 0, endedAt: estimated }
+}
+
+function TurnStatus({
+  kind,
+  startedAt,
+  endedAt,
+}: {
+  kind: 'waiting' | 'working' | 'worked'
+  startedAt: number
+  endedAt: number | null
+}) {
+  const live = endedAt == null
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (!live) return
+    const id = window.setInterval(() => setNow(Date.now()), 100)
+    return () => window.clearInterval(id)
+  }, [live, startedAt])
+
+  const elapsed = (endedAt ?? now) - startedAt
+  if (!live && elapsed < 1000) return null
+  const clock = formatElapsed(elapsed)
+  const label =
+    kind === 'waiting'
+      ? `Waiting for response … ${clock}`
+      : kind === 'working'
+        ? `Working … ${clock}`
+        : `Worked for ${clock}`
+
+  return (
+    <div className="mt-1 mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground select-none">
+      {live ? <Spinner className="size-3" /> : null}
+      <span>{label}</span>
+    </div>
+  )
 }
 
 function lastAssistantIndex(messages: AgentMessage[]): number {
@@ -141,7 +250,10 @@ function AssistantRow({
           if (!text?.trim()) return null
           return (
             <div key={`text-${message.timestamp}-${contentIndex}`} className="py-1.5">
-              <MarkdownBody text={text} />
+              <MarkdownBody
+                text={text}
+                streaming={streaming && contentIndex === message.content.length - 1}
+              />
             </div>
           )
         }
@@ -169,27 +281,30 @@ function AssistantRow({
 
 function ThinkingRow({ thinking, inProgress }: { thinking: string; inProgress: boolean }) {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const [override, setOverride] = useState<{ inProgress: boolean; open: boolean } | null>(null)
+  const open = override?.inProgress === inProgress ? override.open : inProgress
 
   useEffect(() => {
-    if (!inProgress) return
+    if (!inProgress || !open) return
     const node = bodyRef.current
-    if (node) node.scrollTop = node.scrollHeight
-  }, [inProgress, thinking])
+    if (node) node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' })
+  }, [inProgress, open, thinking])
 
   return (
     <ActivityRow
       icon={Brain}
       label={inProgress ? 'Thinking' : 'Thought'}
-      summary={thinkingSummary(thinking)}
+      summary=""
       running={inProgress}
-      defaultOpen
+      open={open}
+      onOpenChange={(next) => setOverride({ inProgress, open: next })}
     >
       {thinking.trim() ? (
         <div
           ref={bodyRef}
-          className="max-h-80 overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground"
+          className="max-h-80 scroll-fade overflow-auto scroll-smooth text-muted-foreground"
         >
-          {thinking}
+          <MarkdownBody text={thinking} streaming={inProgress} />
         </div>
       ) : null}
     </ActivityRow>

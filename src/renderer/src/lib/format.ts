@@ -128,8 +128,15 @@ export function toolSummary(
   return stringField(record, 'pattern', 'Query', 'query')
 }
 
-export function thinkingSummary(thinking: string): string {
-  return thinking.replace(/\s+/g, ' ').trim()
+export function formatElapsed(ms: number): string {
+  const clamped = Math.max(0, ms)
+  const tenths = Math.round(clamped / 100)
+  if (clamped < 1000 && tenths < 10) return `0.${tenths}s`
+  const totalSeconds = Math.round(clamped / 1000)
+  if (totalSeconds < 60) return `${totalSeconds}s`
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  return seconds ? `${minutes}m${seconds}s` : `${minutes}m`
 }
 
 export function sessionTitle(item: { name?: string; firstMessage?: string }): string {

@@ -29,6 +29,8 @@ describe('hydrateMessages', () => {
     )
     expect(state.isStreaming).toBe(true)
     expect(state.assistantStreaming).toBe(true)
+    expect(state.turnActive).toBe(true)
+    expect(state.persistedAt).toEqual([2, 3])
     expect(state.toolLive.call_1).toMatchObject({ toolName: 'bash', status: 'running' })
   })
 })
@@ -114,5 +116,21 @@ describe('applySessionEvent', () => {
       status: 'done',
       isError: false,
     })
+  })
+
+  it('tracks turn timing and waiting vs working', () => {
+    let state = createChatState()
+    state = applySessionEvent(state, { type: 'agent_start' })
+    expect(state.turnActive).toBe(false)
+    expect(state.turnStartedAt).toEqual(expect.any(Number))
+    expect(state.turnEndedAt).toBeNull()
+
+    state = applySessionEvent(state, { type: 'message_start', message: assistant('Hel') })
+    expect(state.turnActive).toBe(true)
+    expect(state.persistedAt).toEqual([2])
+
+    state = applySessionEvent(state, { type: 'agent_end' })
+    expect(state.isStreaming).toBe(false)
+    expect(state.turnEndedAt).toEqual(expect.any(Number))
   })
 })

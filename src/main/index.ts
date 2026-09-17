@@ -104,6 +104,7 @@ function snapshotOf(next: AgentHost): SessionSnapshot {
     cwd: next.cwd,
     state: next.getState(),
     messages: next.getMessages(),
+    messagePersistedAt: next.getMessagePersistedAt(),
     models: next.getAvailableModels(),
     thinkingLevels: next.getAvailableThinkingLevels(),
   }

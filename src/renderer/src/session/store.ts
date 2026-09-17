@@ -86,7 +86,12 @@ export const useSession = create<SessionStore>((set, get) => ({
     try {
       const snapshot = await window.pi.start(cwd)
       set(snapshotPatch(snapshot))
-      useChat.setState(hydrateMessages(snapshot.messages))
+      useChat.setState(
+        hydrateMessages(snapshot.messages, {
+          isStreaming: snapshot.state.isStreaming,
+          persistedAt: snapshot.messagePersistedAt,
+        }),
+      )
     } catch (error) {
       set({
         connection: 'error',
@@ -126,7 +131,12 @@ export const useSession = create<SessionStore>((set, get) => ({
           ? [...state.runningSessionFiles, file]
           : state.runningSessionFiles,
     }))
-    useChat.setState({ isStreaming: true })
+    useChat.setState({
+      isStreaming: true,
+      turnActive: false,
+      turnStartedAt: Date.now(),
+      turnEndedAt: null,
+    })
     try {
       await window.pi.prompt(text)
     } catch (error) {
@@ -137,10 +147,10 @@ export const useSession = create<SessionStore>((set, get) => ({
           : state.runningSessionFiles,
       }))
       if (get().sessionFile === file) {
-        useChat.setState({ isStreaming: false })
+        useChat.setState({ isStreaming: false, turnEndedAt: Date.now() })
       } else if (file) {
         const cached = chatCache.get(file)
-        if (cached) chatCache.set(file, { ...cached, isStreaming: false })
+        if (cached) chatCache.set(file, { ...cached, isStreaming: false, turnEndedAt: Date.now() })
       }
     }
   },
@@ -243,6 +253,10 @@ async function swapSession(
   const nextFile = snapshot.state.sessionFile ?? null
   const cached = takeChat(chatCache, nextFile)
   useChat.setState(
-    cached ?? hydrateMessages(snapshot.messages, { isStreaming: snapshot.state.isStreaming }),
+    cached ??
+      hydrateMessages(snapshot.messages, {
+        isStreaming: snapshot.state.isStreaming,
+        persistedAt: snapshot.messagePersistedAt,
+      }),
   )
 }
