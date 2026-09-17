@@ -18,7 +18,7 @@ function CodeBlock({ language, value }: { language: string; value: string }) {
   }
 
   return (
-    <div className="group/code relative my-3 overflow-hidden rounded-lg border border-border/70 bg-neutral-950 dark:border-white/10 dark:bg-[#0c0d0e]">
+    <div className="not-prose group/code relative my-3 overflow-hidden rounded-lg border border-border/70 bg-neutral-950 dark:border-white/10 dark:bg-[#0c0d0e]">
       <div className="flex h-8 items-center justify-between border-b border-border/40 bg-neutral-900/60 px-3 font-mono text-[11px] text-neutral-400 dark:border-white/5 dark:bg-neutral-900/40">
         <span>{language || 'text'}</span>
         <button
@@ -49,13 +49,9 @@ function CodeBlock({ language, value }: { language: string; value: string }) {
 
 const components: Components = {
   a: ({ href, children }) => (
-    <button
-      type="button"
-      className="inline-flex cursor-pointer items-center underline underline-offset-3 hover:text-foreground"
-      onClick={() => href && void window.pi.openExternal(href)}
-    >
+    <a href={href} target="_blank" rel="noreferrer">
       {children}
-    </button>
+    </a>
   ),
   pre: ({ children }) => <>{children}</>,
   code: ({ className, children, ...props }) => {
@@ -69,7 +65,7 @@ const components: Components = {
 
     return (
       <code
-        className="rounded border border-border/50 bg-muted/60 px-1.5 py-0.5 font-mono text-[12px] text-foreground"
+        className="not-prose rounded border border-border/50 bg-muted/60 px-1.5 py-0.5 font-mono text-[12px] text-foreground"
         {...props}
       >
         {children}
@@ -80,7 +76,7 @@ const components: Components = {
 
 export function MarkdownBody({ text }: { text: string }) {
   return (
-    <div className="markdown text-[14px] leading-relaxed">
+    <div className="markdown prose prose-sm max-w-none select-text">
       <Markdown remarkPlugins={[remarkGfm]} components={components}>
         {text}
       </Markdown>
