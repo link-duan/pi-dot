@@ -2,9 +2,14 @@ import { join } from "node:path";
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { IPC } from "@shared/ipc";
 import type { ConnectionStatus, SessionSnapshot, ThinkingLevel } from "@shared/protocol";
+import appIcon from "../../resources/icon-dock.png?asset";
 import { readLastCwd, writeLastCwd } from "./last-cwd";
 import { RpcClient } from "./rpc-client";
 import { listProjectSessions } from "./sessions";
+
+if (!app.isPackaged) {
+  app.commandLine.appendSwitch("remote-debugging-port", "9222");
+}
 
 let window: BrowserWindow | null = null;
 let client: RpcClient | null = null;
@@ -71,6 +76,7 @@ function createWindow(): void {
     minWidth: 720,
     minHeight: 560,
     title: "pi",
+    icon: appIcon,
     show: false,
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
@@ -180,6 +186,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  app.dock?.setIcon(appIcon);
   installMenu();
   registerIpc();
   createWindow();

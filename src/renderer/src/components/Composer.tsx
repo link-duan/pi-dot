@@ -43,8 +43,8 @@ export function Composer() {
           id="prompt-input"
           value={text}
           rows={1}
-          placeholder="Message... (Enter to send, Shift+Enter for newline)"
-          className="field-sizing-content min-h-[44px] max-h-48 w-full resize-none border-0 bg-transparent px-2.5 py-1.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          placeholder="Message..."
+          className="scroll-fade field-sizing-content max-h-[calc(8.5lh+0.75rem)] w-full resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-1.5 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey) {
@@ -54,7 +54,7 @@ export function Composer() {
           }}
         />
 
-        <div className="mt-1.5 flex items-center justify-between border-t border-border/40 pt-2 pr-1 pl-1 text-xs">
+        <div className="flex items-center justify-between pt-1 pr-1 pl-1 text-xs">
           {/* Left: Working directory & Streaming indicator */}
           <div className="flex items-center gap-2">
             {cwd ? (

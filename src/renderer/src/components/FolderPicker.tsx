@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { folderName } from "@/lib/path";
 import { useSession } from "@/session/store";
-import { PiIcon } from "./PiIcon";
+import { PiLogo } from "./PiIcon";
 
 export function FolderPicker() {
   const lastCwd = useSession((state) => state.lastCwd);
@@ -20,9 +20,8 @@ export function FolderPicker() {
 
       <div className="flex flex-1 items-center justify-center px-6 pb-12">
         <div className="w-full max-w-[380px]">
-          {/* Brand Mark with Pi */}
-          <div className="mb-6 flex size-11 items-center justify-center rounded-xl border border-border/80 bg-gradient-to-b from-card to-muted/40 shadow-xs">
-            <PiIcon className="size-5.5 text-foreground" />
+          <div className="mb-6 size-16 overflow-hidden rounded-[14px] shadow-sm ring-1 ring-black/10 dark:ring-white/10">
+            <PiLogo className="block size-16" />
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Open project</h1>

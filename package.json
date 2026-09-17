@@ -11,7 +11,8 @@
     "preview": "electron-vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "postinstall": "node node_modules/electron/install.js"
+    "postinstall": "node node_modules/electron/install.js",
+    "icons": "scripts/build-icons.sh"
   },
   "trustedDependencies": ["electron", "esbuild"],
   "dependencies": {
