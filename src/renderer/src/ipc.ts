@@ -1,14 +1,14 @@
-import { applyRpcEvent } from '@/chat/state'
+import { applySessionEvent } from '@/chat/state'
 import { useChat } from '@/chat/store'
 import { useSession } from '@/session/store'
-import type { RpcEvent } from '@shared/protocol'
+import type { SessionEvent } from '@shared/protocol'
 
 let bound = false
-let pendingUpdate: RpcEvent | null = null
+let pendingUpdate: SessionEvent | null = null
 let raf = 0
 
-function apply(event: RpcEvent): void {
-  useChat.setState((state) => applyRpcEvent(state, event))
+function apply(event: SessionEvent): void {
+  useChat.setState((state) => applySessionEvent(state, event))
 }
 
 export function bindIpc(): void {

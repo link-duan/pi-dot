@@ -1,7 +1,7 @@
 import type {
   ConnectionStatus,
   ModelSelection,
-  RpcEvent,
+  SessionEvent,
   SessionListItem,
   SessionSnapshot,
   ThinkingLevel,
@@ -20,6 +20,6 @@ export interface PiApi {
   listSessions(cwd: string): Promise<SessionListItem[]>
   switchSession(sessionPath: string): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
-  onEvent(cb: (event: RpcEvent) => void): () => void
+  onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
 }

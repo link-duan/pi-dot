@@ -4,7 +4,7 @@ import type { PiApi } from '@shared/api'
 import { IPC } from '@shared/ipc'
 import type {
   ConnectionStatus,
-  RpcEvent,
+  SessionEvent,
   SessionListItem,
   SessionSnapshot,
   ThinkingLevel,
@@ -26,8 +26,8 @@ const api: PiApi = {
   switchSession: (sessionPath: string) =>
     ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
-  onEvent: (cb: (event: RpcEvent) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: RpcEvent) => cb(payload)
+  onEvent: (cb: (event: SessionEvent) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: SessionEvent) => cb(payload)
     ipcRenderer.on(IPC.event, listener)
     return () => {
       ipcRenderer.removeListener(IPC.event, listener)

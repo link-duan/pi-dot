@@ -21,7 +21,6 @@ interface SessionStore {
   model: ModelInfo | null
   thinkingLevel: ThinkingLevel
   thinkingLevels: ThinkingLevel[]
-  init: () => Promise<void>
   openFolder: () => Promise<void>
   openCwd: (cwd: string) => Promise<void>
   leave: () => Promise<void>
@@ -70,11 +69,6 @@ export const useSession = create<SessionStore>((set, get) => ({
   model: null,
   thinkingLevel: 'off',
   thinkingLevels: [],
-
-  init: async () => {
-    const lastCwd = await window.pi.getLastCwd()
-    set({ lastCwd })
-  },
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()

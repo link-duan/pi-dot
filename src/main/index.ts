@@ -3,8 +3,9 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from 'e
 import { IPC } from '@shared/ipc'
 import type { ConnectionStatus, SessionSnapshot, ThinkingLevel } from '@shared/protocol'
 import appIcon from '../../resources/icon-dock.png?asset'
+import { applyAgentEnv } from './agent-env'
+import { AgentHost } from './agent-host'
 import { readLastCwd, writeLastCwd } from './last-cwd'
-import { RpcClient } from './rpc-client'
 import { listProjectSessions } from './sessions'
 
 if (!app.isPackaged) {
@@ -12,7 +13,7 @@ if (!app.isPackaged) {
 }
 
 let window: BrowserWindow | null = null
-let client: RpcClient | null = null
+let client: AgentHost | null = null
 
 function sendStatus(status: ConnectionStatus, error?: string): void {
   window?.webContents.send(IPC.status, status, error)
@@ -59,7 +60,7 @@ function installMenu(): void {
   )
 }
 
-async function snapshotOf(next: RpcClient): Promise<SessionSnapshot> {
+async function snapshotOf(next: AgentHost): Promise<SessionSnapshot> {
   const [state, messages, models, thinkingLevels] = await Promise.all([
     next.getState(),
     next.getMessages(),
@@ -118,14 +119,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.start, async (_event, cwd: string): Promise<SessionSnapshot> => {
     await stopClient()
     sendStatus('connecting')
-    const next = new RpcClient(cwd)
+    const next = new AgentHost(cwd)
     next.onEvent((event) => sendEvent(event))
-    next.onExit((error) => {
-      if (client === next) {
-        client = null
-        sendStatus('error', error.message)
-      }
-    })
     try {
       await next.start()
       const snapshot = await snapshotOf(next)
@@ -186,6 +181,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  applyAgentEnv()
   app.dock?.setIcon(appIcon)
   installMenu()
   registerIpc()

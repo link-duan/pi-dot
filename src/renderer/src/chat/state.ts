@@ -1,7 +1,7 @@
 import {
   isAgentMessage,
   type AgentMessage,
-  type RpcEvent,
+  type SessionEvent,
   type TextContent,
 } from '@shared/protocol'
 
@@ -48,7 +48,7 @@ function upsertTool(state: ChatState, next: ToolLiveState): ChatState {
   }
 }
 
-export function applyRpcEvent(state: ChatState, event: RpcEvent): ChatState {
+export function applySessionEvent(state: ChatState, event: SessionEvent): ChatState {
   switch (event.type) {
     case 'agent_start':
       return { ...state, isStreaming: true }

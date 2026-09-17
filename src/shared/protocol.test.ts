@@ -1,24 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
-  asRpcEvent,
   asThinkingLevel,
   isAgentMessage,
   parseThinkingLevels,
   THINKING_LEVEL_LABELS,
 } from './protocol'
-
-describe('asRpcEvent', () => {
-  it('accepts known event types', () => {
-    expect(asRpcEvent({ type: 'agent_start' })).toEqual({ type: 'agent_start' })
-  })
-
-  it('drops unknown payloads', () => {
-    expect(asRpcEvent({ type: 'response' })).toBeNull()
-    expect(asRpcEvent({ type: 'turn_start' })).toBeNull()
-    expect(asRpcEvent(null)).toBeNull()
-    expect(asRpcEvent('agent_start')).toBeNull()
-  })
-})
 
 describe('isAgentMessage', () => {
   it('accepts known roles', () => {

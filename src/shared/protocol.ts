@@ -40,7 +40,7 @@ export interface ModelSelection {
   thinkingLevels: ThinkingLevel[]
 }
 
-export interface RpcSessionState {
+export interface SessionState {
   model?: ModelInfo | null
   thinkingLevel: ThinkingLevel
   isStreaming: boolean
@@ -111,7 +111,7 @@ export type AgentMessage =
   | ToolResultMessage
   | CompactionSummaryMessage
 
-export type RpcEvent =
+export type SessionEvent =
   | { type: 'agent_start' }
   | { type: 'agent_end' }
   | { type: 'message_start'; message: AgentMessage }
@@ -135,7 +135,7 @@ export type RpcEvent =
 
 export interface SessionSnapshot {
   cwd: string
-  state: RpcSessionState
+  state: SessionState
   messages: AgentMessage[]
   models: ModelInfo[]
   thinkingLevels: ThinkingLevel[]
@@ -150,27 +150,9 @@ export interface SessionListItem {
   messageCount: number
 }
 
-const RPC_EVENT_TYPES = new Set<string>([
-  'agent_start',
-  'agent_end',
-  'message_start',
-  'message_update',
-  'message_end',
-  'tool_execution_start',
-  'tool_execution_update',
-  'tool_execution_end',
-])
-
 const MESSAGE_ROLES = new Set<string>(['user', 'assistant', 'toolResult', 'compactionSummary'])
 
 export function isAgentMessage(value: unknown): value is AgentMessage {
   if (!value || typeof value !== 'object') return false
   return MESSAGE_ROLES.has((value as { role?: unknown }).role as string)
-}
-
-export function asRpcEvent(value: unknown): RpcEvent | null {
-  if (!value || typeof value !== 'object') return null
-  const type = (value as { type?: unknown }).type
-  if (typeof type !== 'string' || !RPC_EVENT_TYPES.has(type)) return null
-  return value as RpcEvent
 }
