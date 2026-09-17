@@ -4,5 +4,11 @@
     "model": "sm-grok/grok-4.6",
     "thinking": "medium"
   },
-  "editor.defaultFormatter": "oxc.oxc-vscode"
+  "editor.defaultFormatter": "oxc.oxc-vscode",
+  "pendant.chat.promptSuggestionsEnabled": true,
+  "pendant.chat.promptSuggestions": {
+    "model": "sm-grok/grok-4.6",
+    "thinking": "low"
+  },
+  "pendant.chat.promptSuggestionLanguage": ""
 }
