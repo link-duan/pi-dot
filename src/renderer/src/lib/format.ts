@@ -128,6 +128,110 @@ export function toolSummary(
   return stringField(record, 'pattern', 'Query', 'query')
 }
 
+export interface DiffStats {
+  added: number
+  removed: number
+}
+
+function splitLines(text: string): string[] {
+  if (!text) return []
+  const lines = text.split('\n')
+  if (lines[lines.length - 1] === '') lines.pop()
+  return lines
+}
+
+function statsFromTexts(oldText: string, newText: string): DiffStats {
+  const oldLines = splitLines(oldText)
+  const newLines = splitLines(newText)
+  let start = 0
+  while (
+    start < oldLines.length &&
+    start < newLines.length &&
+    oldLines[start] === newLines[start]
+  ) {
+    start++
+  }
+  let oldEnd = oldLines.length
+  let newEnd = newLines.length
+  while (oldEnd > start && newEnd > start && oldLines[oldEnd - 1] === newLines[newEnd - 1]) {
+    oldEnd--
+    newEnd--
+  }
+  return { added: newEnd - start, removed: oldEnd - start }
+}
+
+function statsFromPatch(patch: string): DiffStats | null {
+  let added = 0
+  let removed = 0
+  for (const line of patch.split('\n')) {
+    if (line.startsWith('+++') || line.startsWith('---') || line.startsWith('@@')) continue
+    if (line.startsWith('+')) added++
+    else if (line.startsWith('-')) removed++
+  }
+  return added === 0 && removed === 0 ? null : { added, removed }
+}
+
+function resultPatch(result: unknown): string {
+  const record = asRecord(result)
+  const details = asRecord(record?.details)
+  return typeof details?.patch === 'string' ? details.patch : ''
+}
+
+function parseEdits(record: Record<string, unknown>): Array<{ oldText: string; newText: string }> {
+  let list: unknown = record.edits
+  if (typeof list === 'string' && list.trim()) {
+    try {
+      list = JSON.parse(list)
+    } catch {
+      list = null
+    }
+  }
+  if (Array.isArray(list)) {
+    const edits: Array<{ oldText: string; newText: string }> = []
+    for (const item of list) {
+      const edit = asRecord(item)
+      if (!edit) continue
+      const oldText = typeof edit.oldText === 'string' ? edit.oldText : ''
+      const newText = typeof edit.newText === 'string' ? edit.newText : ''
+      if (oldText || newText) edits.push({ oldText, newText })
+    }
+    return edits
+  }
+  const oldText = typeof record.oldText === 'string' ? record.oldText : ''
+  const newText = typeof record.newText === 'string' ? record.newText : ''
+  return oldText || newText ? [{ oldText, newText }] : []
+}
+
+export function toolDiffStats(name: string, args: unknown, result?: unknown): DiffStats | null {
+  const lower = name.toLowerCase()
+  if (lower === 'edit') {
+    const patch = resultPatch(result)
+    if (patch) {
+      const fromPatch = statsFromPatch(patch)
+      if (fromPatch) return fromPatch
+    }
+    const record = asRecord(args)
+    if (!record) return null
+    const edits = parseEdits(record)
+    if (edits.length === 0) return null
+    let added = 0
+    let removed = 0
+    for (const edit of edits) {
+      const stats = statsFromTexts(edit.oldText, edit.newText)
+      added += stats.added
+      removed += stats.removed
+    }
+    return added === 0 && removed === 0 ? null : { added, removed }
+  }
+  if (lower === 'write') {
+    const record = asRecord(args)
+    const content = typeof record?.content === 'string' ? record.content : ''
+    const added = splitLines(content).length
+    return added === 0 ? null : { added, removed: 0 }
+  }
+  return null
+}
+
 export function formatElapsed(ms: number): string {
   const clamped = Math.max(0, ms)
   const tenths = Math.round(clamped / 100)

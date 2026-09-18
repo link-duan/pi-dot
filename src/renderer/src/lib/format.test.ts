@@ -4,6 +4,7 @@ import {
   sessionTimeGroup,
   formatElapsed,
   sessionTitle,
+  toolDiffStats,
   toolLabel,
   toolSummary,
 } from './format'
@@ -90,6 +91,78 @@ describe('toolSummary', () => {
     expect(toolSummary('custom', { command: 'echo hi' })).toBe('echo hi')
     expect(toolSummary('custom', { path: '/tmp/x' })).toBe('/tmp/x')
     expect(toolSummary('bash', null)).toBe('')
+  })
+})
+
+describe('toolDiffStats', () => {
+  it('counts added and removed lines from edit replacements', () => {
+    expect(
+      toolDiffStats('edit', {
+        path: '/proj/a.ts',
+        edits: [
+          { oldText: '<MarkdownBody text={text} />', newText: '<MarkdownBody\n  text={text}\n/>' },
+        ],
+      }),
+    ).toEqual({ added: 3, removed: 1 })
+  })
+
+  it('sums multiple edits and accepts the legacy top-level schema', () => {
+    expect(
+      toolDiffStats('edit', {
+        edits: [
+          { oldText: 'a\nb', newText: 'a\nc' },
+          { oldText: 'x', newText: 'x\ny' },
+        ],
+      }),
+    ).toEqual({ added: 2, removed: 1 })
+    expect(toolDiffStats('edit', { oldText: 'one', newText: 'one\ntwo' })).toEqual({
+      added: 1,
+      removed: 0,
+    })
+  })
+
+  it('parses stringified edits arrays', () => {
+    expect(
+      toolDiffStats('edit', {
+        edits: JSON.stringify([{ oldText: 'foo', newText: 'bar' }]),
+      }),
+    ).toEqual({ added: 1, removed: 1 })
+  })
+
+  it('prefers unified patch details over args', () => {
+    expect(
+      toolDiffStats(
+        'edit',
+        { edits: [{ oldText: 'a', newText: 'b\nc\nd' }] },
+        {
+          details: {
+            patch: [
+              '--- a.ts',
+              '+++ a.ts',
+              '@@ -1,2 +1,3 @@',
+              ' context',
+              '-old',
+              '+new',
+              '+extra',
+            ].join('\n'),
+          },
+        },
+      ),
+    ).toEqual({ added: 2, removed: 1 })
+  })
+
+  it('counts write content as additions', () => {
+    expect(toolDiffStats('write', { path: 'a.ts', content: 'one\ntwo\nthree\n' })).toEqual({
+      added: 3,
+      removed: 0,
+    })
+  })
+
+  it('returns null when there is nothing to count', () => {
+    expect(toolDiffStats('edit', { edits: [{ oldText: 'same', newText: 'same' }] })).toBeNull()
+    expect(toolDiffStats('write', { path: 'a.ts', content: '' })).toBeNull()
+    expect(toolDiffStats('read', { path: 'a.ts' })).toBeNull()
+    expect(toolDiffStats('bash', { command: 'ls' })).toBeNull()
   })
 })
 

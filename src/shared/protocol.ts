@@ -95,6 +95,7 @@ export interface ToolResultMessage {
   toolCallId: string
   toolName: string
   content: ContentBlock[]
+  details?: unknown
   isError: boolean
   timestamp: number
 }

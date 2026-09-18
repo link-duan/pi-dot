@@ -1,10 +1,10 @@
-import { Fragment, memo, useEffect, useRef, useState, type RefObject } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Brain } from 'lucide-react'
 import { userText, type ToolLiveState } from '@/chat/state'
 import { useChat } from '@/chat/store'
 import { Spinner } from '@/components/ui/spinner'
 import { formatElapsed } from '@/lib/format'
-import type { AgentMessage, AssistantMessage } from '@shared/protocol'
+import type { AgentMessage, AssistantMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
 import { ActivityRow } from './ActivityRow'
 import { MarkdownBody } from './MarkdownBody'
@@ -23,6 +23,13 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
   const stickToBottom = useRef(true)
   const hasMessages = messages.length > 0
   const turns = userTurns(messages)
+  const toolResults = useMemo(() => {
+    const map: Record<string, ToolResultMessage> = {}
+    for (const message of messages) {
+      if (message.role === 'toolResult') map[message.toolCallId] = message
+    }
+    return map
+  }, [messages])
 
   useEffect(() => {
     const node = scrollerRef.current
@@ -51,6 +58,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
               key={messageKey(message, index)}
               message={message}
               toolLive={toolLive}
+              toolResults={toolResults}
               streaming={assistantStreaming && index === lastAssistantIndex(messages)}
             />
           ))}
@@ -75,6 +83,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
                       key={messageKey(message, index)}
                       message={message}
                       toolLive={toolLive}
+                      toolResults={toolResults}
                       streaming={assistantStreaming && index === lastAssistantIndex(messages)}
                     />
                   )
@@ -182,10 +191,12 @@ function lastAssistantIndex(messages: AgentMessage[]): number {
 const MessageRow = memo(function MessageRow({
   message,
   toolLive,
+  toolResults,
   streaming,
 }: {
   message: AgentMessage
   toolLive: Record<string, ToolLiveState>
+  toolResults: Record<string, ToolResultMessage>
   streaming: boolean
 }) {
   if (message.role === 'user') {
@@ -199,7 +210,14 @@ const MessageRow = memo(function MessageRow({
   }
 
   if (message.role === 'assistant') {
-    return <AssistantRow message={message} toolLive={toolLive} streaming={streaming} />
+    return (
+      <AssistantRow
+        message={message}
+        toolLive={toolLive}
+        toolResults={toolResults}
+        streaming={streaming}
+      />
+    )
   }
 
   if (message.role === 'toolResult') {
@@ -224,10 +242,12 @@ const MessageRow = memo(function MessageRow({
 function AssistantRow({
   message,
   toolLive,
+  toolResults,
   streaming,
 }: {
   message: AssistantMessage
   toolLive: Record<string, ToolLiveState>
+  toolResults: Record<string, ToolResultMessage>
   streaming: boolean
 }) {
   return (
@@ -264,6 +284,7 @@ function AssistantRow({
               name={block.name}
               args={block.arguments}
               live={toolLive[block.id]}
+              result={toolResults[block.id]}
               pending={streaming && contentIndex === message.content.length - 1}
             />
           )

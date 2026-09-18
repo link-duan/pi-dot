@@ -11,7 +11,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { asText, prettyJson, toolLabel, toolSummary } from '@/lib/format'
+import { asText, prettyJson, toolDiffStats, toolLabel, toolSummary } from '@/lib/format'
 import { useSession } from '@/session/store'
 import { ActivityRow } from './ActivityRow'
 
@@ -49,23 +49,26 @@ export function ToolCard({
   name,
   args,
   live,
+  result,
   pending,
 }: {
   name: string
   args: unknown
   live?: ToolLiveState
+  result?: unknown
   pending?: boolean
 }) {
   const cwd = useSession((state) => state.cwd)
   const resultRef = useRef<HTMLPreElement>(null)
   const running = live?.status === 'running' || (pending && live?.status !== 'done')
-  const result = live?.result ?? live?.partialResult
-  const resultText = asText(result)
+  const output = live?.result ?? live?.partialResult
+  const resultText = asText(output)
   const error = Boolean(live?.isError)
   const payload = live?.args ?? args
   const argsText = prettyJson(payload)
   const hasArgs = Boolean(argsText) && argsText !== '{}' && argsText !== 'null'
   const hasDetails = hasArgs || Boolean(resultText)
+  const stats = toolDiffStats(name, payload, live?.result ?? result)
 
   useEffect(() => {
     if (!running) return
@@ -78,6 +81,7 @@ export function ToolCard({
       icon={getToolIcon(name)}
       label={toolLabel(name)}
       summary={toolSummary(name, payload, cwd, window.pi.homedir)}
+      stats={stats}
       running={running}
       error={error}
     >

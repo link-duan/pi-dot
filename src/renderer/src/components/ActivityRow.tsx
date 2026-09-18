@@ -1,12 +1,14 @@
 import { AlertCircle, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Spinner } from '@/components/ui/spinner'
+import type { DiffStats } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export function ActivityRow({
   icon: Icon,
   label,
   summary,
+  stats,
   running,
   error,
   open: openProp,
@@ -17,6 +19,7 @@ export function ActivityRow({
   icon: LucideIcon
   label: string
   summary: string
+  stats?: DiffStats | null
   running?: boolean
   error?: boolean
   open?: boolean
@@ -61,8 +64,9 @@ export function ActivityRow({
     </span>
   )
 
+  const showStats = Boolean(stats && (stats.added > 0 || stats.removed > 0))
   const text = (
-    <span className="flex min-w-0 items-center gap-2">
+    <span className="flex min-w-0 items-baseline gap-2">
       <span
         className={cn(
           'shrink-0 whitespace-nowrap',
@@ -72,6 +76,15 @@ export function ActivityRow({
         {label}
       </span>
       {summary ? <span className="min-w-0 truncate text-muted-foreground">{summary}</span> : null}
+      {showStats && stats ? (
+        <span className="shrink-0 font-mono text-[11px] tabular-nums">
+          {stats.added > 0 ? (
+            <span className="text-emerald-600 dark:text-emerald-400">+{stats.added}</span>
+          ) : null}
+          {stats.added > 0 && stats.removed > 0 ? ' ' : null}
+          {stats.removed > 0 ? <span className="text-destructive">-{stats.removed}</span> : null}
+        </span>
+      ) : null}
     </span>
   )
 
