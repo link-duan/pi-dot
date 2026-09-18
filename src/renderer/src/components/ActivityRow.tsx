@@ -32,34 +32,13 @@ export function ActivityRow({
   const open = openProp ?? userOpen ?? (expandable && defaultOpen)
 
   const iconSlot = (
-    <span className="relative flex size-4 shrink-0 items-center justify-center text-muted-foreground">
-      {open && !running ? (
-        <ChevronRight className="size-3.5 rotate-90" />
+    <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
+      {running ? (
+        <Spinner className="size-3.5" />
+      ) : error ? (
+        <AlertCircle className="size-3.5 text-destructive" />
       ) : (
-        <>
-          <span
-            className={cn(
-              'flex items-center justify-center',
-              expandable && 'group-hover/row:invisible',
-            )}
-          >
-            {running ? (
-              <Spinner className="size-3.5" />
-            ) : error ? (
-              <AlertCircle className="size-3.5 text-destructive" />
-            ) : (
-              <Icon className="size-3.5" />
-            )}
-          </span>
-          {expandable ? (
-            <ChevronRight
-              className={cn(
-                'pointer-events-none invisible absolute inset-0 m-auto size-3.5 group-hover/row:visible',
-                open && 'rotate-90',
-              )}
-            />
-          ) : null}
-        </>
+        <Icon className="size-3.5" />
       )}
     </span>
   )
@@ -76,6 +55,14 @@ export function ActivityRow({
         {label}
       </span>
       {summary ? <span className="min-w-0 truncate text-muted-foreground">{summary}</span> : null}
+      {expandable ? (
+        <ChevronRight
+          className={cn(
+            'size-3.5 shrink-0 self-center text-muted-foreground transition',
+            open ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
+        />
+      ) : null}
       {showStats && stats ? (
         <span className="shrink-0 font-mono text-xs tabular-nums">
           {stats.added > 0 ? (
@@ -99,7 +86,7 @@ export function ActivityRow({
             onOpenChange?.(next)
             if (openProp === undefined) setUserOpen(next)
           }}
-          className="group/row inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
+          className="group inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
         >
           {iconSlot}
           {text}
@@ -110,7 +97,7 @@ export function ActivityRow({
           {text}
         </div>
       )}
-      {open && expandable ? <div className="pb-2 pl-6 select-text">{children}</div> : null}
+      {open && expandable ? <div className="pb-2 pl-1 select-text">{children}</div> : null}
     </div>
   )
 }
