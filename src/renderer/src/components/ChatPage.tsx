@@ -22,14 +22,14 @@ export function ChatPage() {
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
       {/* Overlay: keep macOS traffic-light drag space without pushing transcript down */}
-      <div className="absolute inset-x-0 top-0 z-10 flex h-9 items-center select-none">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-9 items-center select-none">
         <div
-          className="app-drag h-full min-w-0 flex-1"
+          className="app-drag pointer-events-auto h-full min-w-0 flex-1"
           onWheel={(event) => {
             scrollerRef.current?.scrollBy({ top: event.deltaY })
           }}
         />
-        <div className="app-no-drag flex items-center pr-2">
+        <div className="app-no-drag pointer-events-auto mr-2.5 flex items-center">
           <SessionSwitcher />
           <Button
             type="button"
@@ -71,7 +71,7 @@ export function ChatPage() {
       ) : null}
 
       <Transcript scrollerRef={scrollerRef} />
-      <Composer scrollerRef={scrollerRef} />
+      <Composer />
     </div>
   )
 }

@@ -1,12 +1,12 @@
 import { ArrowUp, Folder, Square } from 'lucide-react'
-import { useRef, useState, type RefObject } from 'react'
+import { useRef, useState } from 'react'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
 import { folderName } from '@/lib/path'
 import { useSession } from '@/session/store'
 import { ModelSelect } from './ModelSelect'
 
-export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
+export function Composer() {
   const [text, setText] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const cwd = useSession((state) => state.cwd)
@@ -27,17 +27,13 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
 
   return (
     <form
-      className="relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3"
+      className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3"
       onSubmit={(event) => {
         event.preventDefault()
         submit()
       }}
-      onWheel={(event) => {
-        if (event.target !== event.currentTarget) return
-        scrollerRef.current?.scrollBy({ top: event.deltaY })
-      }}
     >
-      <div className="mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
+      <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>

@@ -6,6 +6,7 @@ import { Spinner } from '@/components/ui/spinner'
 import { formatElapsed } from '@/lib/format'
 import type { AgentMessage, AssistantMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
+import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { ActivityRow } from './ActivityRow'
 import { MarkdownBody } from './MarkdownBody'
 import { PiIcon } from './PiIcon'
@@ -38,66 +39,77 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
   }, [messages, toolLive, isStreaming, scrollerRef])
 
   return (
-    <div
-      ref={scrollerRef}
-      className="min-h-0 flex-1 scroll-fade overflow-y-auto px-6"
-      onScroll={(event) => {
-        const node = event.currentTarget
-        stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80
-      }}
-    >
-      {!hasMessages && !isStreaming ? (
-        <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
-          <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
-          <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
-        </div>
-      ) : (
-        <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
-          {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
-            <MessageRow
-              key={messageKey(message, index)}
-              message={message}
-              toolLive={toolLive}
-              toolResults={toolResults}
-              streaming={assistantStreaming && index === lastAssistantIndex(messages)}
-            />
-          ))}
-          {turns.map((turn, turnIndex) => {
-            const isLast = turnIndex === turns.length - 1
-            const status = turnStatus({
-              isLast,
-              isStreaming,
-              turnActive,
-              turnStartedAt,
-              turnEndedAt,
-              messages,
-              persistedAt,
-              turn,
-            })
-            return (
-              <Fragment key={turn.start}>
-                {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
-                  const index = turn.start + offset
-                  return (
-                    <MessageRow
-                      key={messageKey(message, index)}
-                      message={message}
-                      toolLive={toolLive}
-                      toolResults={toolResults}
-                      streaming={assistantStreaming && index === lastAssistantIndex(messages)}
-                    />
-                  )
-                })}
-                {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
-              </Fragment>
-            )
-          })}
-          {isStreaming && turns.length === 0 && turnStartedAt != null ? (
-            <TurnStatus kind="waiting" startedAt={turnStartedAt} endedAt={null} />
-          ) : null}
-        </div>
-      )}
-    </div>
+    <ScrollArea className="min-h-0 flex-1">
+      <ScrollAreaViewport
+        ref={scrollerRef}
+        className="px-6"
+        onScroll={(event) => {
+          const node = event.currentTarget
+          stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80
+        }}
+      >
+        {!hasMessages && !isStreaming ? (
+          <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
+            <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
+            <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
+          </div>
+        ) : (
+          <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
+            {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
+              <MessageRow
+                key={messageKey(message, index)}
+                message={message}
+                toolLive={toolLive}
+                toolResults={toolResults}
+                streaming={assistantStreaming && index === lastAssistantIndex(messages)}
+              />
+            ))}
+            {turns.map((turn, turnIndex) => {
+              const isLast = turnIndex === turns.length - 1
+              const status = turnStatus({
+                isLast,
+                isStreaming,
+                turnActive,
+                turnStartedAt,
+                turnEndedAt,
+                messages,
+                persistedAt,
+                turn,
+              })
+              return (
+                <Fragment key={turn.start}>
+                  {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
+                    const index = turn.start + offset
+                    return (
+                      <MessageRow
+                        key={messageKey(message, index)}
+                        message={message}
+                        toolLive={toolLive}
+                        toolResults={toolResults}
+                        streaming={assistantStreaming && index === lastAssistantIndex(messages)}
+                      />
+                    )
+                  })}
+                  {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
+                </Fragment>
+              )
+            })}
+            {isStreaming && turns.length === 0 && turnStartedAt != null ? (
+              <TurnStatus kind="waiting" startedAt={turnStartedAt} endedAt={null} />
+            ) : null}
+          </div>
+        )}
+      </ScrollAreaViewport>
+      <ScrollAreaScrollbar />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-background to-transparent"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent"
+      />
+    </ScrollArea>
   )
 }
 

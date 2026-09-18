@@ -55,14 +55,6 @@ export function ActivityRow({
         {label}
       </span>
       {summary ? <span className="min-w-0 truncate text-muted-foreground">{summary}</span> : null}
-      {expandable ? (
-        <ChevronRight
-          className={cn(
-            'size-3.5 shrink-0 self-center text-muted-foreground transition',
-            open ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100',
-          )}
-        />
-      ) : null}
       {showStats && stats ? (
         <span className="shrink-0 font-mono text-xs tabular-nums">
           {stats.added > 0 ? (
@@ -71,6 +63,14 @@ export function ActivityRow({
           {stats.added > 0 && stats.removed > 0 ? ' ' : null}
           {stats.removed > 0 ? <span className="text-destructive">-{stats.removed}</span> : null}
         </span>
+      ) : null}
+      {expandable ? (
+        <ChevronRight
+          className={cn(
+            'size-3.5 shrink-0 self-center text-muted-foreground transition',
+            open ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100',
+          )}
+        />
       ) : null}
     </span>
   )
