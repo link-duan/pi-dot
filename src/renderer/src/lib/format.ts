@@ -357,6 +357,18 @@ export function toolEditDiff(args: unknown, result?: unknown): DiffLine[] | null
   return hasDiffEdits(lines) ? lines : null
 }
 
+function writeLines(args: unknown): string[] {
+  const record = asRecord(args)
+  if (!record || typeof record.content !== 'string') return []
+  return splitLines(record.content)
+}
+
+export function toolWriteDiff(args: unknown): DiffLine[] | null {
+  const lines = writeLines(args)
+  if (lines.length === 0) return null
+  return lines.map((text, i) => ({ kind: 'add', text, newLine: i + 1 }))
+}
+
 function hunkRange(count: number, start?: number): string | null {
   if (start == null) return null
   return count === 1 ? `${start}` : `${start},${count}`
@@ -418,9 +430,7 @@ export function toolDiffStats(name: string, args: unknown, result?: unknown): Di
     return added === 0 && removed === 0 ? null : { added, removed }
   }
   if (lower === 'write') {
-    const record = asRecord(args)
-    const content = typeof record?.content === 'string' ? record.content : ''
-    const added = splitLines(content).length
+    const added = writeLines(args).length
     return added === 0 ? null : { added, removed: 0 }
   }
   return null

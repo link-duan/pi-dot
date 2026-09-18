@@ -30,10 +30,10 @@ export function FileCard({
   return (
     <div className="mt-2 w-full rounded-xl border border-border pt-2">
       <div className="flex items-center gap-2 px-2">
-        <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
-          {path}
+        <span className="flex min-w-0 flex-1 items-baseline gap-2">
+          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{path}</span>
+          {stats ? <DiffStatsLabel stats={stats} /> : null}
         </span>
-        {stats ? <DiffStatsLabel stats={stats} /> : null}
         <CodeBlockCopyButton code={copy} />
       </div>
       <div className="mt-2 max-h-96 overflow-auto border-t border-border py-2 font-mono text-xs leading-relaxed">

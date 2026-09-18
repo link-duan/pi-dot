@@ -22,6 +22,7 @@ import {
   toolLabel,
   toolReadPreview,
   toolSummary,
+  toolWriteDiff,
   type DiffLine,
   type DiffStats,
   type ReadPreview,
@@ -51,6 +52,10 @@ function isEditTool(name: string): boolean {
 
 function isReadTool(name: string): boolean {
   return name.toLowerCase() === 'read'
+}
+
+function isWriteTool(name: string): boolean {
+  return name.toLowerCase() === 'write'
 }
 
 function isShellTool(name: string): boolean {
@@ -132,8 +137,13 @@ export function ToolCard({
   const view = toolView(name, args, live, result, pending)
   const collapsedAttempt = isCollapsedToolAttempt(name, view.error)
   const resolved = live?.result ?? result
-  const editDiff =
-    isEditTool(name) && !collapsedAttempt ? toolEditDiff(view.payload, resolved) : null
+  const fileDiff = collapsedAttempt
+    ? null
+    : isEditTool(name)
+      ? toolEditDiff(view.payload, resolved)
+      : isWriteTool(name)
+        ? toolWriteDiff(view.payload)
+        : null
   const readPreview =
     isReadTool(name) && !view.error
       ? toolReadPreview(view.payload, resolved, cwd, window.pi.homedir)
@@ -148,9 +158,9 @@ export function ToolCard({
 
   let details = null
   if (!collapsedAttempt) {
-    if (editDiff) details = <EditDiff path={summary} stats={view.stats} lines={editDiff} />
+    if (fileDiff) details = <EditDiff path={summary} stats={view.stats} lines={fileDiff} />
     else if (readPreview) details = <ReadFile preview={readPreview} />
-    else if (view.hasDetails) {
+    else if (view.hasDetails && !isWriteTool(name)) {
       details = (
         <ToolDetails
           shell={view.shell}
@@ -172,7 +182,7 @@ export function ToolCard({
       stats={collapsedAttempt ? null : view.stats}
       running={view.running && !collapsedAttempt}
       error={view.error && !collapsedAttempt}
-      hideMetaWhenOpen={Boolean(editDiff || readPreview)}
+      hideMetaWhenOpen={Boolean(fileDiff || readPreview)}
     >
       {details}
     </ActivityRow>

@@ -7,6 +7,7 @@ import {
   formatDiffCopy,
   toolDiffStats,
   toolEditDiff,
+  toolWriteDiff,
   isCollapsedToolAttempt,
   toolLabel,
   toolReadPreview,
@@ -325,6 +326,21 @@ describe('toolEditDiff', () => {
 
   it('returns null when nothing changed', () => {
     expect(toolEditDiff({ edits: [{ oldText: 'same', newText: 'same' }] })).toBeNull()
+  })
+})
+
+describe('toolWriteDiff', () => {
+  it('treats every content line as an addition', () => {
+    expect(toolWriteDiff({ path: 'a.ts', content: 'one\ntwo\n' })).toEqual([
+      { kind: 'add', text: 'one', newLine: 1 },
+      { kind: 'add', text: 'two', newLine: 2 },
+    ])
+  })
+
+  it('returns null when there is no content', () => {
+    expect(toolWriteDiff({ path: 'a.ts', content: '' })).toBeNull()
+    expect(toolWriteDiff({ path: 'a.ts' })).toBeNull()
+    expect(toolWriteDiff(null)).toBeNull()
   })
 })
 
