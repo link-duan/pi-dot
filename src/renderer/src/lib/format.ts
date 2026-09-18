@@ -50,6 +50,12 @@ export function toolLabel(name: string): string {
   return TOOL_LABELS[name.toLowerCase()] ?? name
 }
 
+export function isCollapsedToolAttempt(name: string, error: boolean): boolean {
+  if (!error) return false
+  const lower = name.toLowerCase()
+  return lower === 'edit' || lower === 'write'
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   return value as Record<string, unknown>

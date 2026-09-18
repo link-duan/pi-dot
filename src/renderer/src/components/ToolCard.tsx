@@ -15,6 +15,7 @@ import { citationLabel, languageFromPath } from '@/lib/code-citation'
 import {
   asText,
   formatDiffCopy,
+  isCollapsedToolAttempt,
   prettyJson,
   toolDiffStats,
   toolEditDiff,
@@ -129,13 +130,15 @@ export function ToolCard({
   const cwd = useSession((state) => state.cwd)
   const resultRef = useRef<HTMLPreElement>(null)
   const view = toolView(name, args, live, result, pending)
+  const collapsedAttempt = isCollapsedToolAttempt(name, view.error)
   const resolved = live?.result ?? result
-  const editDiff = isEditTool(name) ? toolEditDiff(view.payload, resolved) : null
+  const editDiff =
+    isEditTool(name) && !collapsedAttempt ? toolEditDiff(view.payload, resolved) : null
   const readPreview =
     isReadTool(name) && !view.error
       ? toolReadPreview(view.payload, resolved, cwd, window.pi.homedir)
       : null
-  const summary = toolSummary(name, view.payload, cwd, window.pi.homedir)
+  const summary = collapsedAttempt ? '' : toolSummary(name, view.payload, cwd, window.pi.homedir)
 
   useEffect(() => {
     if (!view.running) return
@@ -143,28 +146,12 @@ export function ToolCard({
     if (node) node.scrollTop = node.scrollHeight
   }, [view.running, view.resultText])
 
-  return (
-    <ActivityRow
-      icon={getToolIcon(name)}
-      label={toolLabel(name)}
-      summary={summary}
-      stats={view.stats}
-      running={view.running}
-      error={view.error}
-      hideMetaWhenOpen={Boolean(editDiff || readPreview)}
-    >
-      {editDiff ? (
-        <>
-          <EditDiff path={summary} stats={view.stats} lines={editDiff} />
-          {view.error && view.resultText ? (
-            <pre className="mt-2 max-h-64 scroll-fade overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-destructive">
-              {view.resultText}
-            </pre>
-          ) : null}
-        </>
-      ) : readPreview ? (
-        <ReadFile preview={readPreview} />
-      ) : view.hasDetails ? (
+  let details = null
+  if (!collapsedAttempt) {
+    if (editDiff) details = <EditDiff path={summary} stats={view.stats} lines={editDiff} />
+    else if (readPreview) details = <ReadFile preview={readPreview} />
+    else if (view.hasDetails) {
+      details = (
         <ToolDetails
           shell={view.shell}
           command={view.command}
@@ -173,7 +160,21 @@ export function ToolCard({
           error={view.error}
           resultRef={resultRef}
         />
-      ) : null}
+      )
+    }
+  }
+
+  return (
+    <ActivityRow
+      icon={getToolIcon(name)}
+      label={collapsedAttempt ? `${toolLabel(name)} attempted` : toolLabel(name)}
+      summary={summary}
+      stats={collapsedAttempt ? null : view.stats}
+      running={view.running && !collapsedAttempt}
+      error={view.error && !collapsedAttempt}
+      hideMetaWhenOpen={Boolean(editDiff || readPreview)}
+    >
+      {details}
     </ActivityRow>
   )
 }

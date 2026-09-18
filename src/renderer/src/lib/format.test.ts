@@ -7,6 +7,7 @@ import {
   formatDiffCopy,
   toolDiffStats,
   toolEditDiff,
+  isCollapsedToolAttempt,
   toolLabel,
   toolReadPreview,
   toolSummary,
@@ -343,6 +344,15 @@ describe('toolLabel', () => {
   it('title-cases known tools and keeps unknown names', () => {
     expect(toolLabel('bash')).toBe('Bash')
     expect(toolLabel('custom_tool')).toBe('custom_tool')
+  })
+})
+
+describe('isCollapsedToolAttempt', () => {
+  it('collapses failed edit and write calls', () => {
+    expect(isCollapsedToolAttempt('edit', true)).toBe(true)
+    expect(isCollapsedToolAttempt('Write', true)).toBe(true)
+    expect(isCollapsedToolAttempt('edit', false)).toBe(false)
+    expect(isCollapsedToolAttempt('bash', true)).toBe(false)
   })
 })
 
