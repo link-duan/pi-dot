@@ -70,7 +70,7 @@ export function ModelSelect() {
             {THINKING_LEVEL_LABELS[thinkingLevel]}
           </span>
         ) : null}
-        <ChevronDownIcon className="pointer-events-none size-3.5 shrink-0 text-muted-foreground" />
+        <ChevronDownIcon className="pointer-events-none -ml-1 size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="end" className="w-48" sideOffset={6}>
         <DropdownMenuSub>
