@@ -17,7 +17,9 @@ describe('formatElapsed', () => {
     expect(formatElapsed(950)).toBe('1s')
     expect(formatElapsed(12_000)).toBe('12s')
     expect(formatElapsed(60_000)).toBe('1m')
-    expect(formatElapsed(90_000)).toBe('1m30s')
+    expect(formatElapsed(90_000)).toBe('1m 30s')
+    expect(formatElapsed(3_600_000)).toBe('1h')
+    expect(formatElapsed(5_412_000)).toBe('1h 30m 12s')
   })
 })
 

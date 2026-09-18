@@ -25,7 +25,7 @@ export function FolderPicker() {
           </div>
 
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">Pi Dot</h1>
-          <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             Open a local folder.
           </p>
 
@@ -43,14 +43,14 @@ export function FolderPicker() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-xs font-medium text-foreground">
+                    <span className="truncate text-sm font-medium text-foreground">
                       {folderName(lastCwd)}
                     </span>
-                    <span className="py-0.2 rounded border border-border/50 bg-muted/40 px-1 font-mono text-[9px] text-muted-foreground uppercase">
+                    <span className="rounded border border-border/50 bg-muted/40 px-1 py-0.5 font-mono text-xs text-muted-foreground uppercase">
                       Recent
                     </span>
                   </div>
-                  <span className="mt-0.5 block truncate font-mono text-[11px] text-muted-foreground/80">
+                  <span className="mt-0.5 block truncate font-mono text-xs text-muted-foreground/80">
                     {lastCwd}
                   </span>
                 </div>
@@ -72,7 +72,7 @@ export function FolderPicker() {
               disabled={busy}
               onClick={() => void openFolder()}
               variant={lastCwd ? 'outline' : 'default'}
-              className="h-9.5 w-full rounded-xl text-xs font-medium shadow-xs"
+              className="h-9.5 w-full rounded-xl text-sm font-medium shadow-xs"
             >
               <FolderOpen className="size-3.5" />
               <span>{lastCwd ? 'Choose another folder' : 'Open folder'}</span>

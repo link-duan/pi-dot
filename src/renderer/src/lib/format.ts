@@ -238,9 +238,14 @@ export function formatElapsed(ms: number): string {
   if (clamped < 1000 && tenths < 10) return `0.${tenths}s`
   const totalSeconds = Math.round(clamped / 1000)
   if (totalSeconds < 60) return `${totalSeconds}s`
-  const minutes = Math.floor(totalSeconds / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
-  return seconds ? `${minutes}m${seconds}s` : `${minutes}m`
+  const parts: string[] = []
+  if (hours) parts.push(`${hours}h`)
+  if (minutes) parts.push(`${minutes}m`)
+  if (seconds) parts.push(`${seconds}s`)
+  return parts.join(' ')
 }
 
 export function sessionTitle(item: { name?: string; firstMessage?: string }): string {

@@ -47,7 +47,7 @@ export function Composer({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElemen
           value={text}
           rows={1}
           placeholder="Message..."
-          className="block field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2 py-1 text-[13.5px] leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+          className="block field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-1.5 leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {

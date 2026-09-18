@@ -77,7 +77,7 @@ export function ActivityRow({
       </span>
       {summary ? <span className="min-w-0 truncate text-muted-foreground">{summary}</span> : null}
       {showStats && stats ? (
-        <span className="shrink-0 font-mono text-[11px] tabular-nums">
+        <span className="shrink-0 font-mono text-xs tabular-nums">
           {stats.added > 0 ? (
             <span className="text-emerald-600 dark:text-emerald-400">+{stats.added}</span>
           ) : null}
@@ -89,7 +89,7 @@ export function ActivityRow({
   )
 
   return (
-    <div className="py-1">
+    <div className="py-1.5">
       {expandable ? (
         <button
           type="button"
@@ -99,13 +99,13 @@ export function ActivityRow({
             onOpenChange?.(next)
             if (openProp === undefined) setUserOpen(next)
           }}
-          className="group/row inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left text-[13px] leading-4 select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
+          className="group/row inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
         >
           {iconSlot}
           {text}
         </button>
       ) : (
-        <div className="inline-flex max-w-full items-center gap-2 text-[13px] leading-4">
+        <div className="inline-flex max-w-full items-center gap-2">
           {iconSlot}
           {text}
         </div>

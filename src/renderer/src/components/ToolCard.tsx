@@ -88,14 +88,14 @@ export function ToolCard({
       {hasDetails ? (
         <>
           {hasArgs ? (
-            <pre className="max-h-64 scroll-fade overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+            <pre className="max-h-64 scroll-fade overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
               {argsText}
             </pre>
           ) : null}
           {resultText ? (
             <pre
               ref={resultRef}
-              className={`mt-2 max-h-64 scroll-fade overflow-auto font-mono text-[11px] leading-relaxed whitespace-pre-wrap ${
+              className={`mt-2 max-h-64 scroll-fade overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap ${
                 error ? 'text-destructive' : 'text-muted-foreground'
               }`}
             >

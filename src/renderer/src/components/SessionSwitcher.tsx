@@ -122,7 +122,7 @@ export function SessionSwitcher() {
             </>
           )}
         </CommandList>
-        <div className="flex shrink-0 items-center gap-3 border-t px-3.5 py-1.5 text-[11px] text-muted-foreground">
+        <div className="flex shrink-0 items-center gap-3 border-t px-3.5 py-1.5 text-xs text-muted-foreground">
           <span>↑↓ Select</span>
           <span>↵ Open</span>
         </div>

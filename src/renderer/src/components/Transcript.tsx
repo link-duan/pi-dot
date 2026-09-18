@@ -49,7 +49,7 @@ export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElem
       {!hasMessages && !isStreaming ? (
         <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
           <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
-          <p className="mt-3 text-xs text-muted-foreground">Send pi a prompt.</p>
+          <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
         </div>
       ) : (
         <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
@@ -174,8 +174,8 @@ function TurnStatus({
         : `Worked for ${clock}`
 
   return (
-    <div className="mt-1 mb-3 flex items-center gap-1.5 text-[11px] text-muted-foreground select-none">
-      {live ? <Spinner className="size-3" /> : null}
+    <div className="mt-1 mb-3 flex items-center gap-1.5 text-muted-foreground select-none">
+      {live ? <Spinner className="size-3.5" /> : null}
       <span>{label}</span>
     </div>
   )
@@ -202,7 +202,7 @@ const MessageRow = memo(function MessageRow({
   if (message.role === 'user') {
     return (
       <div className="my-4 flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-2.5 text-[13.5px] leading-relaxed whitespace-pre-wrap text-foreground shadow-xs select-text dark:bg-muted/60">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-2.5 leading-relaxed whitespace-pre-wrap text-foreground shadow-xs select-text dark:bg-muted/60">
           {userText(message)}
         </div>
       </div>
@@ -228,7 +228,7 @@ const MessageRow = memo(function MessageRow({
     return (
       <div className="my-2 flex items-center justify-center gap-2">
         <div className="h-px flex-1 bg-border/50" />
-        <span className="rounded-full border border-border/50 bg-muted/50 px-2.5 py-0.5 font-mono text-[10px] text-muted-foreground uppercase">
+        <span className="rounded-full border border-border/50 bg-muted/50 px-2.5 py-0.5 font-mono text-xs text-muted-foreground uppercase">
           Context compacted
         </span>
         <div className="h-px flex-1 bg-border/50" />
