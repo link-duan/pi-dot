@@ -1,6 +1,5 @@
 import { AlertCircle, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import { Spinner } from '@/components/ui/spinner'
 import type { DiffStats } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -48,9 +47,7 @@ export function ActivityRow({
 
   const iconSlot = (
     <span className="flex size-4 shrink-0 items-center justify-center text-muted-foreground">
-      {running ? (
-        <Spinner className="size-3.5" />
-      ) : error ? (
+      {error ? (
         <AlertCircle className="size-3.5 text-destructive" />
       ) : (
         <Icon className="size-3.5" />
@@ -63,16 +60,25 @@ export function ActivityRow({
     <span className="flex min-w-0 items-baseline gap-2">
       <span
         className={cn(
-          'whitespace-nowrap',
-          error ? 'text-destructive' : 'text-foreground/75',
-          summary ? 'shrink-0' : 'min-w-0 truncate',
+          'flex min-w-0 items-baseline gap-2',
+          running && 'shimmer text-muted-foreground',
         )}
       >
-        {label}
+        <span
+          className={cn(
+            'whitespace-nowrap',
+            error ? 'text-destructive' : !running && 'text-foreground/75',
+            summary ? 'shrink-0' : 'min-w-0 truncate',
+          )}
+        >
+          {label}
+        </span>
+        {showMeta && summary ? (
+          <span className={cn('min-w-0 truncate', !running && 'text-muted-foreground')}>
+            {summary}
+          </span>
+        ) : null}
       </span>
-      {showMeta && summary ? (
-        <span className="min-w-0 truncate text-muted-foreground">{summary}</span>
-      ) : null}
       {showMeta && stats ? <DiffStatsLabel stats={stats} /> : null}
       {expandable ? (
         <ChevronRight

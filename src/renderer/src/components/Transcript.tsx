@@ -213,7 +213,7 @@ function TurnStatus({
           <Spinner className="size-3.5" />
         </span>
       ) : null}
-      <span>{label}</span>
+      <span className={live ? 'shimmer' : undefined}>{label}</span>
     </div>
   )
 }
