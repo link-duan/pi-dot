@@ -1,4 +1,4 @@
-import { Suspense, use, useMemo, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, use, type CSSProperties, type ReactNode } from 'react'
 import { CodeBlockCopyButton } from 'streamdown'
 import { DiffStatsLabel } from './ActivityRow'
 import { highlight, type HighlightToken } from '@/lib/highlight'
@@ -179,8 +179,7 @@ function Token({ token }: { token: Token }) {
 }
 
 function useHighlight(source: string, language: string) {
-  const result = useMemo(() => highlight(source, language), [source, language])
-  return result instanceof Promise ? use(result) : result
+  return use(highlight(source, language))
 }
 
 function splitLines(source: string) {

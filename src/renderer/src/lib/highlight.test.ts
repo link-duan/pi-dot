@@ -13,9 +13,9 @@ describe('highlight', () => {
     expect(result.tokens[0]?.map((token) => token.content).join('')).toBe('hello')
   })
 
-  it('returns the cached result synchronously on the second call', async () => {
-    await Promise.resolve(highlight('export const x = 1', 'ts'))
-    const second = highlight('export const x = 1', 'ts')
-    expect(second).not.toBeInstanceOf(Promise)
+  it('returns the same thenable for the same source', async () => {
+    const first = highlight('export const x = 1', 'ts')
+    expect(highlight('export const x = 1', 'ts')).toBe(first)
+    expect((await first).tokens.length).toBeGreaterThan(0)
   })
 })

@@ -13,8 +13,7 @@ export type HighlightToken = {
 
 export type HighlightResult = { tokens: HighlightToken[][] }
 
-const cache = new Map<string, HighlightResult>()
-const inflight = new Map<string, Promise<HighlightResult>>()
+const cache = new Map<string, Promise<HighlightResult>>()
 
 function langId(language: string): string {
   const id = language.trim().toLowerCase()
@@ -22,22 +21,13 @@ function langId(language: string): string {
   return id in bundledLanguages ? id : 'text'
 }
 
-export function highlight(
-  source: string,
-  language: string,
-): HighlightResult | Promise<HighlightResult> {
+export function highlight(source: string, language: string): Promise<HighlightResult> {
   const lang = langId(language)
   const key = `${lang}\0${source}`
   const hit = cache.get(key)
   if (hit) return hit
-  const pending = inflight.get(key)
-  if (pending) return pending
-  const task = tokenize(source, lang).then((result) => {
-    cache.set(key, result)
-    return result
-  })
-  inflight.set(key, task)
-  void task.finally(() => inflight.delete(key))
+  const task = tokenize(source, lang)
+  cache.set(key, task)
   return task
 }
 
