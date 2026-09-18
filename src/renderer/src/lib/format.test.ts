@@ -8,6 +8,7 @@ import {
   toolDiffStats,
   toolEditDiff,
   toolLabel,
+  toolReadPreview,
   toolSummary,
 } from './format'
 
@@ -95,6 +96,91 @@ describe('toolSummary', () => {
     expect(toolSummary('custom', { command: 'echo hi' })).toBe('echo hi')
     expect(toolSummary('custom', { path: '/tmp/x' })).toBe('/tmp/x')
     expect(toolSummary('bash', null)).toBe('')
+  })
+})
+
+describe('toolReadPreview', () => {
+  const cwd = '/proj'
+  const home = '/Users/me'
+
+  it('returns file text with a cwd-relative path', () => {
+    expect(
+      toolReadPreview(
+        { path: '/proj/src/x.ts' },
+        { content: [{ type: 'text', text: 'export const n = 1\n' }] },
+        cwd,
+        home,
+      ),
+    ).toEqual({
+      path: 'src/x.ts',
+      code: 'export const n = 1\n',
+      startLine: 1,
+    })
+  })
+
+  it('uses offset as the starting line', () => {
+    expect(
+      toolReadPreview({ path: 'a.ts', offset: 12, limit: 4 }, { content: 'keep\nthis' }, cwd),
+    ).toEqual({
+      path: 'a.ts',
+      code: 'keep\nthis',
+      startLine: 12,
+    })
+  })
+
+  it('strips the continuation notice and keeps in-body brackets', () => {
+    expect(
+      toolReadPreview(
+        { path: 'a.ts' },
+        {
+          content: [
+            {
+              type: 'text',
+              text: 'const tags = ["[keep]"]\n\n[Showing lines 1-2 of 9. Use offset=3 to continue.]',
+            },
+          ],
+        },
+      ),
+    ).toEqual({
+      path: 'a.ts',
+      code: 'const tags = ["[keep]"]',
+      startLine: 1,
+      notice: '[Showing lines 1-2 of 9. Use offset=3 to continue.]',
+    })
+    expect(
+      toolReadPreview(
+        { path: 'a.ts' },
+        'line\n\n[3 more lines in file. Use offset=2 to continue.]',
+      ),
+    ).toEqual({
+      path: 'a.ts',
+      code: 'line',
+      startLine: 1,
+      notice: '[3 more lines in file. Use offset=2 to continue.]',
+    })
+  })
+
+  it('returns null for missing results, images, and oversize lines', () => {
+    expect(toolReadPreview({ path: 'a.ts' }, null)).toBeNull()
+    expect(toolReadPreview({ path: 'a.ts' }, undefined)).toBeNull()
+    expect(toolReadPreview(null, 'hello')).toBeNull()
+    expect(toolReadPreview({ path: 'pic.png' }, 'Read image file [image/png]')).toBeNull()
+    expect(
+      toolReadPreview(
+        { path: 'a.ts' },
+        "[Line 1 is 80.0KB, exceeds 64.0KB limit. Use bash: sed -n '1p' a.ts]",
+      ),
+    ).toBeNull()
+  })
+
+  it('keeps an empty file as a preview', () => {
+    expect(
+      toolReadPreview({ path: '/proj/empty.ts' }, { content: [{ type: 'text', text: '' }] }, cwd),
+    ).toEqual({
+      path: 'empty.ts',
+      code: '',
+      startLine: 1,
+    })
   })
 })
 

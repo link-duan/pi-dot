@@ -128,6 +128,40 @@ export function toolSummary(
   return stringField(record, 'pattern', 'Query', 'query')
 }
 
+export interface ReadPreview {
+  path: string
+  code: string
+  startLine: number
+  notice?: string
+}
+
+const READ_NOTICE = /\n\n\[((?:Showing lines |\d+ more lines in file)[^\]]*)\]\s*$/
+const READ_IMAGE = /^Read image file \[/
+const READ_LINE_EXCEEDS = /^\[Line \d+ is .+, exceeds /
+
+function splitReadNotice(text: string): { code: string; notice?: string } {
+  const match = text.match(READ_NOTICE)
+  if (!match || match.index == null) return { code: text }
+  return { code: text.slice(0, match.index), notice: `[${match[1]}]` }
+}
+
+export function toolReadPreview(
+  args: unknown,
+  result: unknown,
+  cwd?: string | null,
+  home?: string | null,
+): ReadPreview | null {
+  if (result == null) return null
+  const record = asRecord(args)
+  if (!record) return null
+  const path = pathField(record, cwd, home)
+  if (!path) return null
+  const text = asText(result)
+  if (READ_IMAGE.test(text) || READ_LINE_EXCEEDS.test(text)) return null
+  const startLine = numberField(record, 'offset') ?? 1
+  return { path, startLine, ...splitReadNotice(text) }
+}
+
 export interface DiffStats {
   added: number
   removed: number

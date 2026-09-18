@@ -3,7 +3,6 @@
 @import 'shadcn/tailwind.css';
 
 @source '../../../node_modules/streamdown/dist/*.js';
-@source '../../../node_modules/@streamdown/code/dist/*.js';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -182,20 +181,6 @@
 [data-streamdown='code-block-header'] span {
   margin-left: 0;
   line-height: 1;
-}
-
-[data-code-citation] [data-streamdown='code-block-header'] span {
-  visibility: hidden;
-}
-
-[data-file-card] [data-streamdown='code-block'] {
-  row-gap: 8px;
-}
-
-[data-file-card] [data-streamdown='code-block-body'] {
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-  padding-bottom: 8px;
 }
 
 [data-streamdown='code-block'] > :has(> [data-streamdown='code-block-actions']) {

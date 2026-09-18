@@ -11,6 +11,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
+import { citationLabel, languageFromPath } from '@/lib/code-citation'
 import {
   asText,
   formatDiffCopy,
@@ -18,15 +19,17 @@ import {
   toolDiffStats,
   toolEditDiff,
   toolLabel,
+  toolReadPreview,
   toolSummary,
   type DiffLine,
   type DiffStats,
+  type ReadPreview,
 } from '@/lib/format'
 import { tokenizeShell, type ShellTokenKind } from '@/lib/shell-highlight'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
-import { CodeBlockCopyButton } from 'streamdown'
-import { ActivityRow, DiffStatsLabel } from './ActivityRow'
+import { ActivityRow } from './ActivityRow'
+import { FileCard, HighlightedCode, HighlightedDiff } from './FileCard'
 
 const TOKEN_CLASS: Record<ShellTokenKind, string> = {
   command: 'text-amber-600 dark:text-amber-400',
@@ -43,6 +46,10 @@ function isToolError(result: unknown): boolean {
 
 function isEditTool(name: string): boolean {
   return name.toLowerCase() === 'edit'
+}
+
+function isReadTool(name: string): boolean {
+  return name.toLowerCase() === 'read'
 }
 
 function isShellTool(name: string): boolean {
@@ -122,7 +129,12 @@ export function ToolCard({
   const cwd = useSession((state) => state.cwd)
   const resultRef = useRef<HTMLPreElement>(null)
   const view = toolView(name, args, live, result, pending)
-  const editDiff = isEditTool(name) ? toolEditDiff(view.payload, live?.result ?? result) : null
+  const resolved = live?.result ?? result
+  const editDiff = isEditTool(name) ? toolEditDiff(view.payload, resolved) : null
+  const readPreview =
+    isReadTool(name) && !view.error
+      ? toolReadPreview(view.payload, resolved, cwd, window.pi.homedir)
+      : null
   const summary = toolSummary(name, view.payload, cwd, window.pi.homedir)
 
   useEffect(() => {
@@ -139,7 +151,7 @@ export function ToolCard({
       stats={view.stats}
       running={view.running}
       error={view.error}
-      hideMetaWhenOpen={Boolean(editDiff)}
+      hideMetaWhenOpen={Boolean(editDiff || readPreview)}
     >
       {editDiff ? (
         <>
@@ -150,6 +162,8 @@ export function ToolCard({
             </pre>
           ) : null}
         </>
+      ) : readPreview ? (
+        <ReadFile preview={readPreview} />
       ) : view.hasDetails ? (
         <ToolDetails
           shell={view.shell}
@@ -246,15 +260,35 @@ function ShellBody({
   )
 }
 
-const DIFF_LINE_CLASS: Record<DiffLine['kind'], string> = {
-  add: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
-  remove: 'bg-destructive/10 text-destructive',
-  context: 'text-muted-foreground',
+function readEndLine(code: string, startLine: number): number {
+  if (!code) return startLine
+  const lines = code.split('\n')
+  if (lines[lines.length - 1] === '') lines.pop()
+  return startLine + Math.max(lines.length, 1) - 1
 }
 
-function diffLineNumber(line: DiffLine): number | undefined {
-  if (line.kind === 'remove') return line.oldLine
-  return line.newLine ?? line.oldLine
+function ReadFile({ preview }: { preview: ReadPreview }) {
+  return (
+    <>
+      <FileCard
+        path={citationLabel({
+          path: preview.path,
+          start: preview.startLine,
+          end: readEndLine(preview.code, preview.startLine),
+        })}
+        copy={preview.code}
+      >
+        <HighlightedCode
+          source={preview.code}
+          language={languageFromPath(preview.path)}
+          startLine={preview.startLine}
+        />
+      </FileCard>
+      {preview.notice ? (
+        <p className="mt-2 font-mono text-xs text-muted-foreground">{preview.notice}</p>
+      ) : null}
+    </>
+  )
 }
 
 function EditDiff({
@@ -266,51 +300,9 @@ function EditDiff({
   stats?: DiffStats | null
   lines: DiffLine[]
 }) {
-  const copy = formatDiffCopy(lines)
-  const gutterCh = Math.max(1, ...lines.map((line) => String(diffLineNumber(line) ?? '').length))
   return (
-    <div data-file-card="">
-      <div
-        className="mt-2 w-full rounded-xl border border-border bg-sidebar pt-2"
-        data-streamdown="code-block"
-      >
-        <div className="flex min-w-0 items-baseline gap-2 px-2" data-streamdown="code-block-header">
-          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground normal-case">
-            {path || 'Diff'}
-          </span>
-          {stats ? <DiffStatsLabel stats={stats} /> : null}
-        </div>
-        <div className="px-2">
-          <div data-streamdown="code-block-actions">
-            <CodeBlockCopyButton code={copy} />
-          </div>
-        </div>
-        <div
-          className="max-h-96 overflow-auto font-mono text-xs leading-relaxed"
-          data-streamdown="code-block-body"
-        >
-          {lines.map((line, index) => (
-            <div
-              key={index}
-              className={cn(
-                'flex items-baseline gap-2 py-px pr-2 whitespace-pre-wrap',
-                DIFF_LINE_CLASS[line.kind],
-                line.hunkStart && 'mt-2',
-              )}
-            >
-              <span className="shrink-0 px-2 text-right text-[10px] text-muted-foreground/50 tabular-nums select-none">
-                <span className="inline-block" style={{ width: `${gutterCh}ch` }}>
-                  {diffLineNumber(line) ?? ''}
-                </span>
-              </span>
-              <span className="w-3 shrink-0 select-none">
-                {line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ' '}
-              </span>
-              <span className="min-w-0">{line.text || ' '}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+    <FileCard path={path || 'Diff'} stats={stats} copy={formatDiffCopy(lines)}>
+      <HighlightedDiff lines={lines} language={languageFromPath(path)} />
+    </FileCard>
   )
 }

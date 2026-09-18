@@ -1,0 +1,194 @@
+import { Suspense, use, useMemo, type CSSProperties, type ReactNode } from 'react'
+import { CodeBlockCopyButton } from 'streamdown'
+import { DiffStatsLabel } from './ActivityRow'
+import { highlight, type HighlightToken } from '@/lib/highlight'
+import type { DiffLine, DiffStats } from '@/lib/format'
+import { cn } from '@/lib/utils'
+
+type Token = HighlightToken
+type Line = string | Token[]
+
+const DIFF_ROW: Record<DiffLine['kind'], string> = {
+  add: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
+  remove: 'bg-destructive/10 text-destructive',
+  context: 'text-muted-foreground',
+}
+
+const DIFF_MARK: Record<DiffLine['kind'], string> = { add: '+', remove: '-', context: ' ' }
+
+export function FileCard({
+  path,
+  stats,
+  copy,
+  children,
+}: {
+  path: string
+  stats?: DiffStats | null
+  copy: string
+  children: ReactNode
+}) {
+  return (
+    <div className="mt-2 w-full rounded-xl border border-border pt-2">
+      <div className="flex items-center gap-2 px-2">
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+          {path}
+        </span>
+        {stats ? <DiffStatsLabel stats={stats} /> : null}
+        <CodeBlockCopyButton code={copy} />
+      </div>
+      <div className="mt-2 max-h-96 overflow-auto border-t border-border py-2 font-mono text-xs leading-relaxed">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function FileCardLine({
+  n,
+  gutterCh,
+  marker,
+  className,
+  children,
+}: {
+  n?: number
+  gutterCh: number
+  marker?: string
+  className?: string
+  children: ReactNode
+}) {
+  return (
+    <div className={cn('flex items-baseline gap-2 py-px pr-2 whitespace-pre-wrap', className)}>
+      <span className="shrink-0 px-2 text-right text-xs text-muted-foreground/50 tabular-nums select-none">
+        <span className="inline-block" style={{ width: `${gutterCh}ch` }}>
+          {n ?? ''}
+        </span>
+      </span>
+      {marker != null ? <span className="w-3 shrink-0 select-none">{marker}</span> : null}
+      <span className="min-w-0">{children}</span>
+    </div>
+  )
+}
+
+export function HighlightedCode({
+  source,
+  language,
+  startLine = 1,
+  pending = false,
+}: {
+  source: string
+  language: string
+  startLine?: number
+  pending?: boolean
+}) {
+  const lines = splitLines(source)
+  const gutterCh = Math.max(1, String(startLine + lines.length - 1).length)
+  const view = (tokens?: Token[][]) =>
+    lines.map((text, i) => (
+      <FileCardLine key={i} n={startLine + i} gutterCh={gutterCh}>
+        {lineContent(tokens?.[i] ?? text)}
+      </FileCardLine>
+    ))
+  return (
+    <Highlighted source={source} language={language} pending={pending} fallback={view()}>
+      {view}
+    </Highlighted>
+  )
+}
+
+export function HighlightedDiff({ lines, language }: { lines: DiffLine[]; language: string }) {
+  const gutterCh = Math.max(1, ...lines.map((line) => String(lineNo(line) ?? '').length))
+  const view = (tokens?: Token[][]) =>
+    lines.map((line, i) => (
+      <FileCardLine
+        key={i}
+        n={lineNo(line)}
+        gutterCh={gutterCh}
+        marker={DIFF_MARK[line.kind]}
+        className={cn(DIFF_ROW[line.kind], line.hunkStart && 'mt-2')}
+      >
+        {lineContent(tokens?.[i] ?? line.text)}
+      </FileCardLine>
+    ))
+  return (
+    <Highlighted
+      source={lines.map((line) => line.text).join('\n')}
+      language={language}
+      fallback={view()}
+    >
+      {view}
+    </Highlighted>
+  )
+}
+
+function Highlighted({
+  source,
+  language,
+  pending,
+  fallback,
+  children,
+}: {
+  source: string
+  language: string
+  pending?: boolean
+  fallback: ReactNode
+  children: (tokens: Token[][]) => ReactNode
+}) {
+  if (pending) return fallback
+  return (
+    <Suspense fallback={fallback}>
+      <Resolve source={source} language={language}>
+        {children}
+      </Resolve>
+    </Suspense>
+  )
+}
+
+function Resolve({
+  source,
+  language,
+  children,
+}: {
+  source: string
+  language: string
+  children: (tokens: Token[][]) => ReactNode
+}) {
+  return children(useHighlight(source, language).tokens)
+}
+
+function lineContent(line: Line) {
+  if (typeof line === 'string') return line || ' '
+  if (!line.some((token) => token.content)) return ' '
+  return line.map((token, i) => <Token key={i} token={token} />)
+}
+
+function Token({ token }: { token: Token }) {
+  return (
+    <span
+      className="text-[var(--sdm-c,inherit)] dark:text-[var(--shiki-dark,var(--sdm-c,inherit))]"
+      style={
+        {
+          '--sdm-c': token.color ?? token.htmlStyle?.color,
+          '--shiki-dark': token.htmlStyle?.['--shiki-dark'],
+        } as CSSProperties
+      }
+      {...token.htmlAttrs}
+    >
+      {token.content}
+    </span>
+  )
+}
+
+function useHighlight(source: string, language: string) {
+  const result = useMemo(() => highlight(source, language), [source, language])
+  return result instanceof Promise ? use(result) : result
+}
+
+function splitLines(source: string) {
+  const lines = source.split('\n')
+  if (lines.at(-1) === '') lines.pop()
+  return lines.length ? lines : ['']
+}
+
+function lineNo(line: DiffLine) {
+  return line.kind === 'remove' ? line.oldLine : (line.newLine ?? line.oldLine)
+}
