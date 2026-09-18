@@ -9,6 +9,7 @@ import { ModelSelect } from './ModelSelect'
 export function Composer() {
   const [text, setText] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const composingRef = useRef(false)
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const send = useSession((state) => state.send)
@@ -45,7 +46,19 @@ export function Composer() {
           placeholder="Message..."
           className="block field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-1.5 leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
           onChange={(event) => setText(event.target.value)}
+          onCompositionStart={() => {
+            composingRef.current = true
+          }}
+          onCompositionEnd={() => {
+            // IME confirmation Enter can arrive after compositionend.
+            queueMicrotask(() => {
+              composingRef.current = false
+            })
+          }}
           onKeyDown={(event) => {
+            if (composingRef.current || event.nativeEvent.isComposing || event.keyCode === 229) {
+              return
+            }
             if (event.key === 'Enter' && !event.shiftKey) {
               event.preventDefault()
               submit()
