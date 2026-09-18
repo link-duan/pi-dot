@@ -4,6 +4,19 @@ import { Spinner } from '@/components/ui/spinner'
 import type { DiffStats } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
+export function DiffStatsLabel({ stats }: { stats: DiffStats }) {
+  if (stats.added <= 0 && stats.removed <= 0) return null
+  return (
+    <span className="shrink-0 font-mono text-xs tabular-nums">
+      {stats.added > 0 ? (
+        <span className="text-emerald-600 dark:text-emerald-400">+{stats.added}</span>
+      ) : null}
+      {stats.added > 0 && stats.removed > 0 ? ' ' : null}
+      {stats.removed > 0 ? <span className="text-destructive">-{stats.removed}</span> : null}
+    </span>
+  )
+}
+
 export function ActivityRow({
   icon: Icon,
   label,
@@ -13,6 +26,7 @@ export function ActivityRow({
   error,
   open: openProp,
   defaultOpen = false,
+  hideMetaWhenOpen = false,
   onOpenChange,
   children,
 }: {
@@ -24,6 +38,7 @@ export function ActivityRow({
   error?: boolean
   open?: boolean
   defaultOpen?: boolean
+  hideMetaWhenOpen?: boolean
   onOpenChange?: (open: boolean) => void
   children?: ReactNode
 }) {
@@ -43,7 +58,7 @@ export function ActivityRow({
     </span>
   )
 
-  const showStats = Boolean(stats && (stats.added > 0 || stats.removed > 0))
+  const showMeta = !(open && hideMetaWhenOpen)
   const text = (
     <span className="flex min-w-0 items-baseline gap-2">
       <span
@@ -54,16 +69,10 @@ export function ActivityRow({
       >
         {label}
       </span>
-      {summary ? <span className="min-w-0 truncate text-muted-foreground">{summary}</span> : null}
-      {showStats && stats ? (
-        <span className="shrink-0 font-mono text-xs tabular-nums">
-          {stats.added > 0 ? (
-            <span className="text-emerald-600 dark:text-emerald-400">+{stats.added}</span>
-          ) : null}
-          {stats.added > 0 && stats.removed > 0 ? ' ' : null}
-          {stats.removed > 0 ? <span className="text-destructive">-{stats.removed}</span> : null}
-        </span>
+      {showMeta && summary ? (
+        <span className="min-w-0 truncate text-muted-foreground">{summary}</span>
       ) : null}
+      {showMeta && stats ? <DiffStatsLabel stats={stats} /> : null}
       {expandable ? (
         <ChevronRight
           className={cn(

@@ -62,7 +62,7 @@ function MarkdownCode({
 
   const label = citationLabel(citation)
   return (
-    <div className="relative" data-code-citation="">
+    <div className="relative" data-code-citation="" data-file-card="">
       <div
         className="pointer-events-none absolute top-2 right-10 left-2 z-[1] truncate font-mono text-xs text-muted-foreground"
         title={label}

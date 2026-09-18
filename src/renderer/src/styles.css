@@ -188,11 +188,11 @@
   visibility: hidden;
 }
 
-[data-code-citation] [data-streamdown='code-block'] {
+[data-file-card] [data-streamdown='code-block'] {
   row-gap: 8px;
 }
 
-[data-code-citation] [data-streamdown='code-block-body'] {
+[data-file-card] [data-streamdown='code-block-body'] {
   border-top: 1px solid var(--border);
   padding-top: 8px;
   padding-bottom: 8px;

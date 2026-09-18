@@ -4,7 +4,9 @@ import {
   sessionTimeGroup,
   formatElapsed,
   sessionTitle,
+  formatDiffCopy,
   toolDiffStats,
+  toolEditDiff,
   toolLabel,
   toolSummary,
 } from './format'
@@ -165,6 +167,89 @@ describe('toolDiffStats', () => {
     expect(toolDiffStats('write', { path: 'a.ts', content: '' })).toBeNull()
     expect(toolDiffStats('read', { path: 'a.ts' })).toBeNull()
     expect(toolDiffStats('bash', { command: 'ls' })).toBeNull()
+  })
+})
+
+describe('toolEditDiff', () => {
+  it('keeps shared lines and marks the changed span', () => {
+    expect(
+      toolEditDiff({
+        path: 'a.ts',
+        edits: [{ oldText: 'keep\nold\ntail', newText: 'keep\nnew\ntail' }],
+      }),
+    ).toEqual([
+      { kind: 'context', text: 'keep', oldLine: 1, newLine: 1 },
+      { kind: 'remove', text: 'old', oldLine: 2 },
+      { kind: 'add', text: 'new', newLine: 2 },
+      { kind: 'context', text: 'tail', oldLine: 3, newLine: 3 },
+    ])
+  })
+
+  it('separates multiple edits and accepts the legacy schema', () => {
+    expect(
+      toolEditDiff({
+        edits: [
+          { oldText: 'a', newText: 'b' },
+          { oldText: 'x', newText: 'x\ny' },
+        ],
+      }),
+    ).toEqual([
+      { kind: 'remove', text: 'a', oldLine: 1 },
+      { kind: 'add', text: 'b', newLine: 1 },
+      { kind: 'context', text: 'x', oldLine: 1, newLine: 1, hunkStart: true },
+      { kind: 'add', text: 'y', newLine: 2 },
+    ])
+    expect(toolEditDiff({ oldText: 'one', newText: 'one\ntwo' })).toEqual([
+      { kind: 'context', text: 'one', oldLine: 1, newLine: 1 },
+      { kind: 'add', text: 'two', newLine: 2 },
+    ])
+  })
+
+  it('parses stringified edits arrays', () => {
+    expect(toolEditDiff({ edits: JSON.stringify([{ oldText: 'foo', newText: 'bar' }]) })).toEqual([
+      { kind: 'remove', text: 'foo', oldLine: 1 },
+      { kind: 'add', text: 'bar', newLine: 1 },
+    ])
+  })
+
+  it('prefers unified patch details and uses hunk line numbers', () => {
+    expect(
+      toolEditDiff(
+        { edits: [{ oldText: 'a', newText: 'b' }] },
+        {
+          details: {
+            patch: [
+              '--- a.ts',
+              '+++ a.ts',
+              '@@ -166,10 +166,10 @@',
+              ' context',
+              '-old',
+              '+new',
+            ].join('\n'),
+          },
+        },
+      ),
+    ).toEqual([
+      { kind: 'context', text: 'context', oldLine: 166, newLine: 166 },
+      { kind: 'remove', text: 'old', oldLine: 167 },
+      { kind: 'add', text: 'new', newLine: 167 },
+    ])
+  })
+
+  it('returns null when nothing changed', () => {
+    expect(toolEditDiff({ edits: [{ oldText: 'same', newText: 'same' }] })).toBeNull()
+  })
+})
+
+describe('formatDiffCopy', () => {
+  it('rebuilds unified hunks from line numbers', () => {
+    expect(
+      formatDiffCopy([
+        { kind: 'context', text: 'keep', oldLine: 1, newLine: 1 },
+        { kind: 'remove', text: 'old', oldLine: 2 },
+        { kind: 'add', text: 'new', newLine: 2 },
+      ]),
+    ).toBe('@@ -1,2 +1,2 @@\n keep\n-old\n+new')
   })
 })
 
