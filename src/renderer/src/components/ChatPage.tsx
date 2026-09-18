@@ -14,10 +14,9 @@ export function ChatPage() {
   const openCwd = useSession((state) => state.openCwd)
   const leave = useSession((state) => state.leave)
   const newSession = useSession((state) => state.newSession)
-  const isStreaming = useChat((state) => state.isStreaming)
-  const hasMessages = useChat((state) => state.messages.length > 0)
+  const chat = useChat()
   const scrollerRef = useRef<HTMLDivElement>(null)
-  const canCreate = connection === 'ready' && (isStreaming || hasMessages)
+  const canCreate = connection === 'ready' && (chat.isStreaming || chat.messages.length > 0)
 
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
@@ -70,7 +69,7 @@ export function ChatPage() {
         </div>
       ) : null}
 
-      <Transcript scrollerRef={scrollerRef} />
+      <Transcript scrollerRef={scrollerRef} model={chat} />
       <Composer />
     </div>
   )

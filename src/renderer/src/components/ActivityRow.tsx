@@ -63,8 +63,9 @@ export function ActivityRow({
     <span className="flex min-w-0 items-baseline gap-2">
       <span
         className={cn(
-          'shrink-0 whitespace-nowrap',
+          'whitespace-nowrap',
           error ? 'text-destructive' : 'text-foreground/75',
+          summary ? 'shrink-0' : 'min-w-0 truncate',
         )}
       >
         {label}

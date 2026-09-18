@@ -1,7 +1,6 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { Brain } from 'lucide-react'
-import { userText, type ToolLiveState } from '@/chat/state'
-import { useChat } from '@/chat/store'
+import { Brain, CircleStop } from 'lucide-react'
+import { userText, type ChatState, type ToolLiveState } from '@/chat/state'
 import { Spinner } from '@/components/ui/spinner'
 import { formatElapsed } from '@/lib/format'
 import type { AgentMessage, AssistantMessage, ToolResultMessage } from '@shared/protocol'
@@ -12,16 +11,38 @@ import { MarkdownBody } from './MarkdownBody'
 import { PiIcon } from './PiIcon'
 import { ToolCard } from './ToolCard'
 
-export function Transcript({ scrollerRef }: { scrollerRef: RefObject<HTMLDivElement | null> }) {
-  const messages = useChat((state) => state.messages)
-  const persistedAt = useChat((state) => state.persistedAt)
-  const toolLive = useChat((state) => state.toolLive)
-  const isStreaming = useChat((state) => state.isStreaming)
-  const assistantStreaming = useChat((state) => state.assistantStreaming)
-  const turnActive = useChat((state) => state.turnActive)
-  const turnStartedAt = useChat((state) => state.turnStartedAt)
-  const turnEndedAt = useChat((state) => state.turnEndedAt)
-  const stickToBottom = useRef(true)
+export type TranscriptModel = Pick<
+  ChatState,
+  | 'messages'
+  | 'persistedAt'
+  | 'toolLive'
+  | 'isStreaming'
+  | 'assistantStreaming'
+  | 'turnActive'
+  | 'turnStartedAt'
+  | 'turnEndedAt'
+>
+
+export function Transcript({
+  scrollerRef,
+  model,
+  follow = true,
+}: {
+  scrollerRef: RefObject<HTMLDivElement | null>
+  model: TranscriptModel
+  follow?: boolean
+}) {
+  const {
+    messages,
+    persistedAt,
+    toolLive,
+    isStreaming,
+    assistantStreaming,
+    turnActive,
+    turnStartedAt,
+    turnEndedAt,
+  } = model
+  const stickToBottom = useRef(follow)
   const hasMessages = messages.length > 0
   const turns = userTurns(messages)
   const toolResults = useMemo(() => {
@@ -186,8 +207,12 @@ function TurnStatus({
         : `Worked for ${clock}`
 
   return (
-    <div className="mt-1 mb-3 flex items-center gap-1.5 text-muted-foreground select-none">
-      {live ? <Spinner className="size-3.5" /> : null}
+    <div className="mt-1 mb-3 flex items-center gap-2 text-muted-foreground select-none">
+      {live ? (
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <Spinner className="size-3.5" />
+        </span>
+      ) : null}
       <span>{label}</span>
     </div>
   )
@@ -239,11 +264,11 @@ const MessageRow = memo(function MessageRow({
   if (message.role === 'compactionSummary') {
     return (
       <div className="my-2 flex items-center justify-center gap-2">
-        <div className="h-px flex-1 bg-border/50" />
-        <span className="rounded-full border border-border/50 bg-muted/50 px-2.5 py-0.5 font-mono text-xs text-muted-foreground uppercase">
-          Context compacted
+        <div className="h-px flex-1 bg-border" />
+        <span className="rounded-full px-2.5 py-0.5 font-mono text-xs text-muted-foreground">
+          Context Compacted
         </span>
-        <div className="h-px flex-1 bg-border/50" />
+        <div className="h-px flex-1 bg-border" />
       </div>
     )
   }
@@ -304,9 +329,7 @@ function AssistantRow({
         return null
       })}
       {message.errorMessage ? (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-          {message.errorMessage}
-        </div>
+        <ActivityRow icon={CircleStop} label={message.errorMessage} summary="" />
       ) : null}
     </div>
   )
