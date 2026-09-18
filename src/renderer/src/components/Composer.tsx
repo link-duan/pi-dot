@@ -2,7 +2,7 @@ import { ArrowUp, Folder, Square } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
-import { folderName } from '@/lib/path'
+import { displayPath } from '@/lib/path'
 import { useSession } from '@/session/store'
 import { ModelSelect } from './ModelSelect'
 
@@ -66,25 +66,25 @@ export function Composer() {
           }}
         />
 
-        <div className="flex items-center justify-between px-0.5 text-xs">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             {cwd ? (
               <Button
                 type="button"
                 variant="ghost"
                 size="xs"
                 onClick={() => void openFolder()}
-                className="max-w-56 text-xs text-muted-foreground"
+                className="max-w-full min-w-0 text-xs text-muted-foreground"
                 title={`Current folder: ${cwd} (click to change)`}
               >
                 <Folder className="size-3 shrink-0" />
-                <span className="truncate">{folderName(cwd)}</span>
+                <span className="truncate">{displayPath(cwd, null, window.pi.homedir)}</span>
               </Button>
             ) : null}
           </div>
 
           {/* Right: Model Select & Submit */}
-          <div className="flex items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1.5">
             <ModelSelect />
 
             {isStreaming ? (

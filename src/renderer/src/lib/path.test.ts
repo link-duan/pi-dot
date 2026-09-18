@@ -14,6 +14,12 @@ describe('displayPath', () => {
     expect(displayPath('/Users/me', '/tmp', home)).toBe('~')
   })
 
+  it('shows the home-prefixed absolute path when cwd is omitted', () => {
+    expect(displayPath('/Users/me/Documents/pi-ui', null, home)).toBe('~/Documents/pi-ui')
+    expect(displayPath('/Users/me', null, home)).toBe('~')
+    expect(displayPath('/tmp/proj', null, home)).toBe('/tmp/proj')
+  })
+
   it('picks the shorter form when outside cwd', () => {
     expect(displayPath('/tmp/notes.md', '/Users/me/Documents/pi-ui', home)).toBe('/tmp/notes.md')
     expect(displayPath('/tmp/proj/src/a.ts', '/tmp/proj/nested', home)).toBe('../src/a.ts')
