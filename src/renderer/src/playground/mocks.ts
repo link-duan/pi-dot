@@ -3,6 +3,8 @@ import type {
   AgentMessage,
   AssistantMessage,
   ContentBlock,
+  ModelInfo,
+  ThinkingLevel,
   ToolResultMessage,
   UserMessage,
 } from '@shared/protocol'
@@ -51,6 +53,19 @@ function chat(messages: AgentMessage[], extra: Partial<ChatState> = {}): ChatSta
 
 const src = 'src/app.ts'
 const readBody = `export function greet(name: string) {\n  return \`hello \${name}\`\n}\n\n[Showing lines 1-3 of 40]`
+
+export const playgroundModel: ModelInfo = {
+  id: 'claude-sonnet-4-5',
+  name: 'Claude Sonnet 4.5',
+  provider: 'anthropic',
+}
+
+export const playgroundModels: ModelInfo[] = [
+  playgroundModel,
+  { id: 'gpt-5', name: 'GPT-5', provider: 'openai' },
+]
+
+export const playgroundThinkingLevels: ThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high']
 
 export const emptyModel = chat([])
 

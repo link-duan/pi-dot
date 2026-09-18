@@ -1,11 +1,17 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChatState } from '@/chat/state'
+import { useChat } from '@/chat/store'
+import { Composer } from '@/components/Composer'
 import { Transcript } from '@/components/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { useSession } from '@/session/store'
 import {
   catalogModel,
   emptyModel,
+  playgroundModel,
+  playgroundModels,
+  playgroundThinkingLevels,
   runningToolModel,
   thinkingModel,
   waitingModel,
@@ -21,6 +27,42 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
   { title: 'Working', model: workingModel, agoMs: 3_600 },
 ]
 
+function usePlaygroundSession(isStreaming: boolean) {
+  useEffect(() => {
+    const prevSession = useSession.getState()
+    const prevChat = useChat.getState()
+    useSession.setState({
+      cwd: '/Users/demo/pi-ui',
+      connection: 'ready',
+      error: null,
+      models: playgroundModels,
+      model: playgroundModel,
+      thinkingLevel: 'low',
+      thinkingLevels: playgroundThinkingLevels,
+      send: async () => {},
+      abort: async () => {},
+      openFolder: async () => {},
+      setModel: async (provider, modelId) => {
+        const next = playgroundModels.find(
+          (item) => item.provider === provider && item.id === modelId,
+        )
+        if (next) useSession.setState({ model: next })
+      },
+      setThinkingLevel: async (level) => {
+        useSession.setState({ thinkingLevel: level })
+      },
+    })
+    return () => {
+      useSession.setState(prevSession)
+      useChat.setState(prevChat)
+    }
+  }, [])
+
+  useEffect(() => {
+    useChat.setState({ isStreaming })
+  }, [isStreaming])
+}
+
 export function Playground() {
   const [tab, setTab] = useState(TABS[1]?.title ?? TABS[0].title)
   const pane = TABS.find((item) => item.title === tab) ?? TABS[0]
@@ -28,6 +70,7 @@ export function Playground() {
   const [startedAt] = useState(() => Date.now())
   const model =
     pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs }
+  usePlaygroundSession(model.isStreaming)
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
@@ -77,6 +120,7 @@ export function Playground() {
         </div>
       </header>
       <Transcript key={pane.title} scrollerRef={scrollerRef} model={model} follow={false} />
+      <Composer />
     </div>
   )
 }

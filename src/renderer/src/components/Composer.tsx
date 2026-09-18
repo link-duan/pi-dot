@@ -91,12 +91,11 @@ export function Composer() {
               <Button
                 type="button"
                 size="icon-sm"
-                variant="secondary"
                 className="rounded-full shadow-xs"
                 aria-label="Stop"
                 onClick={() => void abort()}
               >
-                <Square className="size-3 fill-current" />
+                <Square className="size-2.5 fill-current" />
               </Button>
             ) : (
               <Button
