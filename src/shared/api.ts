@@ -11,6 +11,7 @@ export interface PiApi {
   homedir: string
   chooseFolder(): Promise<string | null>
   getLastCwd(): Promise<string | null>
+  getSnapshot(): Promise<SessionSnapshot | null>
   start(cwd: string): Promise<SessionSnapshot>
   stop(): Promise<void>
   prompt(text: string): Promise<void>

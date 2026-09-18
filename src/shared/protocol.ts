@@ -143,6 +143,7 @@ export interface SessionSnapshot {
   messagePersistedAt?: number[]
   models: ModelInfo[]
   thinkingLevels: ThinkingLevel[]
+  runningSessionFiles: string[]
 }
 
 export interface SessionListItem {

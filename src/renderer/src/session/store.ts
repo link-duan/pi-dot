@@ -1,4 +1,4 @@
-import { createChatState, hydrateMessages } from '@/chat/state'
+import { createChatState, hydrateMessages, type ChatState } from '@/chat/state'
 import { useChat } from '@/chat/store'
 import type {
   ConnectionStatus,
@@ -8,7 +8,7 @@ import type {
   SessionSnapshot,
   ThinkingLevel,
 } from '@shared/protocol'
-import { create, type StoreApi } from 'zustand'
+import { create } from 'zustand'
 import { chatCache, clearChatCache, dropIdleChat, stashChat, takeChat } from './events'
 
 interface SessionStore {
@@ -58,7 +58,19 @@ function snapshotPatch(snapshot: SessionSnapshot) {
     model: snapshot.state.model ?? snapshot.models[0] ?? null,
     thinkingLevel: snapshot.state.thinkingLevel,
     thinkingLevels: snapshot.thinkingLevels,
+    runningSessionFiles: snapshot.runningSessionFiles,
   }
+}
+
+export function applyLiveSnapshot(snapshot: SessionSnapshot, chat?: ChatState) {
+  useSession.setState(snapshotPatch(snapshot))
+  useChat.setState(
+    chat ??
+      hydrateMessages(snapshot.messages, {
+        isStreaming: snapshot.state.isStreaming,
+        persistedAt: snapshot.messagePersistedAt,
+      }),
+  )
 }
 
 export const useSession = create<SessionStore>((set, get) => ({
@@ -84,14 +96,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     set({ connection: 'connecting', error: null, cwd, runningSessionFiles: [] })
     useChat.setState(createChatState())
     try {
-      const snapshot = await window.pi.start(cwd)
-      set(snapshotPatch(snapshot))
-      useChat.setState(
-        hydrateMessages(snapshot.messages, {
-          isStreaming: snapshot.state.isStreaming,
-          persistedAt: snapshot.messagePersistedAt,
-        }),
-      )
+      applyLiveSnapshot(await window.pi.start(cwd))
     } catch (error) {
       set({
         connection: 'error',
@@ -204,7 +209,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   switchSession: async (sessionPath: string) => {
     if (get().sessionFile === sessionPath) return
     try {
-      await activateSession(set, get, () => window.pi.switchSession(sessionPath))
+      await activateSession(get, () => window.pi.switchSession(sessionPath))
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
@@ -212,7 +217,7 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   newSession: async () => {
     try {
-      await activateSession(set, get, () => window.pi.newSession())
+      await activateSession(get, () => window.pi.newSession())
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
@@ -221,14 +226,10 @@ export const useSession = create<SessionStore>((set, get) => ({
 
 let activating: Promise<void> = Promise.resolve()
 
-async function activateSession(
-  set: StoreApi<SessionStore>['setState'],
-  get: () => SessionStore,
-  load: () => Promise<SessionSnapshot>,
-) {
+async function activateSession(get: () => SessionStore, load: () => Promise<SessionSnapshot>) {
   const run = activating.then(
-    () => swapSession(set, get, load),
-    () => swapSession(set, get, load),
+    () => swapSession(get, load),
+    () => swapSession(get, load),
   )
   activating = run.then(
     () => undefined,
@@ -237,11 +238,7 @@ async function activateSession(
   await run
 }
 
-async function swapSession(
-  set: StoreApi<SessionStore>['setState'],
-  get: () => SessionStore,
-  load: () => Promise<SessionSnapshot>,
-) {
+async function swapSession(get: () => SessionStore, load: () => Promise<SessionSnapshot>) {
   const previous = get().sessionFile
   if (previous) stashChat(chatCache, previous, useChat.getState())
   const snapshot = await load()
@@ -249,14 +246,6 @@ async function swapSession(
     stashChat(chatCache, previous, useChat.getState())
     dropIdleChat(chatCache, previous)
   }
-  set(snapshotPatch(snapshot))
   const nextFile = snapshot.state.sessionFile ?? null
-  const cached = takeChat(chatCache, nextFile)
-  useChat.setState(
-    cached ??
-      hydrateMessages(snapshot.messages, {
-        isStreaming: snapshot.state.isStreaming,
-        persistedAt: snapshot.messagePersistedAt,
-      }),
-  )
+  applyLiveSnapshot(snapshot, takeChat(chatCache, nextFile))
 }

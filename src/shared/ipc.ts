@@ -1,6 +1,7 @@
 export const IPC = {
   chooseFolder: 'pi:chooseFolder',
   getLastCwd: 'pi:getLastCwd',
+  getSnapshot: 'pi:getSnapshot',
   start: 'pi:start',
   stop: 'pi:stop',
   prompt: 'pi:prompt',

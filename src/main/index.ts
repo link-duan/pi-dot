@@ -107,6 +107,7 @@ function snapshotOf(next: AgentHost): SessionSnapshot {
     messagePersistedAt: next.getMessagePersistedAt(),
     models: next.getAvailableModels(),
     thinkingLevels: next.getAvailableThinkingLevels(),
+    runningSessionFiles: next.runningSessionFiles(),
   }
 }
 
@@ -167,6 +168,8 @@ function registerIpc(): void {
   })
 
   ipcMain.handle(IPC.getLastCwd, () => readLastCwd())
+
+  ipcMain.handle(IPC.getSnapshot, () => (host ? snapshotOf(host) : null))
 
   ipcMain.handle(IPC.start, async (_event, cwd: string): Promise<SessionSnapshot> => {
     await stopHost()

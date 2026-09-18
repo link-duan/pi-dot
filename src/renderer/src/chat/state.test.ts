@@ -44,6 +44,13 @@ describe('applySessionEvent', () => {
     expect(userText(state.messages[0]!)).toBe('hi')
   })
 
+  it('appends message_start even when role and timestamp match the last message', () => {
+    let state = createChatState()
+    state = applySessionEvent(state, { type: 'message_start', message: assistant('Hel') })
+    state = applySessionEvent(state, { type: 'message_start', message: assistant('Hello') })
+    expect(state.messages).toHaveLength(2)
+  })
+
   it('replaces the streaming assistant in place', () => {
     let state = createChatState()
     state = applySessionEvent(state, { type: 'agent_start' })
