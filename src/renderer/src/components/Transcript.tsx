@@ -125,7 +125,7 @@ export function Transcript({
           </div>
         )}
       </ScrollAreaViewport>
-      <ScrollAreaScrollbar />
+      <ScrollAreaScrollbar className="mt-9" />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-background to-transparent"
