@@ -19,12 +19,17 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
 
 function modelKey(model: ModelInfo): string {
   return `${model.provider}::${model.id}`
 }
+
+const itemType = "text-xs leading-4 [&_svg:not([class*='size-'])]:size-3"
+const subTrigger = cn(itemType, 'gap-2 px-2 py-1')
+const radioItem = cn(itemType, 'py-1 pl-2')
 
 export function ModelSelect() {
   const models = useSession((state) => state.models)
@@ -72,15 +77,15 @@ export function ModelSelect() {
         ) : null}
         <ChevronDownIcon className="pointer-events-none -ml-1 size-3.5 shrink-0 text-muted-foreground" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="end" className="w-48" sideOffset={6}>
+      <DropdownMenuContent side="top" align="end" className="w-48 p-1 text-xs" sideOffset={6}>
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className={subTrigger}>
             <span className="shrink-0">Thinking</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
               {THINKING_LEVEL_LABELS[thinkingLevel]}
             </span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="min-w-36">
+          <DropdownMenuSubContent className="min-w-32 p-1 text-xs">
             <DropdownMenuRadioGroup
               value={thinkingLevel}
               onValueChange={(value) => {
@@ -88,32 +93,32 @@ export function ModelSelect() {
               }}
             >
               {thinkingLevels.map((level: ThinkingLevel) => (
-                <DropdownMenuRadioItem key={level} value={level}>
+                <DropdownMenuRadioItem key={level} value={level} className={radioItem}>
                   {THINKING_LEVEL_LABELS[level]}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator className="my-0.5" />
         <DropdownMenuSub
           onOpenChange={(open) => {
             if (!open) setQuery('')
           }}
         >
-          <DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger className={subTrigger}>
             <span className="shrink-0">Model</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
               {model?.name ?? 'None'}
             </span>
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-72 overflow-hidden overflow-y-hidden p-0">
+          <DropdownMenuSubContent className="w-64 overflow-hidden p-0 text-xs">
             <div className="p-1 pb-0">
               <Input
                 value={query}
                 aria-label="Search models"
                 placeholder="Search models..."
-                className="h-8 text-sm"
+                className="h-6 px-2 text-xs md:text-xs"
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter')
@@ -122,36 +127,37 @@ export function ModelSelect() {
                 }}
               />
             </div>
-            <div className="max-h-[min(calc(20rem-2.5rem),calc(var(--available-height)-2.5rem))] scroll-fade overflow-y-auto overscroll-contain p-1">
-              {filteredModels.length === 0 ? (
-                <div className="px-2 py-3 text-center text-sm text-muted-foreground">
-                  No matching models
-                </div>
-              ) : (
-                <DropdownMenuRadioGroup
-                  value={model ? modelKey(model) : ''}
-                  onValueChange={(value) => {
-                    const next = models.find((item) => modelKey(item) === value)
-                    if (next) void setModel(next.provider, next.id)
-                  }}
-                >
-                  {filteredModels.map((item) => (
-                    <DropdownMenuRadioItem
-                      key={modelKey(item)}
-                      value={modelKey(item)}
-                      className="py-1.5"
-                    >
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="truncate text-sm">{item.name}</span>
-                        <span className="truncate text-xs text-muted-foreground">
-                          {item.provider}
-                        </span>
-                      </div>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
-              )}
-            </div>
+            <ScrollArea>
+              <ScrollAreaViewport className="h-auto max-h-[min(calc(20rem-1.75rem),calc(var(--available-height)-1.75rem))] scroll-fade py-1 pr-2.5 pl-1">
+                {filteredModels.length === 0 ? (
+                  <div className="px-2 py-2 text-center text-xs text-muted-foreground">
+                    No matching models
+                  </div>
+                ) : (
+                  <DropdownMenuRadioGroup
+                    value={model ? modelKey(model) : ''}
+                    onValueChange={(value) => {
+                      const next = models.find((item) => modelKey(item) === value)
+                      if (next) void setModel(next.provider, next.id)
+                    }}
+                  >
+                    {filteredModels.map((item) => (
+                      <DropdownMenuRadioItem
+                        key={modelKey(item)}
+                        value={modelKey(item)}
+                        className={radioItem}
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col leading-4">
+                          <span className="truncate">{item.name}</span>
+                          <span className="truncate text-muted-foreground">{item.provider}</span>
+                        </div>
+                      </DropdownMenuRadioItem>
+                    ))}
+                  </DropdownMenuRadioGroup>
+                )}
+              </ScrollAreaViewport>
+              <ScrollAreaScrollbar className="my-1" />
+            </ScrollArea>
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

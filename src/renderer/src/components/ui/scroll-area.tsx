@@ -43,8 +43,8 @@ function ScrollAreaScrollbar({
       orientation={orientation}
       className={cn(
         'group/scrollbar pointer-events-none z-10 flex p-px opacity-0 transition-opacity duration-150 data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100 data-scrolling:duration-0',
-        orientation === 'vertical' && 'w-2.5 justify-center',
-        orientation === 'horizontal' && 'h-2.5 flex-col items-center',
+        orientation === 'vertical' && 'w-2.5 justify-end',
+        orientation === 'horizontal' && 'h-2.5 flex-col items-end',
         className,
       )}
       {...props}
