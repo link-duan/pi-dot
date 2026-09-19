@@ -21,9 +21,13 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@lexical/history": "0.50.0",
+    "@lexical/react": "0.50.0",
+    "@lexical/utils": "0.50.0",
     "class-variance-authority": "^0.7.1",
     "cmdk": "^1.1.1",
     "cn": "^0.3.0",
+    "lexical": "0.50.0",
     "lucide-react": "^1.46.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

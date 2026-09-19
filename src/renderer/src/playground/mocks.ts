@@ -5,6 +5,7 @@ import type {
   ContentBlock,
   ModelInfo,
   ThinkingLevel,
+  SkillInfo,
   ToolResultMessage,
   UserMessage,
 } from '@shared/protocol'
@@ -67,9 +68,26 @@ export const playgroundModels: ModelInfo[] = [
 
 export const playgroundThinkingLevels: ThinkingLevel[] = ['off', 'minimal', 'low', 'medium', 'high']
 
+export const playgroundSkills: SkillInfo[] = [
+  { name: 'tdd', description: 'Test-driven development' },
+  { name: 'react-doctor', description: 'Scan React diagnostics' },
+]
+
 export const emptyModel = chat([])
 
+const skillBlock = [
+  '<skill name="tdd" location="/tmp/tdd/SKILL.md">',
+  'References are relative to /tmp/tdd.',
+  '',
+  'Write tests first.',
+  '</skill>',
+  '',
+  'fix the failing test',
+].join('\n')
+
 export const catalogModel = chat([
+  user(skillBlock),
+  user('please use /skill:react-doctor on this file'),
   user('Walk through the transcript states.'),
   assistant([
     { type: 'thinking', thinking: 'Plan the reply, then call tools.' },

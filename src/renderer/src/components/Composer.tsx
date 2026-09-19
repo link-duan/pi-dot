@@ -1,30 +1,89 @@
 import { ArrowUp, Folder, Square } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import {
+  $createParagraphNode,
+  $getRoot,
+  $getSelection,
+  $isRangeSelection,
+  COMMAND_PRIORITY_HIGH,
+  COMMAND_PRIORITY_NORMAL,
+  INSERT_LINE_BREAK_COMMAND,
+  KEY_ENTER_COMMAND,
+  PASTE_COMMAND,
+} from 'lexical'
+import { LexicalComposer } from '@lexical/react/LexicalComposer'
+import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
+import { ContentEditable } from '@lexical/react/LexicalContentEditable'
+import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
+import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
+import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
+import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
+import type { SkillInfo } from '@shared/protocol'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
 import { displayPath } from '@/lib/path'
 import { useSession } from '@/session/store'
+import { SkillPicker } from './SkillPicker'
+import { $replaceSlashQueryWithSkill } from './composer/insert-skill'
+import { SkillNode } from './composer/SkillNode'
+import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
+import { serializeEditorState } from './composer/serialize'
 import { ModelSelect } from './ModelSelect'
 
+const initialConfig = {
+  namespace: 'pi-composer',
+  onError(error: Error) {
+    console.error(error)
+  },
+  nodes: [SkillNode],
+  theme: {
+    paragraph: 'm-0',
+  },
+}
+
 export function Composer() {
-  const [text, setText] = useState('')
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const composingRef = useRef(false)
+  return (
+    <LexicalComposer initialConfig={initialConfig}>
+      <ComposerForm />
+    </LexicalComposer>
+  )
+}
+
+function ComposerForm() {
+  const [editor] = useLexicalComposerContext()
+  const [draft, setDraft] = useState('')
+  const [picker, setPicker] = useState<SkillPickerState | null>(null)
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
+  const skills = useSession((state) => state.skills)
   const send = useSession((state) => state.send)
   const abort = useSession((state) => state.abort)
   const openFolder = useSession((state) => state.openFolder)
   const isStreaming = useChat((state) => state.isStreaming)
+  const canSend = connection === 'ready' && draft.trim().length > 0 && !isStreaming
 
-  const canSend = connection === 'ready' && text.trim().length > 0 && !isStreaming
-
-  function submit() {
-    const next = text.trim()
+  const submit = useCallback(() => {
+    const next = serializeEditorState(editor.getEditorState()).trim()
     if (!next || isStreaming || connection !== 'ready') return
-    setText('')
+    editor.update(() => {
+      $getRoot().clear()
+      $getRoot().append($createParagraphNode())
+    })
+    setDraft('')
+    setPicker(null)
     void send(next)
-  }
+  }, [connection, editor, isStreaming, send])
+
+  const insertPicked = useCallback(
+    (skill: SkillInfo) => {
+      editor.update(() => {
+        $replaceSlashQueryWithSkill(skill)
+      })
+      setPicker(null)
+      editor.focus()
+    },
+    [editor],
+  )
 
   return (
     <form
@@ -34,37 +93,46 @@ export function Composer() {
         submit()
       }}
     >
-      <div className="pointer-events-auto mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
+      <div className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
+        {picker ? (
+          <SkillPicker
+            skills={skills}
+            query={picker.query}
+            index={picker.index}
+            onHover={(index) => setPicker((prev) => (prev ? { ...prev, index } : prev))}
+            onSelect={insertPicked}
+          />
+        ) : null}
+
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>
-        <textarea
-          ref={textareaRef}
-          id="prompt-input"
-          value={text}
-          rows={1}
-          placeholder="Message..."
-          className="block field-sizing-content max-h-[calc(8.5lh+0.5rem)] w-full scroll-fade resize-none overflow-y-auto border-0 bg-transparent px-2.5 py-1.5 leading-relaxed text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
-          onChange={(event) => setText(event.target.value)}
-          onCompositionStart={() => {
-            composingRef.current = true
-          }}
-          onCompositionEnd={() => {
-            // IME confirmation Enter can arrive after compositionend.
-            queueMicrotask(() => {
-              composingRef.current = false
-            })
-          }}
-          onKeyDown={(event) => {
-            if (composingRef.current || event.nativeEvent.isComposing || event.keyCode === 229) {
-              return
+        <div className="relative">
+          <RichTextPlugin
+            contentEditable={
+              <ContentEditable
+                id="prompt-input"
+                aria-placeholder="Message..."
+                placeholder={
+                  <div className="pointer-events-none absolute top-1.5 left-2.5 text-muted-foreground/60 select-none">
+                    Message...
+                  </div>
+                }
+                className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-2.5 py-1.5 leading-relaxed text-foreground outline-none"
+              />
             }
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault()
-              submit()
-            }
+            ErrorBoundary={LexicalErrorBoundary}
+          />
+        </div>
+        <HistoryPlugin />
+        <OnChangePlugin
+          onChange={(state) => {
+            setDraft(serializeEditorState(state))
           }}
         />
+        <SlashSkillPlugin skills={skills} picker={picker} setPicker={setPicker} />
+        <ComposerKeyPlugin onSubmit={submit} />
+        <PlainPastePlugin />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -83,7 +151,6 @@ export function Composer() {
             ) : null}
           </div>
 
-          {/* Right: Model Select & Submit */}
           <div className="flex shrink-0 items-center gap-1.5">
             <ModelSelect />
 
@@ -113,4 +180,49 @@ export function Composer() {
       </div>
     </form>
   )
+}
+
+function ComposerKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
+  const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_ENTER_COMMAND,
+      (event) => {
+        if (event?.shiftKey) {
+          event.preventDefault()
+          editor.dispatchCommand(INSERT_LINE_BREAK_COMMAND, false)
+          return true
+        }
+        event?.preventDefault()
+        onSubmit()
+        return true
+      },
+      COMMAND_PRIORITY_NORMAL,
+    )
+  }, [editor, onSubmit])
+
+  return null
+}
+
+function PlainPastePlugin() {
+  const [editor] = useLexicalComposerContext()
+  useEffect(() => {
+    return editor.registerCommand(
+      PASTE_COMMAND,
+      (event) => {
+        const clipboard = event instanceof ClipboardEvent ? event.clipboardData : null
+        const text = clipboard?.getData('text/plain')
+        if (!text) return false
+        event.preventDefault()
+        editor.update(() => {
+          const selection = $getSelection()
+          if ($isRangeSelection(selection)) selection.insertRawText(text)
+        })
+        return true
+      },
+      COMMAND_PRIORITY_HIGH,
+    )
+  }, [editor])
+  return null
 }

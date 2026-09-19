@@ -25,6 +25,7 @@ const snapshot: SessionSnapshot = {
   models: [{ id: 'm', name: 'Model', provider: 'p' }],
   thinkingLevels: ['off', 'high'],
   runningSessionFiles: ['/tmp/project/session.jsonl', '/tmp/project/other.jsonl'],
+  skills: [{ name: 'tdd', description: 'Test-driven development' }],
 }
 
 afterEach(() => {
@@ -40,6 +41,7 @@ afterEach(() => {
     model: null,
     thinkingLevel: 'off',
     thinkingLevels: [],
+    skills: [],
   })
   useChat.setState(createChatState())
 })
@@ -58,6 +60,7 @@ describe('applyLiveSnapshot', () => {
       '/tmp/project/other.jsonl',
     ])
     expect(session.model).toEqual({ id: 'm', name: 'Model', provider: 'p' })
+    expect(session.skills).toEqual([{ name: 'tdd', description: 'Test-driven development' }])
     const chat = useChat.getState()
     expect(chat.messages).toHaveLength(1)
     expect(chat.isStreaming).toBe(true)

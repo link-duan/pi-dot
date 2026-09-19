@@ -248,3 +248,12 @@
 [data-streamdown='table-cell']:last-child {
   padding-right: 0;
 }
+
+.composer-editor {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.composer-editor .skill-chip-host + .skill-chip-host {
+  margin-left: 0.25rem;
+}

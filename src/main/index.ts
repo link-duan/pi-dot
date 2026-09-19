@@ -108,6 +108,7 @@ function snapshotOf(next: AgentHost): SessionSnapshot {
     models: next.getAvailableModels(),
     thinkingLevels: next.getAvailableThinkingLevels(),
     runningSessionFiles: next.runningSessionFiles(),
+    skills: next.getSkills(),
   }
 }
 

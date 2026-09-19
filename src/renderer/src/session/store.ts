@@ -6,6 +6,7 @@ import type {
   ModelSelection,
   SessionListItem,
   SessionSnapshot,
+  SkillInfo,
   ThinkingLevel,
 } from '@shared/protocol'
 import { create } from 'zustand'
@@ -23,6 +24,7 @@ interface SessionStore {
   model: ModelInfo | null
   thinkingLevel: ThinkingLevel
   thinkingLevels: ThinkingLevel[]
+  skills: SkillInfo[]
   openFolder: () => Promise<void>
   openCwd: (cwd: string) => Promise<void>
   leave: () => Promise<void>
@@ -59,6 +61,7 @@ function snapshotPatch(snapshot: SessionSnapshot) {
     thinkingLevel: snapshot.state.thinkingLevel,
     thinkingLevels: snapshot.thinkingLevels,
     runningSessionFiles: snapshot.runningSessionFiles,
+    skills: snapshot.skills,
   }
 }
 
@@ -85,6 +88,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   model: null,
   thinkingLevel: 'off',
   thinkingLevels: [],
+  skills: [],
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()
@@ -123,6 +127,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       model: null,
       thinkingLevel: 'off',
       thinkingLevels: [],
+      skills: [],
     })
     useChat.setState(createChatState())
   },

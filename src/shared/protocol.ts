@@ -34,6 +34,11 @@ export interface ModelInfo {
   provider: string
 }
 
+export interface SkillInfo {
+  name: string
+  description?: string
+}
+
 export interface ModelSelection {
   model: ModelInfo
   thinkingLevel: ThinkingLevel
@@ -144,6 +149,7 @@ export interface SessionSnapshot {
   models: ModelInfo[]
   thinkingLevels: ThinkingLevel[]
   runningSessionFiles: string[]
+  skills: SkillInfo[]
 }
 
 export interface SessionListItem {

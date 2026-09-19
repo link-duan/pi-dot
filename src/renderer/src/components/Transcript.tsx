@@ -1,6 +1,8 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Brain, CircleStop } from 'lucide-react'
 import { userText, type ChatState, type ToolLiveState } from '@/chat/state'
+import { SkillChip } from '@/components/composer/SkillChip'
+import { keyedUserSegments } from '@/lib/user-message'
 import { Spinner } from '@/components/ui/spinner'
 import { formatElapsed } from '@/lib/format'
 import type { AgentMessage, AssistantMessage, ToolResultMessage } from '@shared/protocol'
@@ -237,10 +239,17 @@ const MessageRow = memo(function MessageRow({
   streaming: boolean
 }) {
   if (message.role === 'user') {
+    const segments = keyedUserSegments(userText(message))
     return (
       <div className="my-4 flex justify-end">
         <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-2.5 leading-relaxed whitespace-pre-wrap text-foreground shadow-xs select-text dark:bg-muted/60">
-          {userText(message)}
+          {segments.map((segment) =>
+            segment.type === 'skill' ? (
+              <SkillChip key={segment.key} name={segment.name} />
+            ) : (
+              <span key={segment.key}>{segment.text}</span>
+            ),
+          )}
         </div>
       </div>
     )

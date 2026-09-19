@@ -21,6 +21,7 @@ import {
   type ModelSelection,
   type SessionEvent,
   type SessionState,
+  type SkillInfo,
   type ThinkingLevel,
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
@@ -195,6 +196,13 @@ export class AgentHost {
 
   getAvailableThinkingLevels(): ThinkingLevel[] {
     return parseThinkingLevels(this.session.getAvailableThinkingLevels())
+  }
+
+  getSkills(): SkillInfo[] {
+    return this.session.resourceLoader.getSkills().skills.map((skill) => ({
+      name: skill.name,
+      ...(skill.description ? { description: skill.description } : {}),
+    }))
   }
 
   async setModel(provider: string, modelId: string): Promise<ModelSelection> {
