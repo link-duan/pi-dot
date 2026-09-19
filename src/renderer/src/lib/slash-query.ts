@@ -1,9 +1,8 @@
 import type { SkillInfo } from '@shared/protocol'
+import { tokenQuery } from './token-query'
 
 export function slashQuery(textBeforeCaret: string): string | null {
-  const match = textBeforeCaret.match(/(?:^|\s)(\/[^\s]*)$/)
-  if (!match) return null
-  return match[1]!.slice(1)
+  return tokenQuery(textBeforeCaret, '/')
 }
 
 export function filterSkills(skills: SkillInfo[], query: string): SkillInfo[] {

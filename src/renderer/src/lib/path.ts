@@ -49,6 +49,22 @@ function relativePath(from: string, to: string): string {
   )
 }
 
+export function tokenPath(
+  path: string,
+  cwd: string,
+  home?: string | null,
+  isDirectory = false,
+): string {
+  const posix = toPosix(path)
+  const base = trimTrailingSlash(toPosix(cwd))
+  let body: string
+  if (posix === base) body = '.'
+  else if (posix.startsWith(`${base}/`)) body = posix.slice(base.length + 1)
+  else body = isAbsolutePath(posix) ? withHomePrefix(posix, home) : posix
+  if (body !== '.' && isDirectory && !body.endsWith('/')) body += '/'
+  return body
+}
+
 export function displayPath(path: string, cwd?: string | null, home?: string | null): string {
   const posix = toPosix(path)
   const absolute = isAbsolutePath(posix) ? withHomePrefix(posix, home) : posix

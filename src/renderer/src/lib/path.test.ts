@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayPath } from './path'
+import { displayPath, tokenPath } from './path'
 
 describe('displayPath', () => {
   const home = '/Users/me'
@@ -23,5 +23,26 @@ describe('displayPath', () => {
   it('picks the shorter form when outside cwd', () => {
     expect(displayPath('/tmp/notes.md', '/Users/me/Documents/pi-ui', home)).toBe('/tmp/notes.md')
     expect(displayPath('/tmp/proj/src/a.ts', '/tmp/proj/nested', home)).toBe('../src/a.ts')
+  })
+})
+
+describe('tokenPath', () => {
+  const home = '/Users/me'
+  const cwd = '/Users/me/proj'
+
+  it('keeps cwd files relative without ./', () => {
+    expect(tokenPath('/Users/me/proj/src/a.tsx', cwd, home)).toBe('src/a.tsx')
+    expect(tokenPath('/Users/me/proj', cwd, home)).toBe('.')
+  })
+
+  it('uses ~/ or absolute outside cwd, never ../', () => {
+    expect(tokenPath('/Users/me/.zshrc', cwd, home)).toBe('~/.zshrc')
+    expect(tokenPath('/tmp/shot.png', cwd, home)).toBe('/tmp/shot.png')
+    expect(tokenPath('/tmp/proj/src/a.ts', '/tmp/proj/nested', home)).toBe('/tmp/proj/src/a.ts')
+  })
+
+  it('adds a trailing slash for directories', () => {
+    expect(tokenPath('/Users/me/proj/src/components', cwd, home, true)).toBe('src/components/')
+    expect(tokenPath('/Users/me/Desktop', cwd, home, true)).toBe('~/Desktop/')
   })
 })

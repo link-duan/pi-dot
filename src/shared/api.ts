@@ -1,5 +1,6 @@
 import type {
   ConnectionStatus,
+  FileHit,
   ModelSelection,
   SessionEvent,
   SessionListItem,
@@ -22,6 +23,9 @@ export interface PiApi {
   switchSession(sessionPath: string): Promise<SessionSnapshot>
   newSession(): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
+  searchFiles(cwd: string, query: string): Promise<FileHit[]>
+  statPaths(paths: string[]): Promise<Array<{ path: string; isDirectory: boolean }>>
+  saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
 }

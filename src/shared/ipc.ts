@@ -12,6 +12,9 @@ export const IPC = {
   switchSession: 'pi:switchSession',
   newSession: 'pi:newSession',
   openExternal: 'pi:openExternal',
+  searchFiles: 'pi:searchFiles',
+  statPaths: 'pi:statPaths',
+  saveClipboardImage: 'pi:saveClipboardImage',
   event: 'pi:event',
   status: 'pi:status',
 } as const

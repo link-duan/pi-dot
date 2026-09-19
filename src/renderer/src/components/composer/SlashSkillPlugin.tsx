@@ -1,19 +1,12 @@
 import { useEffect, type Dispatch, type SetStateAction } from 'react'
-import {
-  COMMAND_PRIORITY_HIGH,
-  KEY_ARROW_DOWN_COMMAND,
-  KEY_ARROW_UP_COMMAND,
-  KEY_ENTER_COMMAND,
-  KEY_ESCAPE_COMMAND,
-  KEY_TAB_COMMAND,
-  mergeRegister,
-} from 'lexical'
+import { mergeRegister } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import type { SkillInfo } from '@shared/protocol'
 import { filterSkills } from '@/lib/slash-query'
 import { $replaceSlashQueryWithSkill, $slashQueryAtCaret } from './insert-skill'
+import { applyPickerQuery, registerPickerKeys, type PickerState } from './picker-keys'
 
-export type SkillPickerState = { query: string; index: number }
+export type SkillPickerState = PickerState
 
 export function SlashSkillPlugin({
   skills,
@@ -27,86 +20,26 @@ export function SlashSkillPlugin({
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    function insert(skill: SkillInfo) {
+    const filtered = picker ? filterSkills(skills, picker.query) : []
+
+    function insert(index: number): boolean {
+      const skill = filtered[index]
+      if (!skill) return false
       editor.update(() => {
         $replaceSlashQueryWithSkill(skill)
       })
       setPicker(null)
       editor.focus()
+      return true
     }
-
-    const filtered = picker ? filterSkills(skills, picker.query) : []
 
     return mergeRegister(
       editor.registerUpdateListener(({ editorState }) => {
-        editorState.read(() => {
-          const query = $slashQueryAtCaret()
-          setPicker((prev) => {
-            if (query == null) return prev == null ? prev : null
-            if (prev?.query === query) return prev
-            return { query, index: 0 }
-          })
-        })
+        editorState.read(() => applyPickerQuery(setPicker, $slashQueryAtCaret()))
       }),
-      editor.registerCommand(
-        KEY_ARROW_UP_COMMAND,
-        (event) => {
-          if (!picker) return false
-          event?.preventDefault()
-          setPicker(stepIndex(picker, filtered.length, -1))
-          return true
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ARROW_DOWN_COMMAND,
-        (event) => {
-          if (!picker) return false
-          event?.preventDefault()
-          setPicker(stepIndex(picker, filtered.length, 1))
-          return true
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ESCAPE_COMMAND,
-        (event) => {
-          if (!picker) return false
-          event?.preventDefault()
-          setPicker(null)
-          return true
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_TAB_COMMAND,
-        (event) => {
-          if (!picker) return false
-          event?.preventDefault()
-          const skill = filtered[picker.index]
-          if (skill) insert(skill)
-          return true
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
-      editor.registerCommand(
-        KEY_ENTER_COMMAND,
-        (event) => {
-          if (!picker) return false
-          event?.preventDefault()
-          const skill = filtered[picker.index]
-          if (skill) insert(skill)
-          return true
-        },
-        COMMAND_PRIORITY_HIGH,
-      ),
+      registerPickerKeys(editor, { picker, count: filtered.length, setPicker, insert }),
     )
   }, [editor, picker, setPicker, skills])
 
   return null
-}
-
-function stepIndex(prev: SkillPickerState, count: number, delta: number): SkillPickerState {
-  if (count === 0) return prev
-  return { ...prev, index: (prev.index + delta + count) % count }
 }

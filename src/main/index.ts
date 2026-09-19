@@ -6,7 +6,10 @@ import appIcon from '../../resources/icon-dock.png?asset'
 import { applyAgentEnv } from './agent-env'
 import { AgentHost } from './agent-host'
 import { readLastCwd, writeLastCwd } from './last-cwd'
+import { saveClipboardImage } from './clipboard-image'
+import { searchProjectFiles } from './search-files'
 import { listProjectSessions, withRunning } from './sessions'
+import { statPaths } from './stat-paths'
 
 if (!app.isPackaged) {
   app.commandLine.appendSwitch('remote-debugging-port', '9222')
@@ -242,6 +245,21 @@ function registerIpc(): void {
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return
     await shell.openExternal(url)
+  })
+
+  ipcMain.handle(IPC.searchFiles, async (_event, cwd: string, query: string) => {
+    if (typeof cwd !== 'string' || !cwd) return []
+    return searchProjectFiles(cwd, typeof query === 'string' ? query : '')
+  })
+
+  ipcMain.handle(IPC.statPaths, async (_event, paths: string[]) => {
+    if (!Array.isArray(paths)) return []
+    return statPaths(paths.filter((path): path is string => typeof path === 'string'))
+  })
+
+  ipcMain.handle(IPC.saveClipboardImage, async (_event, data: Uint8Array, mimeType: string) => {
+    if (!data || typeof mimeType !== 'string') throw new Error('Invalid image')
+    return saveClipboardImage(data, mimeType)
   })
 }
 

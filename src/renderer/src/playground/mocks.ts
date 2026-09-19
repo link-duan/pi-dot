@@ -87,7 +87,7 @@ const skillBlock = [
 
 export const catalogModel = chat([
   user(skillBlock),
-  user('please use /skill:react-doctor on this file'),
+  user('please use /skill:react-doctor on @file:src/app.ts:1-3'),
   user('Walk through the transcript states.'),
   assistant([
     { type: 'thinking', thinking: 'Plan the reply, then call tools.' },

@@ -4,6 +4,7 @@ import type { PiApi } from '@shared/api'
 import { IPC } from '@shared/ipc'
 import type {
   ConnectionStatus,
+  FileHit,
   SessionEvent,
   SessionListItem,
   SessionSnapshot,
@@ -28,6 +29,14 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
   newSession: () => ipcRenderer.invoke(IPC.newSession) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
+  searchFiles: (cwd: string, query: string) =>
+    ipcRenderer.invoke(IPC.searchFiles, cwd, query) as Promise<FileHit[]>,
+  statPaths: (paths: string[]) =>
+    ipcRenderer.invoke(IPC.statPaths, paths) as Promise<
+      Array<{ path: string; isDirectory: boolean }>
+    >,
+  saveClipboardImage: (data: Uint8Array, mimeType: string) =>
+    ipcRenderer.invoke(IPC.saveClipboardImage, data, mimeType) as Promise<string>,
   onEvent: (cb: (event: SessionEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SessionEvent) => cb(payload)
     ipcRenderer.on(IPC.event, listener)

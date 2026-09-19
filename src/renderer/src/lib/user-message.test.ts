@@ -51,6 +51,23 @@ describe('parseUserSegments', () => {
       { type: 'skill', name: 'gone' },
     ])
   })
+
+  it('projects @file: tokens and ignores a bare @path', () => {
+    expect(parseUserSegments('see @file:src/foo.ts and @john')).toEqual([
+      { type: 'text', text: 'see ' },
+      { type: 'file', path: 'src/foo.ts' },
+      { type: 'text', text: ' and @john' },
+    ])
+  })
+
+  it('projects a ranged file next to a skill', () => {
+    expect(parseUserSegments('use /skill:tdd on @file:src/foo.ts:10-20')).toEqual([
+      { type: 'text', text: 'use ' },
+      { type: 'skill', name: 'tdd' },
+      { type: 'text', text: ' on ' },
+      { type: 'file', path: 'src/foo.ts', range: { start: 10, end: 20 } },
+    ])
+  })
 })
 
 describe('keyedUserSegments', () => {

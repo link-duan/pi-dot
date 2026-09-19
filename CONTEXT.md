@@ -25,5 +25,9 @@ An on-demand capability package, invoked as `/skill:name`.
 _Avoid_: Slash command, command, prompt template
 
 **Embed Chip**:
-A visual token in the Composer or Transcript that stands for a Skill. Sending serializes it to `/skill:name`; Transcript projects stored skill blocks and `/skill:name` tokens back into chips.
+A visual token in the Composer or Transcript that stands for a Skill or a File. Skills serialize to `/skill:name`; files serialize to `@file:path`. Transcript projects those tokens back into chips.
 _Avoid_: Mention, pill, tag
+
+**File Chip**:
+An Embed Chip for a file or directory. `@` in the Composer opens the file picker; sending serializes the chip to `@file:path`. Transcript only projects `@file:` tokens, never a bare `@path`.
+_Avoid_: Mention, attachment

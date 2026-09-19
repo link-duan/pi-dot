@@ -3,13 +3,9 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   $createParagraphNode,
   $getRoot,
-  $getSelection,
-  $isRangeSelection,
-  COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_NORMAL,
   INSERT_LINE_BREAK_COMMAND,
   KEY_ENTER_COMMAND,
-  PASTE_COMMAND,
 } from 'lexical'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -18,12 +14,17 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import type { SkillInfo } from '@shared/protocol'
+import type { FileHit, SkillInfo } from '@shared/protocol'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
 import { displayPath } from '@/lib/path'
 import { useSession } from '@/session/store'
+import { FilePicker } from './FilePicker'
 import { SkillPicker } from './SkillPicker'
+import { AtFilePlugin, type FilePickerState } from './composer/AtFilePlugin'
+import { ComposerPastePlugin } from './composer/ComposerPastePlugin'
+import { FileNode } from './composer/FileNode'
+import { $replaceAtQueryWithFile } from './composer/insert-file'
 import { $replaceSlashQueryWithSkill } from './composer/insert-skill'
 import { SkillNode } from './composer/SkillNode'
 import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
@@ -35,7 +36,7 @@ const initialConfig = {
   onError(error: Error) {
     console.error(error)
   },
-  nodes: [SkillNode],
+  nodes: [SkillNode, FileNode],
   theme: {
     paragraph: 'm-0',
   },
@@ -53,6 +54,11 @@ function ComposerForm() {
   const [editor] = useLexicalComposerContext()
   const [draft, setDraft] = useState('')
   const [picker, setPicker] = useState<SkillPickerState | null>(null)
+  const [filePicker, setFilePicker] = useState<FilePickerState | null>(null)
+  const [fileResults, setFileResults] = useState<{ query: string; hits: FileHit[] }>({
+    query: '',
+    hits: [],
+  })
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const skills = useSession((state) => state.skills)
@@ -71,8 +77,30 @@ function ComposerForm() {
     })
     setDraft('')
     setPicker(null)
+    setFilePicker(null)
     void send(next)
   }, [connection, editor, isStreaming, send])
+
+  const fileQuery = filePicker?.query
+  const fileHits = fileQuery == null ? [] : fileResults.hits
+  useEffect(() => {
+    if (fileQuery == null || !cwd) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      void window.pi.searchFiles(cwd, fileQuery).then(
+        (hits) => {
+          if (!cancelled) setFileResults({ query: fileQuery, hits })
+        },
+        () => {
+          if (!cancelled) setFileResults({ query: fileQuery, hits: [] })
+        },
+      )
+    }, 50)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [cwd, fileQuery])
 
   const insertPicked = useCallback(
     (skill: SkillInfo) => {
@@ -80,6 +108,17 @@ function ComposerForm() {
         $replaceSlashQueryWithSkill(skill)
       })
       setPicker(null)
+      editor.focus()
+    },
+    [editor],
+  )
+
+  const insertPickedFile = useCallback(
+    (hit: FileHit) => {
+      editor.update(() => {
+        $replaceAtQueryWithFile(hit)
+      })
+      setFilePicker(null)
       editor.focus()
     },
     [editor],
@@ -94,7 +133,14 @@ function ComposerForm() {
       }}
     >
       <div className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
-        {picker ? (
+        {filePicker ? (
+          <FilePicker
+            hits={fileHits}
+            index={filePicker.index}
+            onHover={(index) => setFilePicker((prev) => (prev ? { ...prev, index } : prev))}
+            onSelect={insertPickedFile}
+          />
+        ) : picker ? (
           <SkillPicker
             skills={skills}
             query={picker.query}
@@ -131,8 +177,9 @@ function ComposerForm() {
           }}
         />
         <SlashSkillPlugin skills={skills} picker={picker} setPicker={setPicker} />
+        <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
         <ComposerKeyPlugin onSubmit={submit} />
-        <PlainPastePlugin />
+        <ComposerPastePlugin cwd={cwd} />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -202,27 +249,5 @@ function ComposerKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
     )
   }, [editor, onSubmit])
 
-  return null
-}
-
-function PlainPastePlugin() {
-  const [editor] = useLexicalComposerContext()
-  useEffect(() => {
-    return editor.registerCommand(
-      PASTE_COMMAND,
-      (event) => {
-        const clipboard = event instanceof ClipboardEvent ? event.clipboardData : null
-        const text = clipboard?.getData('text/plain')
-        if (!text) return false
-        event.preventDefault()
-        editor.update(() => {
-          const selection = $getSelection()
-          if ($isRangeSelection(selection)) selection.insertRawText(text)
-        })
-        return true
-      },
-      COMMAND_PRIORITY_HIGH,
-    )
-  }, [editor])
   return null
 }

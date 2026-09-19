@@ -6,22 +6,27 @@ import {
   type EditorState,
   type LexicalNode,
 } from 'lexical'
+import { formatFileToken, type FileRange } from '@/lib/file-token'
+import { $isFileNode } from './FileNode'
 import { $isSkillNode } from './SkillNode'
 
-export type SerializePiece = { type: 'text'; text: string } | { type: 'skill'; name: string }
+export type SerializePiece =
+  | { type: 'text'; text: string }
+  | { type: 'skill'; name: string }
+  | { type: 'file'; path: string; range?: FileRange }
 
 export function joinPieces(pieces: SerializePiece[]): string {
   let out = ''
-  let afterSkill = false
+  let afterEmbed = false
   for (const piece of pieces) {
-    if (piece.type === 'skill') {
+    if (piece.type === 'skill' || piece.type === 'file') {
       if (out && !/\s$/.test(out)) out += ' '
-      out += `/skill:${piece.name}`
-      afterSkill = true
+      out += piece.type === 'skill' ? `/skill:${piece.name}` : formatFileToken(piece)
+      afterEmbed = true
       continue
     }
-    if (afterSkill && piece.text && !/^\s/.test(piece.text)) out += ' '
-    afterSkill = false
+    if (afterEmbed && piece.text && !/^\s/.test(piece.text)) out += ' '
+    afterEmbed = false
     out += piece.text
   }
   return out
@@ -42,6 +47,10 @@ export function serializeEditorState(state: EditorState): string {
 function collect(node: LexicalNode, pieces: SerializePiece[]): void {
   if ($isSkillNode(node)) {
     pieces.push({ type: 'skill', name: node.getName() })
+    return
+  }
+  if ($isFileNode(node)) {
+    pieces.push({ type: 'file', path: node.getPath(), range: node.getRange() })
     return
   }
   if ($isTextNode(node)) {

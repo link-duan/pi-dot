@@ -39,6 +39,11 @@ export interface SkillInfo {
   description?: string
 }
 
+export interface FileHit {
+  path: string
+  isDirectory: boolean
+}
+
 export interface ModelSelection {
   model: ModelInfo
   thinkingLevel: ThinkingLevel

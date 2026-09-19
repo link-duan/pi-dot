@@ -1,7 +1,9 @@
 import { Fragment, memo, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { Brain, CircleStop } from 'lucide-react'
 import { userText, type ChatState, type ToolLiveState } from '@/chat/state'
+import { FileChip } from '@/components/composer/FileChip'
 import { SkillChip } from '@/components/composer/SkillChip'
+import { fileChipLabel } from '@/lib/file-token'
 import { keyedUserSegments } from '@/lib/user-message'
 import { Spinner } from '@/components/ui/spinner'
 import { formatElapsed } from '@/lib/format'
@@ -246,6 +248,13 @@ const MessageRow = memo(function MessageRow({
           {segments.map((segment) =>
             segment.type === 'skill' ? (
               <SkillChip key={segment.key} name={segment.name} />
+            ) : segment.type === 'file' ? (
+              <FileChip
+                key={segment.key}
+                label={fileChipLabel(segment.path, segment.range)}
+                title={segment.path}
+                directory={segment.path.endsWith('/')}
+              />
             ) : (
               <span key={segment.key}>{segment.text}</span>
             ),
