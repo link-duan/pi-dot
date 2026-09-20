@@ -17,6 +17,7 @@ import {
   isAgentMessage,
   parseThinkingLevels,
   type AgentMessage,
+  type ContextUsage,
   type ModelInfo,
   type ModelSelection,
   type SessionEvent,
@@ -67,6 +68,10 @@ export class AgentHost {
     return () => {
       this.listeners = this.listeners.filter((item) => item !== listener)
     }
+  }
+
+  private emit(event: SessionEvent): void {
+    for (const listener of this.listeners) listener(event)
   }
 
   runningSessionFiles(): string[] {
@@ -205,12 +210,17 @@ export class AgentHost {
     }))
   }
 
+  getContextUsage(): ContextUsage | null {
+    return toContextUsage(this.session.getContextUsage())
+  }
+
   async setModel(provider: string, modelId: string): Promise<ModelSelection> {
     const model = this.session.modelRuntime
       .getAvailableSnapshot()
       .find((item) => item.provider === provider && item.id === modelId)
     if (!model) throw new Error(`Model not found: ${provider}/${modelId}`)
     await this.session.setModel(model)
+    this.emitContextUsage(this.requireActive())
     return this.getModelSelection()
   }
 
@@ -367,10 +377,30 @@ export class AgentHost {
     })
     live.unsubscribe = session.subscribe((event) => {
       const mapped = toSessionEvent(event, live.sessionFile)
-      if (mapped) {
-        for (const listener of this.listeners) listener(mapped)
+      if (mapped) this.emit(mapped)
+      if (event.type === 'agent_end' || event.type === 'compaction_end') {
+        this.emitContextUsage(live)
       }
     })
+  }
+
+  private emitContextUsage(live: LiveSession): void {
+    this.emit({
+      type: 'context_usage',
+      sessionFile: live.sessionFile,
+      usage: toContextUsage(live.session.getContextUsage()),
+    })
+  }
+}
+
+function toContextUsage(
+  usage: { tokens: number | null; contextWindow: number; percent: number | null } | undefined,
+): ContextUsage | null {
+  if (!usage) return null
+  return {
+    tokens: usage.tokens,
+    contextWindow: usage.contextWindow,
+    percent: usage.percent,
   }
 }
 

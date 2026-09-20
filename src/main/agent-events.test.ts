@@ -57,6 +57,18 @@ describe('toSessionEvent', () => {
     ).toBeNull()
     expect(toSessionEvent({ type: 'turn_start' }, sessionFile)).toBeNull()
     expect(toSessionEvent({ type: 'agent_settled' }, sessionFile)).toBeNull()
+    expect(
+      toSessionEvent(
+        {
+          type: 'compaction_end',
+          reason: 'manual',
+          result: undefined,
+          aborted: false,
+          willRetry: false,
+        },
+        sessionFile,
+      ),
+    ).toBeNull()
   })
 
   it('forwards tool execution by toolCallId', () => {

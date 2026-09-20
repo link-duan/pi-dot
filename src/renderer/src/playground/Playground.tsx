@@ -9,6 +9,7 @@ import { useSession } from '@/session/store'
 import {
   catalogModel,
   emptyModel,
+  playgroundContextUsage,
   playgroundModel,
   playgroundModels,
   playgroundSkills,
@@ -41,6 +42,7 @@ function usePlaygroundSession(isStreaming: boolean) {
       thinkingLevel: 'low',
       thinkingLevels: playgroundThinkingLevels,
       skills: playgroundSkills,
+      contextUsage: playgroundContextUsage,
       send: async () => {},
       abort: async () => {},
       openFolder: async () => {},

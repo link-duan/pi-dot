@@ -3,6 +3,7 @@ import {
   formatRelativeTime,
   sessionTimeGroup,
   formatElapsed,
+  formatTokenCount,
   sessionTitle,
   sessionTitleSegments,
   formatDiffCopy,
@@ -14,6 +15,19 @@ import {
   toolReadPreview,
   toolSummary,
 } from './format'
+
+describe('formatTokenCount', () => {
+  it('uses raw counts below one thousand and compact K/M after', () => {
+    expect(formatTokenCount(0)).toBe('0')
+    expect(formatTokenCount(999)).toBe('999')
+    expect(formatTokenCount(1000)).toBe('1K')
+    expect(formatTokenCount(1500)).toBe('1.5K')
+    expect(formatTokenCount(42_500)).toBe('42.5K')
+    expect(formatTokenCount(256_000)).toBe('256K')
+    expect(formatTokenCount(1_000_000)).toBe('1M')
+    expect(formatTokenCount(1_200_000)).toBe('1.2M')
+  })
+})
 
 describe('formatElapsed', () => {
   it('uses tenths below one second and whole seconds after', () => {

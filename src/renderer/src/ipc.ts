@@ -1,6 +1,6 @@
 import { applyIncomingEvent, chatCache } from '@/session/events'
 import { useChat } from '@/chat/store'
-import { applyLiveSnapshot, useSession } from '@/session/store'
+import { applyContextUsage, applyLiveSnapshot, useSession } from '@/session/store'
 import type { AgentMessage, ConnectionStatus, SessionEvent } from '@shared/protocol'
 
 let bound = false
@@ -57,6 +57,10 @@ export function resolveQueuedStatus(
 }
 
 function dispatch(event: SessionEvent): void {
+  if (event.type === 'context_usage') {
+    applyContextUsage(event.sessionFile, event.usage)
+    return
+  }
   const next = applyIncomingEvent(event, {
     activeFile: useSession.getState().sessionFile,
     running: useSession.getState().runningSessionFiles,

@@ -29,6 +29,7 @@ import { $replaceSlashQueryWithSkill } from './composer/insert-skill'
 import { SkillNode } from './composer/SkillNode'
 import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
 import { serializeEditorState } from './composer/serialize'
+import { ContextUsageRing } from './ContextUsageRing'
 import { ModelSelect } from './ModelSelect'
 
 const initialConfig = {
@@ -199,6 +200,7 @@ function ComposerForm() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1.5">
+            <ContextUsageRing />
             <ModelSelect />
 
             {isStreaming ? (

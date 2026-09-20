@@ -2,6 +2,7 @@ import { createChatState, hydrateMessages, type ChatState } from '@/chat/state'
 import { useChat } from '@/chat/store'
 import type {
   ConnectionStatus,
+  ContextUsage,
   ModelInfo,
   ModelSelection,
   SessionListItem,
@@ -25,6 +26,7 @@ interface SessionStore {
   thinkingLevel: ThinkingLevel
   thinkingLevels: ThinkingLevel[]
   skills: SkillInfo[]
+  contextUsage: ContextUsage | null
   openFolder: () => Promise<void>
   openCwd: (cwd: string) => Promise<void>
   leave: () => Promise<void>
@@ -62,7 +64,13 @@ function snapshotPatch(snapshot: SessionSnapshot) {
     thinkingLevels: snapshot.thinkingLevels,
     runningSessionFiles: snapshot.runningSessionFiles,
     skills: snapshot.skills,
+    contextUsage: snapshot.contextUsage ?? null,
   }
+}
+
+export function applyContextUsage(sessionFile: string, usage: ContextUsage | null) {
+  if (useSession.getState().sessionFile !== sessionFile) return
+  useSession.setState({ contextUsage: usage })
 }
 
 export function applyLiveSnapshot(snapshot: SessionSnapshot, chat?: ChatState) {
@@ -89,6 +97,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   thinkingLevel: 'off',
   thinkingLevels: [],
   skills: [],
+  contextUsage: null,
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()
@@ -97,7 +106,7 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   openCwd: async (cwd: string) => {
     clearChatCache()
-    set({ connection: 'connecting', error: null, cwd, runningSessionFiles: [] })
+    set({ connection: 'connecting', error: null, cwd, runningSessionFiles: [], contextUsage: null })
     useChat.setState(createChatState())
     try {
       applyLiveSnapshot(await window.pi.start(cwd))
@@ -128,6 +137,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       thinkingLevel: 'off',
       thinkingLevels: [],
       skills: [],
+      contextUsage: null,
     })
     useChat.setState(createChatState())
   },

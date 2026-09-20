@@ -438,6 +438,15 @@ export function toolDiffStats(name: string, args: unknown, result?: unknown): Di
   return null
 }
 
+export function formatTokenCount(count: number): string {
+  const abs = Math.abs(count)
+  if (abs < 1000) return String(count)
+  const scaled = abs < 1_000_000 ? count / 1000 : count / 1_000_000
+  const rounded = Math.round(scaled * 10) / 10
+  const display = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1)
+  return `${display}${abs < 1_000_000 ? 'K' : 'M'}`
+}
+
 export function formatElapsed(ms: number): string {
   const clamped = Math.max(0, ms)
   const tenths = Math.round(clamped / 100)

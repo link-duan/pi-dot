@@ -39,6 +39,12 @@ export interface SkillInfo {
   description?: string
 }
 
+export interface ContextUsage {
+  tokens: number | null
+  contextWindow: number
+  percent: number | null
+}
+
 export interface FileHit {
   path: string
   isDirectory: boolean
@@ -143,6 +149,7 @@ export type SessionEventBody =
       result?: unknown
       isError?: boolean
     }
+  | { type: 'context_usage'; usage: ContextUsage | null }
 
 export type SessionEvent = SessionEventBody & { sessionFile: string }
 
@@ -155,6 +162,7 @@ export interface SessionSnapshot {
   thinkingLevels: ThinkingLevel[]
   runningSessionFiles: string[]
   skills: SkillInfo[]
+  contextUsage?: ContextUsage | null
 }
 
 export interface SessionListItem {

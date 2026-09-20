@@ -185,6 +185,9 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
       })
     }
 
+    case 'context_usage':
+      return state
+
     case 'tool_execution_end': {
       const toolCallId = String(event.toolCallId ?? '')
       if (!toolCallId) return state

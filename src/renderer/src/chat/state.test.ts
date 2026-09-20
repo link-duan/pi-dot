@@ -140,4 +140,14 @@ describe('applySessionEvent', () => {
     expect(state.isStreaming).toBe(false)
     expect(state.turnEndedAt).toEqual(expect.any(Number))
   })
+
+  it('ignores context usage events', () => {
+    const state = createChatState()
+    expect(
+      applySessionEvent(state, {
+        type: 'context_usage',
+        usage: { tokens: 1000, contextWindow: 128_000, percent: 1 },
+      }),
+    ).toBe(state)
+  })
 })

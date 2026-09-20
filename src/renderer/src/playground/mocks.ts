@@ -3,6 +3,7 @@ import type {
   AgentMessage,
   AssistantMessage,
   ContentBlock,
+  ContextUsage,
   ModelInfo,
   ThinkingLevel,
   SkillInfo,
@@ -72,6 +73,12 @@ export const playgroundSkills: SkillInfo[] = [
   { name: 'tdd', description: 'Test-driven development' },
   { name: 'react-doctor', description: 'Scan React diagnostics' },
 ]
+
+export const playgroundContextUsage: ContextUsage = {
+  tokens: 42_500,
+  contextWindow: 256_000,
+  percent: 17,
+}
 
 export const emptyModel = chat([])
 

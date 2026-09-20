@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { createChatState } from '@/chat/state'
 import { useChat } from '@/chat/store'
 import type { SessionSnapshot } from '@shared/protocol'
-import { applyLiveSnapshot, useSession } from './store'
+import { applyContextUsage, applyLiveSnapshot, useSession } from './store'
 
 const snapshot: SessionSnapshot = {
   cwd: '/tmp/project',
@@ -26,6 +26,7 @@ const snapshot: SessionSnapshot = {
   thinkingLevels: ['off', 'high'],
   runningSessionFiles: ['/tmp/project/session.jsonl', '/tmp/project/other.jsonl'],
   skills: [{ name: 'tdd', description: 'Test-driven development' }],
+  contextUsage: { tokens: 42_500, contextWindow: 256_000, percent: 17 },
 }
 
 afterEach(() => {
@@ -42,6 +43,7 @@ afterEach(() => {
     thinkingLevel: 'off',
     thinkingLevels: [],
     skills: [],
+    contextUsage: null,
   })
   useChat.setState(createChatState())
 })
@@ -61,9 +63,46 @@ describe('applyLiveSnapshot', () => {
     ])
     expect(session.model).toEqual({ id: 'm', name: 'Model', provider: 'p' })
     expect(session.skills).toEqual([{ name: 'tdd', description: 'Test-driven development' }])
+    expect(session.contextUsage).toEqual({
+      tokens: 42_500,
+      contextWindow: 256_000,
+      percent: 17,
+    })
     const chat = useChat.getState()
     expect(chat.messages).toHaveLength(1)
     expect(chat.isStreaming).toBe(true)
     expect(chat.assistantStreaming).toBe(true)
+  })
+
+  it('clears context usage when the snapshot omits it', () => {
+    applyLiveSnapshot(snapshot)
+    applyLiveSnapshot({ ...snapshot, contextUsage: undefined })
+    expect(useSession.getState().contextUsage).toBeNull()
+  })
+})
+
+describe('applyContextUsage', () => {
+  it('updates usage only for the active session', () => {
+    applyLiveSnapshot(snapshot)
+    applyContextUsage('/tmp/other.jsonl', {
+      tokens: 1000,
+      contextWindow: 128_000,
+      percent: 1,
+    })
+    expect(useSession.getState().contextUsage).toEqual({
+      tokens: 42_500,
+      contextWindow: 256_000,
+      percent: 17,
+    })
+    applyContextUsage('/tmp/project/session.jsonl', {
+      tokens: null,
+      contextWindow: 256_000,
+      percent: null,
+    })
+    expect(useSession.getState().contextUsage).toEqual({
+      tokens: null,
+      contextWindow: 256_000,
+      percent: null,
+    })
   })
 })
