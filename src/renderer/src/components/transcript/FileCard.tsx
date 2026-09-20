@@ -4,6 +4,7 @@ import { DiffStatsLabel } from './ActivityRow'
 import { highlight, type HighlightToken } from '@/lib/highlight'
 import type { DiffLine, DiffStats } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { ScrollFade } from '@/components/ui/scroll-area'
 
 type Token = HighlightToken
 type Line = string | Token[]
@@ -36,9 +37,13 @@ export function FileCard({
         </span>
         <CodeBlockCopyButton code={copy} />
       </div>
-      <div className="mt-2 max-h-96 overflow-auto border-t border-border py-2 font-mono text-xs leading-relaxed">
+      <ScrollFade
+        rootClassName="mt-2 border-t border-border"
+        className="max-h-96 py-2 font-mono text-xs leading-relaxed"
+        scrollbarClassName="my-0.5"
+      >
         {children}
-      </div>
+      </ScrollFade>
     </div>
   )
 }

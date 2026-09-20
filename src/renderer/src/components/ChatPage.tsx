@@ -6,7 +6,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Composer } from './Composer'
 import { SessionSwitcher } from './SessionSwitcher'
-import { Transcript } from './Transcript'
+import { Transcript } from './transcript/Transcript'
 
 export function ChatPage() {
   const cwd = useSession((state) => state.cwd)

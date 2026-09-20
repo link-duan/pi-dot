@@ -54,6 +54,26 @@ function ScrollAreaScrollbar({
   )
 }
 
+function ScrollFade({
+  className,
+  rootClassName,
+  scrollbarClassName,
+  children,
+  ...props
+}: ScrollAreaPrimitive.Viewport.Props & {
+  rootClassName?: string
+  scrollbarClassName?: string
+}) {
+  return (
+    <ScrollArea className={rootClassName}>
+      <ScrollAreaViewport className={cn('h-auto! scroll-fade', className)} {...props}>
+        {children}
+      </ScrollAreaViewport>
+      <ScrollAreaScrollbar className={scrollbarClassName} />
+    </ScrollArea>
+  )
+}
+
 function ScrollAreaThumb({ className, ...props }: ScrollAreaPrimitive.Thumb.Props) {
   return (
     <ScrollAreaPrimitive.Thumb
@@ -67,4 +87,11 @@ function ScrollAreaThumb({ className, ...props }: ScrollAreaPrimitive.Thumb.Prop
   )
 }
 
-export { ScrollArea, ScrollAreaContent, ScrollAreaScrollbar, ScrollAreaThumb, ScrollAreaViewport }
+export {
+  ScrollArea,
+  ScrollAreaContent,
+  ScrollAreaScrollbar,
+  ScrollAreaThumb,
+  ScrollAreaViewport,
+  ScrollFade,
+}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
-import { Transcript } from '@/components/Transcript'
+import { Transcript } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { patchChat } from '@/session/state'
