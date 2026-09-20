@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  formatMessageTime,
   formatRelativeTime,
   sessionTimeGroup,
   formatElapsed,
@@ -102,6 +103,28 @@ describe('sessionTitle', () => {
       { type: 'text', text: ' on ' },
       { type: 'file', path: 'src/foo.ts', range: { start: 10, end: 20 } },
     ])
+  })
+})
+
+describe('formatMessageTime', () => {
+  const now = new Date(2026, 8, 20, 18, 0).getTime()
+
+  it('shows HH:mm on the same calendar day', () => {
+    expect(formatMessageTime(new Date(2026, 8, 20, 14, 32).getTime(), now)).toBe('14:32')
+    expect(formatMessageTime(new Date(2026, 8, 20, 0, 5).getTime(), now)).toBe('00:05')
+  })
+
+  it('includes the month when the day differs', () => {
+    expect(formatMessageTime(new Date(2026, 8, 19, 9, 5).getTime(), now)).toBe('Sep 19, 09:05')
+  })
+
+  it('includes the year when it differs', () => {
+    expect(formatMessageTime(new Date(2024, 0, 1, 8, 0).getTime(), now)).toBe('Jan 1, 2024, 08:00')
+  })
+
+  it('returns empty for invalid timestamps', () => {
+    expect(formatMessageTime(Number.NaN, now)).toBe('')
+    expect(formatMessageTime(Number.POSITIVE_INFINITY, now)).toBe('')
   })
 })
 

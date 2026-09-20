@@ -11,7 +11,7 @@ import type {
   UserMessage,
 } from '@shared/protocol'
 
-let clock = 1_704_067_200_000
+let clock = Date.now() - 180_000
 function at(delta = 800): number {
   clock += delta
   return clock

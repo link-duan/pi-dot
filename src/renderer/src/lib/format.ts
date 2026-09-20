@@ -510,6 +510,43 @@ function firstLineSegments(segments: UserSegment[]): UserSegment[] {
   return out
 }
 
+const MONTHS = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+] as const
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n)
+}
+
+export function formatMessageTime(timestamp: number, now = Date.now()): string {
+  if (!Number.isFinite(timestamp)) return ''
+  const date = new Date(timestamp)
+  if (Number.isNaN(date.getTime())) return ''
+  const time = `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+  const today = new Date(now)
+  if (
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  ) {
+    return time
+  }
+  const monthDay = `${MONTHS[date.getMonth()]} ${date.getDate()}`
+  if (date.getFullYear() === today.getFullYear()) return `${monthDay}, ${time}`
+  return `${monthDay}, ${date.getFullYear()}, ${time}`
+}
+
 export function formatRelativeTime(iso: string, now = Date.now()): string {
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return ''
