@@ -41,6 +41,7 @@ export function Transcript({
   const stickToBottom = useRef(follow)
   const hasMessages = messages.length > 0
   const turns = userTurns(messages)
+  const streamingIndex = assistantStreaming ? lastAssistantIndex(messages) : -1
   const toolResults = useMemo(() => {
     const map: Record<string, ToolResultMessage> = {}
     for (const message of messages) {
@@ -78,7 +79,7 @@ export function Transcript({
                 message={message}
                 toolLive={toolLive}
                 toolResults={toolResults}
-                streaming={assistantStreaming && index === lastAssistantIndex(messages)}
+                streaming={index === streamingIndex}
               />
             ))}
             {turns.map((turn, turnIndex) => {
@@ -103,7 +104,7 @@ export function Transcript({
                         message={message}
                         toolLive={toolLive}
                         toolResults={toolResults}
-                        streaming={assistantStreaming && index === lastAssistantIndex(messages)}
+                        streaming={index === streamingIndex}
                       />
                     )
                   })}
