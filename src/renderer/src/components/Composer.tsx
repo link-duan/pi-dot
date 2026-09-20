@@ -17,6 +17,7 @@ import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import type { FileHit, SkillInfo } from '@shared/protocol'
 import { useChat } from '@/chat/store'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { displayPath } from '@/lib/path'
 import { useSession } from '@/session/store'
 import { FilePicker } from './FilePicker'
@@ -185,17 +186,23 @@ function ComposerForm() {
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             {cwd ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                onClick={() => void openFolder()}
-                className="max-w-full min-w-0 text-xs text-muted-foreground"
-                title={`Current folder: ${cwd} (click to change)`}
-              >
-                <Folder className="size-3 shrink-0" />
-                <span className="truncate">{displayPath(cwd, null, window.pi.homedir)}</span>
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="xs"
+                      onClick={() => void openFolder()}
+                      className="max-w-full min-w-0 text-xs text-muted-foreground"
+                    />
+                  }
+                >
+                  <Folder className="size-3 shrink-0" />
+                  <span className="truncate">{displayPath(cwd, null, window.pi.homedir)}</span>
+                </TooltipTrigger>
+                <TooltipContent>{`Current folder: ${cwd} (click to change)`}</TooltipContent>
+              </Tooltip>
             ) : null}
           </div>
 

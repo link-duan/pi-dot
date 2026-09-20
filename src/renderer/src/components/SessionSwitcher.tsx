@@ -4,6 +4,8 @@ import type { SessionListItem } from '@shared/protocol'
 import { FileChip } from '@/components/composer/FileChip'
 import { SkillChip } from '@/components/composer/SkillChip'
 import { Button } from '@/components/ui/button'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   CommandDialog,
   CommandEmpty,
@@ -70,17 +72,29 @@ export function SessionSwitcher() {
 
   return (
     <>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        className="app-no-drag text-muted-foreground"
-        aria-label="Session history"
-        title="Session history (Ctrl+R)"
-        onClick={() => setListOpen(true)}
-      >
-        <History />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className="app-no-drag text-muted-foreground"
+              aria-label="Session history"
+              onClick={() => setListOpen(true)}
+            />
+          }
+        >
+          <History />
+        </TooltipTrigger>
+        <TooltipContent>
+          Session history
+          <KbdGroup>
+            <Kbd>Ctrl</Kbd>
+            <Kbd>R</Kbd>
+          </KbdGroup>
+        </TooltipContent>
+      </Tooltip>
 
       <CommandDialog
         open={open}

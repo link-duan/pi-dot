@@ -1,8 +1,10 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { useChat } from '@/chat/store'
 import { useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
+import { Kbd, KbdGroup } from '@/components/ui/kbd'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Composer } from './Composer'
 import { SessionSwitcher } from './SessionSwitcher'
 import { Transcript } from './Transcript'
@@ -18,6 +20,23 @@ export function ChatPage() {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const canCreate = connection === 'ready' && (chat.isStreaming || chat.messages.length > 0)
 
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (
+        event.key.toLowerCase() !== 'n' ||
+        !event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      )
+        return
+      event.preventDefault()
+      if (canCreate) void newSession()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [canCreate, newSession])
+
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
       {/* Overlay: keep macOS traffic-light drag space without pushing transcript down */}
@@ -30,18 +49,30 @@ export function ChatPage() {
         />
         <div className="app-no-drag pointer-events-auto mr-2.5 flex items-center">
           <SessionSwitcher />
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            className="app-no-drag text-muted-foreground"
-            aria-label="New session"
-            title="New session"
-            disabled={!canCreate}
-            onClick={() => void newSession()}
-          >
-            <Plus />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="app-no-drag text-muted-foreground"
+                  aria-label="New session"
+                  disabled={!canCreate}
+                  onClick={() => void newSession()}
+                />
+              }
+            >
+              <Plus />
+            </TooltipTrigger>
+            <TooltipContent>
+              New session
+              <KbdGroup>
+                <Kbd>Cmd</Kbd>
+                <Kbd>N</Kbd>
+              </KbdGroup>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

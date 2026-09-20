@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ChatPage } from './components/ChatPage'
 import { FolderPicker } from './components/FolderPicker'
+import { TooltipProvider } from './components/ui/tooltip'
 import { Playground } from './playground/Playground'
 import { useSession } from './session/store'
 
@@ -17,6 +18,6 @@ function usePlayground() {
 export function App() {
   const playground = usePlayground()
   const cwd = useSession((state) => state.cwd)
-  if (playground) return <Playground />
-  return cwd ? <ChatPage /> : <FolderPicker />
+  const page = playground ? <Playground /> : cwd ? <ChatPage /> : <FolderPicker />
+  return <TooltipProvider>{page}</TooltipProvider>
 }
