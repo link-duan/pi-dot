@@ -8,12 +8,14 @@ export function FileChip({
   directory = false,
   selected = false,
   onMouseDown,
+  className,
 }: {
   label: string
   title?: string
   directory?: boolean
   selected?: boolean
   onMouseDown?: MouseEventHandler<HTMLSpanElement>
+  className?: string
 }) {
   const Icon = directory ? Folder : File
   return (
@@ -24,6 +26,7 @@ export function FileChip({
       className={cn(
         'inline-flex h-5 max-w-full items-center gap-1 rounded-sm bg-muted px-1.5 align-middle text-xs font-medium text-foreground',
         selected && 'bg-accent text-accent-foreground ring-1 ring-ring',
+        className,
       )}
     >
       <Icon className="size-3 shrink-0" />

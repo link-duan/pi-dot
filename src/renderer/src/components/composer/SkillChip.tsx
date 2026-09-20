@@ -6,10 +6,12 @@ export function SkillChip({
   name,
   selected = false,
   onMouseDown,
+  className,
 }: {
   name: string
   selected?: boolean
   onMouseDown?: MouseEventHandler<HTMLSpanElement>
+  className?: string
 }) {
   return (
     <span
@@ -18,6 +20,7 @@ export function SkillChip({
       className={cn(
         'inline-flex h-5 max-w-full items-center gap-1 rounded-sm bg-muted px-1.5 align-middle text-xs font-medium text-foreground',
         selected && 'bg-accent text-accent-foreground ring-1 ring-ring',
+        className,
       )}
     >
       <Sparkles className="size-3 shrink-0" />

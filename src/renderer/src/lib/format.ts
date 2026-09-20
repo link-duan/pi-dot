@@ -1,4 +1,6 @@
+import { formatFileToken } from './file-token'
 import { displayPath } from './path'
+import { parseUserSegments, type UserSegment } from './user-message'
 
 export function asText(value: unknown): string {
   if (value == null) return ''
@@ -452,12 +454,51 @@ export function formatElapsed(ms: number): string {
   return parts.join(' ')
 }
 
-export function sessionTitle(item: { name?: string; firstMessage?: string }): string {
+export function sessionTitleSegments(item: {
+  name?: string
+  firstMessage?: string
+}): UserSegment[] {
   const name = item.name?.trim()
-  if (name) return name
+  if (name) return [{ type: 'text', text: name }]
   const first = item.firstMessage?.trim()
-  if (first) return first.split('\n')[0] ?? first
-  return 'Empty session'
+  if (!first) return [{ type: 'text', text: 'Empty session' }]
+  const segments = firstLineSegments(parseUserSegments(first))
+  return segments.length > 0 ? segments : [{ type: 'text', text: 'Empty session' }]
+}
+
+export function sessionTitle(item: { name?: string; firstMessage?: string }): string {
+  let out = ''
+  for (const segment of sessionTitleSegments(item)) {
+    const piece =
+      segment.type === 'skill'
+        ? `/skill:${segment.name}`
+        : segment.type === 'file'
+          ? formatFileToken(segment)
+          : segment.text
+    if (!piece) continue
+    if (out && !/\s$/.test(out) && !/^\s/.test(piece)) out += ' '
+    out += piece
+  }
+  return out.trim() || 'Empty session'
+}
+
+function firstLineSegments(segments: UserSegment[]): UserSegment[] {
+  const out: UserSegment[] = []
+  for (const segment of segments) {
+    if (segment.type !== 'text') {
+      out.push(segment)
+      continue
+    }
+    const newline = segment.text.indexOf('\n')
+    if (newline === -1) {
+      if (segment.text) out.push(segment)
+      continue
+    }
+    const line = segment.text.slice(0, newline)
+    if (line) out.push({ type: 'text', text: line })
+    break
+  }
+  return out
 }
 
 export function formatRelativeTime(iso: string, now = Date.now()): string {

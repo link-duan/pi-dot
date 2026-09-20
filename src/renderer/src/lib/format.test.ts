@@ -4,6 +4,7 @@ import {
   sessionTimeGroup,
   formatElapsed,
   sessionTitle,
+  sessionTitleSegments,
   formatDiffCopy,
   toolDiffStats,
   toolEditDiff,
@@ -40,6 +41,53 @@ describe('sessionTitle', () => {
   it('falls back to Empty session', () => {
     expect(sessionTitle({})).toBe('Empty session')
     expect(sessionTitle({ name: '  ', firstMessage: '' })).toBe('Empty session')
+  })
+
+  it('projects a skill block into a /skill token plus remaining text', () => {
+    const firstMessage = [
+      '<skill name="tdd" location="/tmp/tdd/SKILL.md">',
+      'Write tests first.',
+      '</skill>',
+      '',
+      'fix the failing test',
+    ].join('\n')
+    expect(sessionTitle({ firstMessage })).toBe('/skill:tdd fix the failing test')
+    expect(sessionTitleSegments({ firstMessage })).toEqual([
+      { type: 'skill', name: 'tdd' },
+      { type: 'text', text: 'fix the failing test' },
+    ])
+  })
+
+  it('keeps a skill-only first message as a chip', () => {
+    const firstMessage = '<skill name="grill-me" location="/tmp/grill-me/SKILL.md">\nbody\n</skill>'
+    expect(sessionTitle({ firstMessage })).toBe('/skill:grill-me')
+    expect(sessionTitleSegments({ firstMessage })).toEqual([{ type: 'skill', name: 'grill-me' }])
+  })
+
+  it('uses the first line of remaining text after a skill block', () => {
+    const firstMessage = [
+      '<skill name="tdd" location="/tmp/tdd/SKILL.md">',
+      'body',
+      '</skill>',
+      '',
+      'line one',
+      'line two',
+    ].join('\n')
+    expect(sessionTitle({ firstMessage })).toBe('/skill:tdd line one')
+  })
+
+  it('projects inline skill and file tokens', () => {
+    expect(sessionTitle({ firstMessage: 'use /skill:tdd on @file:src/foo.ts:10-20' })).toBe(
+      'use /skill:tdd on @file:src/foo.ts:10-20',
+    )
+    expect(
+      sessionTitleSegments({ firstMessage: 'use /skill:tdd on @file:src/foo.ts:10-20' }),
+    ).toEqual([
+      { type: 'text', text: 'use ' },
+      { type: 'skill', name: 'tdd' },
+      { type: 'text', text: ' on ' },
+      { type: 'file', path: 'src/foo.ts', range: { start: 10, end: 20 } },
+    ])
   })
 })
 
