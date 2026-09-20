@@ -60,10 +60,18 @@ function MarkdownCode({
   )
 }
 
-export function MarkdownBody({ text, streaming = false }: { text: string; streaming?: boolean }) {
+export function MarkdownBody({
+  text,
+  streaming = false,
+  className,
+}: {
+  text: string
+  streaming?: boolean
+  className?: string
+}) {
   return (
     <Streamdown
-      className="leading-relaxed select-text"
+      className={cn('leading-relaxed select-text', className)}
       animated
       isAnimating={streaming}
       caret={streaming ? 'block' : undefined}

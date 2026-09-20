@@ -113,7 +113,7 @@ export function ActivityRow({
           {text}
         </div>
       )}
-      {open && expandable ? <div className="pb-2 pl-1 select-text">{children}</div> : null}
+      {open && expandable ? <div className="pl-1 select-text">{children}</div> : null}
     </div>
   )
 }

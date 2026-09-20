@@ -376,9 +376,9 @@ function ThinkingRow({ thinking, inProgress }: { thinking: string; inProgress: b
       {thinking.trim() ? (
         <div
           ref={bodyRef}
-          className="max-h-80 scroll-fade overflow-auto scroll-smooth text-muted-foreground"
+          className="mt-2 max-h-80 overflow-auto scroll-smooth text-muted-foreground"
         >
-          <MarkdownBody text={thinking} streaming={inProgress} />
+          <MarkdownBody className="space-y-3" text={thinking} streaming={inProgress} />
         </div>
       ) : null}
     </ActivityRow>
