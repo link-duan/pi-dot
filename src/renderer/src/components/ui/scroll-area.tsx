@@ -42,7 +42,7 @@ function ScrollAreaScrollbar({
       data-slot="scroll-area-scrollbar"
       orientation={orientation}
       className={cn(
-        'group/scrollbar pointer-events-none z-10 flex p-px opacity-0 transition-opacity duration-300 ease-out data-scrolling:pointer-events-auto data-scrolling:opacity-100',
+        'group/scrollbar z-10 flex p-px',
         orientation === 'vertical' && 'w-2.5 justify-end',
         orientation === 'horizontal' && 'h-2.5 flex-col items-end',
         className,
