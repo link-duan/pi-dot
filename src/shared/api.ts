@@ -5,6 +5,7 @@ import type {
   SessionEvent,
   SessionListItem,
   SessionSnapshot,
+  StartResult,
   ThinkingLevel,
 } from './protocol'
 
@@ -13,8 +14,8 @@ export interface PiApi {
   chooseFolder(): Promise<string | null>
   getLastCwd(): Promise<string | null>
   getSnapshot(): Promise<SessionSnapshot | null>
-  start(cwd: string): Promise<SessionSnapshot>
-  stop(): Promise<void>
+  start(cwd: string): Promise<StartResult>
+  stop(): Promise<{ cancelled: boolean }>
   prompt(text: string): Promise<void>
   abort(): Promise<void>
   setModel(provider: string, modelId: string): Promise<ModelSelection>
@@ -28,4 +29,5 @@ export interface PiApi {
   saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
+  onCommand(cb: (command: string) => void): () => void
 }

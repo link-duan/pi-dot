@@ -165,6 +165,11 @@ export interface SessionSnapshot {
   contextUsage?: ContextUsage | null
 }
 
+export type StartResult =
+  | { kind: 'started'; snapshot: SessionSnapshot }
+  | { kind: 'focused' }
+  | { kind: 'cancelled' }
+
 export interface SessionListItem {
   id: string
   path: string

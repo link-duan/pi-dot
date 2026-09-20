@@ -1,8 +1,12 @@
 # pi-ui
 
-Desktop UI for one project folder and the agent conversations in it.
+Desktop UI for agent conversations in local project folders. Each Window binds at most one folder.
 
 ## Language
+
+**Window**:
+An OS window that is either empty or bound to exactly one project folder.
+_Avoid_: Workspace, tab, pane, project window
 
 **Session**:
 A persisted conversation for a project, stored as a JSONL file.
@@ -13,11 +17,11 @@ A Session currently loaded in memory.
 _Avoid_: Runtime, open session
 
 **Active Session**:
-The Live Session shown in the UI.
+The Live Session shown in a Window. Each bound Window has one.
 _Avoid_: Current session, focused session, foreground session
 
 **Background Session**:
-A Live Session that is still streaming and is not the Active Session.
+A Live Session that is still streaming and is not the Active Session of its Window.
 _Avoid_: Hidden session, parked session
 
 **Skill**:

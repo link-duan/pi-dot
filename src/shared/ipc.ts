@@ -17,4 +17,5 @@ export const IPC = {
   saveClipboardImage: 'pi:saveClipboardImage',
   event: 'pi:event',
   status: 'pi:status',
+  command: 'pi:command',
 } as const

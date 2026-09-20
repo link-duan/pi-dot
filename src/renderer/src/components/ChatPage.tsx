@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { useChat } from '@/chat/store'
 import { useSession } from '@/session/store'
@@ -19,23 +19,6 @@ export function ChatPage() {
   const chat = useChat()
   const scrollerRef = useRef<HTMLDivElement>(null)
   const canCreate = connection === 'ready' && (chat.isStreaming || chat.messages.length > 0)
-
-  useEffect(() => {
-    function onKey(event: KeyboardEvent) {
-      if (
-        event.key.toLowerCase() !== 'n' ||
-        !event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.shiftKey
-      )
-        return
-      event.preventDefault()
-      if (canCreate) void newSession()
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [canCreate, newSession])
 
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">

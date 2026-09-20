@@ -105,13 +105,19 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
 
   openCwd: async (cwd: string) => {
-    clearChatCache()
-    set({ connection: 'connecting', error: null, cwd, runningSessionFiles: [], contextUsage: null })
-    useChat.setState(createChatState())
+    const previous = { connection: get().connection, error: get().error }
+    set({ connection: 'connecting', error: null })
     try {
-      applyLiveSnapshot(await window.pi.start(cwd))
+      const result = await window.pi.start(cwd)
+      if (result.kind !== 'started') {
+        set(previous)
+        return
+      }
+      clearChatCache()
+      applyLiveSnapshot(result.snapshot)
     } catch (error) {
       set({
+        cwd,
         connection: 'error',
         error: error instanceof Error ? error.message : String(error),
       })
@@ -120,7 +126,8 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   leave: async () => {
     try {
-      await window.pi.stop()
+      const result = await window.pi.stop()
+      if (result.cancelled) return
     } catch {
       // drop the local session even if stop fails
     }

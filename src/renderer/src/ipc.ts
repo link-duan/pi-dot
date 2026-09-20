@@ -142,6 +142,10 @@ export function bindIpc(): void {
       if (item.kind === 'status') applyStatus(item.status, item.error)
     })
   })
+
+  window.pi.onCommand((command) => {
+    if (command === 'newSession') void useSession.getState().newSession()
+  })
 }
 
 export function releaseIpcQueue(): void {
