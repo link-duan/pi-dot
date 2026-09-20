@@ -162,7 +162,13 @@ export function ToolCard({
   if (!collapsedAttempt) {
     if (fileDiff) details = <EditDiff path={summary} stats={view.stats} lines={fileDiff} />
     else if (readPreview) details = <ReadFile preview={readPreview} />
-    else if (view.hasDetails && !isWriteTool(name)) {
+    else if (isReadTool(name) && view.error) {
+      details = view.resultText ? (
+        <p className="mt-2 font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {view.resultText}
+        </p>
+      ) : null
+    } else if (view.hasDetails && !isWriteTool(name)) {
       details = (
         <ToolDetails
           shell={view.shell}
@@ -183,7 +189,7 @@ export function ToolCard({
       summary={summary}
       stats={collapsedAttempt ? null : view.stats}
       running={view.running && !collapsedAttempt}
-      error={view.error && !collapsedAttempt && !view.shell}
+      error={view.error && !collapsedAttempt && !view.shell && !isReadTool(name)}
       hideMetaWhenOpen={Boolean(fileDiff || readPreview)}
     >
       {details}
