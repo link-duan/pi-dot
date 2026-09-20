@@ -31,6 +31,7 @@ import { ansiStyleToCss, parseAnsi } from '@/lib/ansi'
 import { tokenizeShell, type ShellTokenKind } from '@/lib/shell-highlight'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
+import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { ActivityRow } from './ActivityRow'
 import { FileCard, HighlightedCode, HighlightedDiff } from './FileCard'
 
@@ -134,7 +135,7 @@ export function ToolCard({
   pending?: boolean
 }) {
   const cwd = useSession((state) => state.cwd)
-  const resultRef = useRef<HTMLPreElement>(null)
+  const scrollRef = useRef<HTMLElement>(null)
   const view = toolView(name, args, live, result, pending)
   const collapsedAttempt = isCollapsedToolAttempt(name, view.error)
   const resolved = live?.result ?? result
@@ -153,7 +154,7 @@ export function ToolCard({
 
   useEffect(() => {
     if (!view.running) return
-    const node = resultRef.current
+    const node = scrollRef.current
     if (node) node.scrollTop = node.scrollHeight
   }, [view.running, view.resultText])
 
@@ -169,7 +170,7 @@ export function ToolCard({
           argsText={view.argsText}
           resultText={view.resultText}
           error={view.error && !view.shell}
-          resultRef={resultRef}
+          scrollRef={scrollRef}
         />
       )
     }
@@ -196,18 +197,18 @@ function ToolDetails({
   argsText,
   resultText,
   error,
-  resultRef,
+  scrollRef,
 }: {
   shell: boolean
   command: string
   argsText: string
   resultText: string
   error: boolean
-  resultRef: RefObject<HTMLPreElement | null>
+  scrollRef: RefObject<HTMLElement | null>
 }) {
   if (shell) {
     return (
-      <ShellBody command={command} resultText={resultText} error={error} resultRef={resultRef} />
+      <ShellBody command={command} resultText={resultText} error={error} scrollRef={scrollRef} />
     )
   }
   return (
@@ -219,7 +220,9 @@ function ToolDetails({
       ) : null}
       {resultText ? (
         <pre
-          ref={resultRef}
+          ref={(node) => {
+            scrollRef.current = node
+          }}
           className={cn(
             'mt-2 max-h-64 scroll-fade overflow-auto font-mono text-xs leading-relaxed whitespace-pre-wrap',
             error ? 'text-destructive' : 'text-muted-foreground',
@@ -236,43 +239,53 @@ function ShellBody({
   command,
   resultText,
   error,
-  resultRef,
+  scrollRef,
 }: {
   command: string
   resultText: string
   error: boolean
-  resultRef: RefObject<HTMLPreElement | null>
+  scrollRef: RefObject<HTMLElement | null>
 }) {
   const spans = useMemo(() => parseAnsi(resultText), [resultText])
   return (
     <div className="mt-2 overflow-hidden rounded-md border border-border bg-muted/30 font-mono text-xs leading-relaxed">
-      {command ? (
-        <div className="flex gap-2 px-3 py-2">
-          <span className="shrink-0 text-muted-foreground select-none">$</span>
-          <span className="min-w-0 whitespace-pre-wrap">
-            {tokenizeShell(command).map((token, index) => (
-              <span key={index} className={TOKEN_CLASS[token.kind]}>
-                {token.value}
-              </span>
-            ))}
-          </span>
-        </div>
-      ) : null}
-      {resultText ? (
-        <pre
-          ref={resultRef}
-          className={cn(
-            'max-h-64 scroll-fade overflow-auto border-t border-border px-3 py-2 whitespace-pre-wrap',
-            error ? 'text-destructive' : 'text-muted-foreground',
-          )}
+      <ScrollArea>
+        <ScrollAreaViewport
+          ref={(node) => {
+            scrollRef.current = node
+          }}
+          className="h-auto! max-h-64 scroll-fade"
         >
-          {spans.map((span, index) => (
-            <span key={index} style={ansiStyleToCss(span.style)}>
-              {span.text}
-            </span>
-          ))}
-        </pre>
-      ) : null}
+          {command ? (
+            <div className="flex gap-2 px-3 py-2">
+              <span className="shrink-0 text-muted-foreground select-none">$</span>
+              <span className="min-w-0 whitespace-pre-wrap">
+                {tokenizeShell(command).map((token, index) => (
+                  <span key={index} className={TOKEN_CLASS[token.kind]}>
+                    {token.value}
+                  </span>
+                ))}
+              </span>
+            </div>
+          ) : null}
+          {resultText ? (
+            <pre
+              className={cn(
+                'px-3 py-2 whitespace-pre-wrap',
+                command && 'border-t border-border',
+                error ? 'text-destructive' : 'text-muted-foreground',
+              )}
+            >
+              {spans.map((span, index) => (
+                <span key={index} style={ansiStyleToCss(span.style)}>
+                  {span.text}
+                </span>
+              ))}
+            </pre>
+          ) : null}
+        </ScrollAreaViewport>
+        <ScrollAreaScrollbar className="my-0.5" />
+      </ScrollArea>
     </div>
   )
 }
