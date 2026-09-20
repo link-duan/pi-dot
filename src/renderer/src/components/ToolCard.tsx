@@ -167,7 +167,7 @@ export function ToolCard({
           command={view.command}
           argsText={view.argsText}
           resultText={view.resultText}
-          error={view.error}
+          error={view.error && !view.shell}
           resultRef={resultRef}
         />
       )
@@ -181,7 +181,7 @@ export function ToolCard({
       summary={summary}
       stats={collapsedAttempt ? null : view.stats}
       running={view.running && !collapsedAttempt}
-      error={view.error && !collapsedAttempt}
+      error={view.error && !collapsedAttempt && !view.shell}
       hideMetaWhenOpen={Boolean(fileDiff || readPreview)}
     >
       {details}
