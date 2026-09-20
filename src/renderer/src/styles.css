@@ -57,6 +57,22 @@
   --border: oklch(0 0 0 / 8%);
   --input: oklch(0 0 0 / 10%);
   --ring: oklch(0.145 0 0 / 20%);
+  --ansi-0: #1e1e1e;
+  --ansi-1: #c42b1c;
+  --ansi-2: #0a7a3c;
+  --ansi-3: #9a6700;
+  --ansi-4: #1857a4;
+  --ansi-5: #a32d9b;
+  --ansi-6: #0e747c;
+  --ansi-7: #4a4a4a;
+  --ansi-8: #6e6e6e;
+  --ansi-9: #e04a3a;
+  --ansi-10: #1a9b50;
+  --ansi-11: #c69026;
+  --ansi-12: #2f6fdb;
+  --ansi-13: #d453c4;
+  --ansi-14: #1a9ba8;
+  --ansi-15: #1e1e1e;
   color-scheme: light;
 }
 
@@ -79,6 +95,22 @@
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 10%);
   --ring: oklch(1 0 0 / 20%);
+  --ansi-0: #0d1117;
+  --ansi-1: #f85149;
+  --ansi-2: #3fb950;
+  --ansi-3: #d29922;
+  --ansi-4: #58a6ff;
+  --ansi-5: #bc8cff;
+  --ansi-6: #39d5d5;
+  --ansi-7: #e6edf3;
+  --ansi-8: #7d8590;
+  --ansi-9: #ff7b72;
+  --ansi-10: #56d364;
+  --ansi-11: #e3b341;
+  --ansi-12: #79c0ff;
+  --ansi-13: #d2a8ff;
+  --ansi-14: #56d4dd;
+  --ansi-15: #ffffff;
   color-scheme: dark;
 }
 

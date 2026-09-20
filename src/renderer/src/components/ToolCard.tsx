@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useMemo, useRef, type RefObject } from 'react'
 import type { ToolLiveState } from '@/chat/state'
 import {
   FilePenLine,
@@ -27,6 +27,7 @@ import {
   type DiffStats,
   type ReadPreview,
 } from '@/lib/format'
+import { ansiStyleToCss, parseAnsi } from '@/lib/ansi'
 import { tokenizeShell, type ShellTokenKind } from '@/lib/shell-highlight'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
@@ -242,6 +243,7 @@ function ShellBody({
   error: boolean
   resultRef: RefObject<HTMLPreElement | null>
 }) {
+  const spans = useMemo(() => parseAnsi(resultText), [resultText])
   return (
     <div className="mt-2 overflow-hidden rounded-md border border-border bg-muted/30 font-mono text-xs leading-relaxed">
       {command ? (
@@ -264,7 +266,11 @@ function ShellBody({
             error ? 'text-destructive' : 'text-muted-foreground',
           )}
         >
-          {resultText}
+          {spans.map((span, index) => (
+            <span key={index} style={ansiStyleToCss(span.style)}>
+              {span.text}
+            </span>
+          ))}
         </pre>
       ) : null}
     </div>
