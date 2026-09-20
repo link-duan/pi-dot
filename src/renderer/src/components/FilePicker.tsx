@@ -35,7 +35,10 @@ export function FilePicker({
       onMouseDown={(event) => event.preventDefault()}
     >
       <ScrollArea>
-        <ScrollAreaViewport ref={listRef} className="h-auto! max-h-64 scroll-fade pr-2.5">
+        <ScrollAreaViewport
+          ref={listRef}
+          className="h-auto! max-h-64 scroll-fade overscroll-contain pr-2.5"
+        >
           <Command shouldFilter={false} value={selected} className="overflow-visible">
             <CommandList className="overflow-visible p-0">
               {hits.length === 0 ? (

@@ -11,11 +11,12 @@ function ScrollArea({ className, ...props }: ScrollAreaPrimitive.Root.Props) {
   )
 }
 
-function ScrollAreaViewport({ className, ...props }: ScrollAreaPrimitive.Viewport.Props) {
+function ScrollAreaViewport({ className, style, ...props }: ScrollAreaPrimitive.Viewport.Props) {
   return (
     <ScrollAreaPrimitive.Viewport
       data-slot="scroll-area-viewport"
-      className={cn('size-full overscroll-contain', className)}
+      className={cn('size-full', className)}
+      style={{ overflow: 'auto', ...style }}
       {...props}
     />
   )

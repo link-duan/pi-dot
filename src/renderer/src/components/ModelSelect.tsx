@@ -128,7 +128,7 @@ export function ModelSelect() {
               />
             </div>
             <ScrollArea>
-              <ScrollAreaViewport className="h-auto max-h-[min(calc(20rem-1.75rem),calc(var(--available-height)-1.75rem))] scroll-fade py-1 pr-2.5 pl-1">
+              <ScrollAreaViewport className="h-auto max-h-[min(calc(20rem-1.75rem),calc(var(--available-height)-1.75rem))] scroll-fade overscroll-contain py-1 pr-2.5 pl-1">
                 {filteredModels.length === 0 ? (
                   <div className="px-2 py-2 text-center text-xs text-muted-foreground">
                     No matching models

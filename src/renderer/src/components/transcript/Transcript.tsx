@@ -59,7 +59,7 @@ export function Transcript({
     <ScrollArea className="min-h-0 flex-1">
       <ScrollAreaViewport
         ref={scrollerRef}
-        className="px-6"
+        className="overscroll-contain px-6"
         onScroll={(event) => {
           const node = event.currentTarget
           stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80
