@@ -1,32 +1,23 @@
-import { createChatState, hydrateMessages, type ChatState } from '@/chat/state'
-import { useChat } from '@/chat/store'
+import type { ChatState } from '@/chat/state'
 import type {
-  ConnectionStatus,
-  ContextUsage,
-  ModelInfo,
   ModelSelection,
   SessionListItem,
   SessionSnapshot,
-  SkillInfo,
   ThinkingLevel,
 } from '@shared/protocol'
+import { SerialQueue } from '@shared/queue'
 import { create } from 'zustand'
-import { chatCache, clearChatCache, dropIdleChat, stashChat, takeChat } from './events'
+import {
+  activeChat,
+  applySnapshot,
+  createWindowState,
+  parkActive,
+  patchChat,
+  resetFolder,
+  type WindowState,
+} from './state'
 
-interface SessionStore {
-  lastCwd: string | null
-  cwd: string | null
-  sessionId: string | null
-  sessionFile: string | null
-  connection: ConnectionStatus
-  error: string | null
-  runningSessionFiles: string[]
-  models: ModelInfo[]
-  model: ModelInfo | null
-  thinkingLevel: ThinkingLevel
-  thinkingLevels: ThinkingLevel[]
-  skills: SkillInfo[]
-  contextUsage: ContextUsage | null
+interface SessionStore extends WindowState {
   openFolder: () => Promise<void>
   openCwd: (cwd: string) => Promise<void>
   leave: () => Promise<void>
@@ -47,57 +38,12 @@ function selectionPatch(selection: ModelSelection) {
   }
 }
 
-function snapshotPatch(snapshot: SessionSnapshot) {
-  return {
-    cwd: snapshot.cwd,
-    lastCwd: snapshot.cwd,
-    sessionId: snapshot.state.sessionId ?? null,
-    sessionFile: snapshot.state.sessionFile ?? null,
-    connection: 'ready' as const,
-    error:
-      snapshot.models.length === 0
-        ? 'No models available. Run pi in a terminal and complete /login first.'
-        : null,
-    models: snapshot.models,
-    model: snapshot.state.model ?? snapshot.models[0] ?? null,
-    thinkingLevel: snapshot.state.thinkingLevel,
-    thinkingLevels: snapshot.thinkingLevels,
-    runningSessionFiles: snapshot.runningSessionFiles,
-    skills: snapshot.skills,
-    contextUsage: snapshot.contextUsage ?? null,
-  }
-}
-
-export function applyContextUsage(sessionFile: string, usage: ContextUsage | null) {
-  if (useSession.getState().sessionFile !== sessionFile) return
-  useSession.setState({ contextUsage: usage })
-}
-
 export function applyLiveSnapshot(snapshot: SessionSnapshot, chat?: ChatState) {
-  useSession.setState(snapshotPatch(snapshot))
-  useChat.setState(
-    chat ??
-      hydrateMessages(snapshot.messages, {
-        isStreaming: snapshot.state.isStreaming,
-        persistedAt: snapshot.messagePersistedAt,
-      }),
-  )
+  useSession.setState((state) => applySnapshot(state, snapshot, chat))
 }
 
 export const useSession = create<SessionStore>((set, get) => ({
-  lastCwd: null,
-  cwd: null,
-  sessionId: null,
-  sessionFile: null,
-  connection: 'disconnected',
-  error: null,
-  runningSessionFiles: [],
-  models: [],
-  model: null,
-  thinkingLevel: 'off',
-  thinkingLevels: [],
-  skills: [],
-  contextUsage: null,
+  ...createWindowState(),
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()
@@ -113,8 +59,7 @@ export const useSession = create<SessionStore>((set, get) => ({
         set(previous)
         return
       }
-      clearChatCache()
-      applyLiveSnapshot(result.snapshot)
+      set((state) => applySnapshot({ ...state, chats: {} }, result.snapshot))
     } catch (error) {
       set({
         cwd,
@@ -131,54 +76,36 @@ export const useSession = create<SessionStore>((set, get) => ({
     } catch {
       // drop the local session even if stop fails
     }
-    clearChatCache()
-    set({
-      cwd: null,
-      sessionId: null,
-      sessionFile: null,
-      connection: 'disconnected',
-      error: null,
-      runningSessionFiles: [],
-      models: [],
-      model: null,
-      thinkingLevel: 'off',
-      thinkingLevels: [],
-      skills: [],
-      contextUsage: null,
-    })
-    useChat.setState(createChatState())
+    set((state) => resetFolder(state))
   },
 
   send: async (text: string) => {
     const file = get().sessionFile
-    set((state) => ({
-      error: null,
-      runningSessionFiles:
-        file && !state.runningSessionFiles.includes(file)
-          ? [...state.runningSessionFiles, file]
-          : state.runningSessionFiles,
-    }))
-    useChat.setState({
-      isStreaming: true,
-      turnActive: false,
-      turnStartedAt: Date.now(),
-      turnEndedAt: null,
+    set((state) => {
+      const running =
+        file && !state.running.includes(file) ? [...state.running, file] : state.running
+      const next = file
+        ? patchChat(state, file, {
+            isStreaming: true,
+            turnActive: false,
+            turnStartedAt: Date.now(),
+            turnEndedAt: null,
+          })
+        : state
+      return { ...next, error: null, running }
     })
     try {
       await window.pi.prompt(text)
     } catch (error) {
-      set((state) => ({
-        error: error instanceof Error ? error.message : String(error),
-        runningSessionFiles: file
-          ? state.runningSessionFiles.filter((item) => item !== file)
-          : state.runningSessionFiles,
-      }))
-      if (get().sessionFile === file) {
-        useChat.setState({ isStreaming: false, turnEndedAt: Date.now() })
-      } else if (file) {
-        const cached = chatCache.get(file)
-        if (cached) chatCache.set(file, { ...cached, isStreaming: false, turnEndedAt: Date.now() })
-      }
+      set((state) => {
+        let next = {
+          ...state,
+          error: error instanceof Error ? error.message : String(error),
+          running: file ? state.running.filter((item) => item !== file) : state.running,
+        }
+        if (file) next = patchChat(next, file, { isStreaming: false, turnEndedAt: Date.now() })
+        return next
+      })
     }
   },
 
@@ -212,26 +139,14 @@ export const useSession = create<SessionStore>((set, get) => ({
     const cwd = get().cwd
     if (!cwd) return []
     const items = await window.pi.listSessions(cwd)
-    const known = new Set(items.map((item) => item.path))
-    const extra = get()
-      .runningSessionFiles.filter((path) => !known.has(path))
-      .map((path) => ({
-        id: path,
-        path,
-        modified: new Date().toISOString(),
-        messageCount: 0,
-        running: true as const,
-      }))
-    const running = new Set(get().runningSessionFiles)
-    return [...extra, ...items].map((item) =>
-      running.has(item.path) || item.running ? { ...item, running: true } : item,
-    )
+    const running = get().running
+    return items.map((item) => (running.includes(item.path) ? { ...item, running: true } : item))
   },
 
   switchSession: async (sessionPath: string) => {
     if (get().sessionFile === sessionPath) return
     try {
-      await activateSession(get, () => window.pi.switchSession(sessionPath))
+      await activateSession(() => window.pi.switchSession(sessionPath))
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
@@ -239,35 +154,30 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   newSession: async () => {
     try {
-      await activateSession(get, () => window.pi.newSession())
+      await activateSession(() => window.pi.newSession())
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
 }))
 
-let activating: Promise<void> = Promise.resolve()
-
-async function activateSession(get: () => SessionStore, load: () => Promise<SessionSnapshot>) {
-  const run = activating.then(
-    () => swapSession(get, load),
-    () => swapSession(get, load),
-  )
-  activating = run.then(
-    () => undefined,
-    () => undefined,
-  )
-  await run
+export function useChat(): ChatState
+export function useChat<T>(selector: (chat: ChatState) => T): T
+export function useChat<T>(selector?: (chat: ChatState) => T): ChatState | T {
+  return useSession((state) => (selector ? selector(activeChat(state)) : activeChat(state)))
 }
 
-async function swapSession(get: () => SessionStore, load: () => Promise<SessionSnapshot>) {
-  const previous = get().sessionFile
-  if (previous) stashChat(chatCache, previous, useChat.getState())
+const activating = new SerialQueue()
+
+async function activateSession(load: () => Promise<SessionSnapshot>) {
+  await activating.enqueue(() => swapSession(load))
+}
+
+async function swapSession(load: () => Promise<SessionSnapshot>) {
   const snapshot = await load()
-  if (previous) {
-    stashChat(chatCache, previous, useChat.getState())
-    dropIdleChat(chatCache, previous)
-  }
-  const nextFile = snapshot.state.sessionFile ?? null
-  applyLiveSnapshot(snapshot, takeChat(chatCache, nextFile))
+  useSession.setState((state) => {
+    const nextFile = snapshot.state.sessionFile ?? null
+    const cached = nextFile ? state.chats[nextFile] : undefined
+    return applySnapshot(parkActive(state), snapshot, cached)
+  })
 }

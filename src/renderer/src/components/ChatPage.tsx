@@ -1,7 +1,6 @@
 import { useRef } from 'react'
 import { Plus } from 'lucide-react'
-import { useChat } from '@/chat/store'
-import { useSession } from '@/session/store'
+import { useChat, useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

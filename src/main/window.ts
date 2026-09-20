@@ -1,9 +1,10 @@
 import { app, BrowserWindow, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ConnectionStatus, SessionSnapshot, StartResult } from '@shared/protocol'
+import type { ConnectionStatus, StartResult } from '@shared/protocol'
 import { AgentHost } from './agent-host'
+import { projectCwd, withCwdLock } from './cwd'
 import { writeLastCwd } from './last-cwd'
-import { projectCwd, withCwdLock } from './windows'
+import { SerialQueue } from '@shared/queue'
 
 type ConfirmKind = 'close' | 'quit' | 'change-folder'
 
@@ -11,44 +12,31 @@ export type AppWindow = {
   readonly window: BrowserWindow
   bind(cwd: string): Promise<StartResult>
   leave(): Promise<{ cancelled: boolean }>
-  readonly session: AgentHost | null
-  snapshot(): SessionSnapshot | null
+  readonly host: AgentHost | null
   send(command: string): void
+  focus(): void
 }
 
-const frames = new Map<number, Frame>()
+const windows = new Map<number, HostedWindow>()
 let quitting = false
 let quitOp: Promise<void> | undefined
 
 export function attach(window: BrowserWindow): AppWindow {
-  return Frame.attach(window)
+  return HostedWindow.attach(window)
 }
 
-export function from(sender: Electron.WebContents): AppWindow {
-  const frame = fromOrNull(sender)
-  if (!frame) throw new Error('No window')
-  return frame
-}
-
-export function fromOrNull(sender: Electron.WebContents): AppWindow | null {
+export function from(sender: Electron.WebContents): AppWindow | null {
   const window = BrowserWindow.fromWebContents(sender)
-  return window ? (frames.get(window.id) ?? null) : null
+  return window ? (windows.get(window.id) ?? null) : null
 }
 
-export function lastWindow(): BrowserWindow | undefined {
-  return [...frames.values()].at(-1)?.window
+export function getWindows(): AppWindow[] {
+  return [...windows.values()].filter((hosted) => !hosted.window.isDestroyed())
 }
 
-export function eachWindow(fn: (window: BrowserWindow) => void): void {
-  for (const frame of frames.values()) {
-    if (!frame.window.isDestroyed()) fn(frame.window)
-  }
-}
-
-export function sendToFocused(command: string): void {
+export function getFocusedWindow(): AppWindow | null {
   const window = BrowserWindow.getFocusedWindow()
-  const frame = window ? frames.get(window.id) : undefined
-  frame?.send(command)
+  return window ? (windows.get(window.id) ?? null) : null
 }
 
 export function onBeforeQuit(event: Electron.Event): void {
@@ -60,7 +48,7 @@ export function onBeforeQuit(event: Electron.Event): void {
 function requestQuit(): Promise<void> {
   quitOp ??= (async () => {
     try {
-      if (await Frame.prepareQuit()) app.quit()
+      if (await HostedWindow.prepareQuit()) app.quit()
     } finally {
       if (!quitting) quitOp = undefined
     }
@@ -68,50 +56,45 @@ function requestQuit(): Promise<void> {
   return quitOp
 }
 
-class Frame implements AppWindow {
-  private host: AgentHost | null = null
+class HostedWindow implements AppWindow {
+  host: AgentHost | null = null
   private disposed = false
-  private queue: Promise<unknown> = Promise.resolve()
-  private depth = 0
+  private ops = new SerialQueue()
 
   private constructor(readonly window: BrowserWindow) {}
 
-  static attach(window: BrowserWindow): Frame {
-    const frame = new Frame(window)
-    frames.set(window.id, frame)
-    window.on('close', (event) => frame.requestClose(event))
+  static attach(window: BrowserWindow): HostedWindow {
+    const hosted = new HostedWindow(window)
+    windows.set(window.id, hosted)
+    window.on('close', (event) => hosted.requestClose(event))
     window.on('closed', () => {
-      frames.delete(window.id)
-      void frame.orphanStop()
+      windows.delete(window.id)
+      void hosted.orphanStop()
     })
-    return frame
+    return hosted
   }
 
   static async prepareQuit(): Promise<boolean> {
     if (
-      !(await confirmStopRunning(BrowserWindow.getFocusedWindow(), 'quit', Frame.totalRunning()))
+      !(await confirmStopRunning(
+        getFocusedWindow()?.window ?? null,
+        'quit',
+        HostedWindow.totalRunning(),
+      ))
     ) {
       return false
     }
     quitting = true
-    await Promise.all([...frames.values()].map((frame) => frame.shutdown()))
+    await Promise.all([...windows.values()].map((hosted) => hosted.shutdown()))
     return true
   }
 
-  get session(): AgentHost | null {
-    return this.host
-  }
-
   bind(cwd: string): Promise<StartResult> {
-    return this.enqueue(() => this.bindOp(cwd))
+    return this.ops.enqueue(() => this.bindOp(cwd))
   }
 
   leave(): Promise<{ cancelled: boolean }> {
-    return this.enqueue(() => this.leaveOp())
-  }
-
-  snapshot(): SessionSnapshot | null {
-    return this.host ? snapshotOf(this.host) : null
+    return this.ops.enqueue(() => this.leaveOp())
   }
 
   send(command: string): void {
@@ -119,15 +102,21 @@ class Frame implements AppWindow {
     this.window.webContents.send(IPC.command, command)
   }
 
-  private static owner(cwd: string): Frame | undefined {
-    for (const frame of frames.values()) {
-      if (frame.occupies(cwd)) return frame
+  focus(): void {
+    if (this.window.isMinimized()) this.window.restore()
+    this.window.show()
+    this.window.focus()
+  }
+
+  private static owner(cwd: string): HostedWindow | undefined {
+    for (const hosted of windows.values()) {
+      if (hosted.occupies(cwd)) return hosted
     }
   }
 
   private static totalRunning(): number {
     let count = 0
-    for (const frame of frames.values()) count += frame.runningCount()
+    for (const hosted of windows.values()) count += hosted.runningCount()
     return count
   }
 
@@ -143,29 +132,16 @@ class Frame implements AppWindow {
     return this.host?.runningSessionFiles().length ?? 0
   }
 
-  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
-    this.depth++
-    const run = this.queue.then(fn, fn)
-    this.queue = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    void run.finally(() => {
-      this.depth--
-    })
-    return run
-  }
-
   private requestClose(event: Electron.Event): void {
     if (this.disposed || quitting) return
-    if (!this.host && this.depth === 0) {
+    if (!this.host && this.ops.pending === 0) {
       this.disposed = true
       return
     }
     event.preventDefault()
     const skipConfirm = this.runningCount() === 0
     if (skipConfirm && !this.host) this.disposed = true
-    void this.enqueue(() => this.closeOp({ skipConfirm }))
+    void this.ops.enqueue(() => this.closeOp({ skipConfirm }))
   }
 
   private async closeOp(opts: { skipConfirm: boolean }): Promise<void> {
@@ -176,16 +152,10 @@ class Frame implements AppWindow {
     ) {
       return
     }
-    const cwd = this.host?.cwd
-    if (cwd) {
-      await withCwdLock(cwd, async () => {
-        this.disposed = true
-        await this.stopHost()
-      })
-    } else {
+    await this.withHostCwd(async () => {
       this.disposed = true
       await this.stopHost()
-    }
+    })
     if (!this.window.isDestroyed()) this.window.close()
   }
 
@@ -195,9 +165,7 @@ class Frame implements AppWindow {
       return { cancelled: true }
     }
     if (!this.live()) return { cancelled: true }
-    const cwd = this.host?.cwd
-    if (cwd) await withCwdLock(cwd, () => this.stopHost())
-    else await this.stopHost()
+    await this.withHostCwd(() => this.stopHost())
     this.sendStatus('disconnected')
     return { cancelled: false }
   }
@@ -207,12 +175,8 @@ class Frame implements AppWindow {
     const key = await projectCwd(cwd)
     if (!this.live()) return { kind: 'cancelled' }
 
-    const occupied = Frame.owner(key)
-    if (occupied && occupied !== this) {
-      occupied.focus()
-      if (!this.host) void this.enqueue(() => this.closeOp({ skipConfirm: true }))
-      return { kind: 'focused' }
-    }
+    const occupied = HostedWindow.owner(key)
+    if (occupied && occupied !== this) return this.yieldTo(occupied)
 
     if (
       this.host &&
@@ -224,12 +188,8 @@ class Frame implements AppWindow {
 
     return withCwdLock(key, async () => {
       if (!this.live()) return { kind: 'cancelled' }
-      const taken = Frame.owner(key)
-      if (taken && taken !== this) {
-        taken.focus()
-        if (!this.host) void this.enqueue(() => this.closeOp({ skipConfirm: true }))
-        return { kind: 'focused' }
-      }
+      const taken = HostedWindow.owner(key)
+      if (taken && taken !== this) return this.yieldTo(taken)
 
       if (this.host) await this.stopHost()
       if (!this.live()) return { kind: 'cancelled' }
@@ -247,7 +207,7 @@ class Frame implements AppWindow {
         writeLastCwd(key)
         this.setTitle()
         this.sendStatus('ready')
-        return { kind: 'started', snapshot: snapshotOf(next) }
+        return { kind: 'started', snapshot: next.snapshot() }
       } catch (error) {
         await next.stop()
         const message = error instanceof Error ? error.message : String(error)
@@ -259,16 +219,23 @@ class Frame implements AppWindow {
 
   private async shutdown(): Promise<void> {
     this.disposed = true
-    await this.queue
-    const cwd = this.host?.cwd
-    if (cwd) await withCwdLock(cwd, () => this.stopHost())
-    else await this.stopHost()
+    await this.ops.drain()
+    await this.withHostCwd(() => this.stopHost())
   }
 
   private async orphanStop(): Promise<void> {
+    await this.withHostCwd(() => this.stopHost())
+  }
+
+  private yieldTo(other: HostedWindow): StartResult {
+    other.focus()
+    if (!this.host) void this.ops.enqueue(() => this.closeOp({ skipConfirm: true }))
+    return { kind: 'focused' }
+  }
+
+  private withHostCwd<T>(fn: () => Promise<T>): Promise<T> {
     const cwd = this.host?.cwd
-    if (!cwd) return
-    await withCwdLock(cwd, () => this.stopHost())
+    return cwd ? withCwdLock(cwd, fn) : fn()
   }
 
   private async stopHost(): Promise<void> {
@@ -280,12 +247,6 @@ class Frame implements AppWindow {
       if (this.host === current) this.host = null
       this.setTitle()
     }
-  }
-
-  private focus(): void {
-    if (this.window.isMinimized()) this.window.restore()
-    this.window.show()
-    this.window.focus()
   }
 
   private setTitle(): void {
@@ -303,17 +264,18 @@ class Frame implements AppWindow {
   }
 }
 
-function snapshotOf(host: AgentHost): SessionSnapshot {
+export type Rect = { x: number; y: number; width: number; height: number }
+
+export function clampCascade(from: Rect, workArea: Rect, offset = 24): Rect {
+  const width = Math.min(from.width, workArea.width)
+  const height = Math.min(from.height, workArea.height)
+  const maxX = workArea.x + workArea.width - width
+  const maxY = workArea.y + workArea.height - height
   return {
-    cwd: host.cwd,
-    state: host.getState(),
-    messages: host.getMessages(),
-    messagePersistedAt: host.getMessagePersistedAt(),
-    models: host.getAvailableModels(),
-    thinkingLevels: host.getAvailableThinkingLevels(),
-    runningSessionFiles: host.runningSessionFiles(),
-    skills: host.getSkills(),
-    contextUsage: host.getContextUsage(),
+    x: Math.min(Math.max(from.x + offset, workArea.x), maxX),
+    y: Math.min(Math.max(from.y + offset, workArea.y), maxY),
+    width,
+    height,
   }
 }
 

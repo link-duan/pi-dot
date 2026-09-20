@@ -32,7 +32,7 @@ export function SessionSwitcher() {
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const sessionFile = useSession((state) => state.sessionFile)
   const connection = useSession((state) => state.connection)
-  const runningSessionFiles = useSession((state) => state.runningSessionFiles)
+  const runningFiles = useSession((state) => state.running)
   const listSessions = useSession((state) => state.listSessions)
   const switchSession = useSession((state) => state.switchSession)
   const canSwitch = connection === 'ready'
@@ -118,7 +118,7 @@ export function SessionSwitcher() {
                   {groupItems.map((item) => {
                     const title = sessionTitle(item)
                     const current = item.path === sessionFile
-                    const running = runningSessionFiles.includes(item.path)
+                    const running = runningFiles.includes(item.path)
                     return (
                       <CommandItem
                         key={item.path}

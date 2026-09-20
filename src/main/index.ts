@@ -5,20 +5,11 @@ import type { StartResult, ThinkingLevel } from '@shared/protocol'
 import appIcon from '../../resources/icon-dock.png?asset'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
-import {
-  attach,
-  eachWindow,
-  from,
-  fromOrNull,
-  lastWindow,
-  onBeforeQuit,
-  sendToFocused,
-} from './frames'
 import { readLastCwd } from './last-cwd'
 import { searchProjectFiles } from './search-files'
 import { listProjectSessions, withRunning } from './sessions'
 import { statPaths } from './stat-paths'
-import { clampCascade } from './windows'
+import { attach, clampCascade, from, getFocusedWindow, getWindows, onBeforeQuit } from './window'
 
 if (!app.isPackaged) {
   app.commandLine.appendSwitch('remote-debugging-port', '9222')
@@ -28,25 +19,29 @@ function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? '#09090b' : '#ffffff'
 }
 
-function requireSession(event: Electron.IpcMainInvokeEvent) {
-  const session = from(event.sender).session
-  if (!session) throw new Error('No active session')
-  return session
+function requireWindow(event: Electron.IpcMainInvokeEvent) {
+  const window = from(event.sender)
+  if (!window) throw new Error('No window')
+  return window
+}
+
+function requireHost(event: Electron.IpcMainInvokeEvent) {
+  const host = requireWindow(event).host
+  if (!host) throw new Error('No active session')
+  return host
 }
 
 function focusAnyWindow(): void {
-  const window = BrowserWindow.getFocusedWindow() ?? lastWindow()
-  if (!window) {
+  const hosted = getFocusedWindow() ?? getWindows().at(-1)
+  if (!hosted) {
     createWindow()
     return
   }
-  if (window.isMinimized()) window.restore()
-  window.show()
-  window.focus()
+  hosted.focus()
 }
 
 function createWindow(): BrowserWindow {
-  const source = lastWindow()
+  const source = getWindows().at(-1)?.window
   const cascaded = source
     ? clampCascade(source.getBounds(), screen.getDisplayMatching(source.getBounds()).workArea)
     : null
@@ -102,7 +97,7 @@ function installMenu(): void {
           {
             label: 'New Session',
             accelerator: 'CmdOrCtrl+N',
-            click: () => sendToFocused('newSession'),
+            click: () => getFocusedWindow()?.send('newSession'),
           },
           {
             label: 'New Window',
@@ -135,7 +130,7 @@ function installMenu(): void {
 
 function registerIpc(): void {
   ipcMain.handle(IPC.chooseFolder, async (event) => {
-    const result = await dialog.showOpenDialog(from(event.sender).window, {
+    const result = await dialog.showOpenDialog(requireWindow(event).window, {
       title: 'Choose working directory',
       properties: ['openDirectory'],
     })
@@ -144,55 +139,45 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.getLastCwd, () => readLastCwd())
 
-  ipcMain.handle(IPC.getSnapshot, (event) => fromOrNull(event.sender)?.snapshot() ?? null)
+  ipcMain.handle(IPC.getSnapshot, (event) => from(event.sender)?.host?.snapshot() ?? null)
 
   ipcMain.handle(IPC.start, async (event, cwd: string): Promise<StartResult> => {
     if (typeof cwd !== 'string' || !cwd) throw new Error('Invalid cwd')
-    return from(event.sender).bind(cwd)
+    return requireWindow(event).bind(cwd)
   })
 
-  ipcMain.handle(IPC.stop, async (event) => from(event.sender).leave())
+  ipcMain.handle(IPC.stop, async (event) => requireWindow(event).leave())
 
   ipcMain.handle(IPC.prompt, async (event, text: string) => {
-    await requireSession(event).prompt(text)
+    await requireHost(event).prompt(text)
   })
 
   ipcMain.handle(IPC.abort, async (event) => {
-    await fromOrNull(event.sender)?.session?.abort()
+    await from(event.sender)?.host?.abort()
   })
 
   ipcMain.handle(IPC.setModel, async (event, provider: string, modelId: string) => {
-    return requireSession(event).setModel(provider, modelId)
+    return requireHost(event).setModel(provider, modelId)
   })
 
   ipcMain.handle(IPC.setThinkingLevel, async (event, level: ThinkingLevel) => {
-    return requireSession(event).setThinkingLevel(level)
+    return requireHost(event).setThinkingLevel(level)
   })
 
   ipcMain.handle(IPC.listSessions, async (event, cwd: string) => {
     if (typeof cwd !== 'string' || !cwd) return []
     const items = await listProjectSessions(cwd)
-    const session = fromOrNull(event.sender)?.session
-    if (!session || session.cwd !== cwd) return items
-    return withRunning(items, session.runningSessionFiles())
+    const host = from(event.sender)?.host
+    if (!host || host.cwd !== cwd) return items
+    return withRunning(items, host.runningSessionFiles())
   })
 
   ipcMain.handle(IPC.switchSession, async (event, sessionPath: string) => {
-    const window = from(event.sender)
-    const { cancelled } = await requireSession(event).switchSession(sessionPath)
-    if (cancelled) throw new Error('Session switch cancelled')
-    const snapshot = window.snapshot()
-    if (!snapshot) throw new Error('No active session')
-    return snapshot
+    return requireHost(event).switchSession(sessionPath)
   })
 
   ipcMain.handle(IPC.newSession, async (event) => {
-    const window = from(event.sender)
-    const { cancelled } = await requireSession(event).newSession()
-    if (cancelled) throw new Error('New session cancelled')
-    const snapshot = window.snapshot()
-    if (!snapshot) throw new Error('No active session')
-    return snapshot
+    return requireHost(event).newSession()
   })
 
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
@@ -233,7 +218,7 @@ if (!app.requestSingleInstanceLock()) {
 
     nativeTheme.on('updated', () => {
       const color = windowBackground()
-      eachWindow((window) => window.setBackgroundColor(color))
+      for (const hosted of getWindows()) hosted.window.setBackgroundColor(color)
     })
 
     app.on('activate', () => {

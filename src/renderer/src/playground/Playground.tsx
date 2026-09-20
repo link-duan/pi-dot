@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ChatState } from '@/chat/state'
-import { useChat } from '@/chat/store'
+import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
 import { Transcript } from '@/components/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { patchChat } from '@/session/state'
 import { useSession } from '@/session/store'
 import {
   catalogModel,
@@ -29,14 +29,17 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
   { title: 'Working', model: workingModel, agoMs: 3_600 },
 ]
 
+const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
+
 function usePlaygroundSession(isStreaming: boolean) {
   useEffect(() => {
-    const prevSession = useSession.getState()
-    const prevChat = useChat.getState()
+    const prev = useSession.getState()
     useSession.setState({
       cwd: '/Users/demo/pi-ui',
       connection: 'ready',
       error: null,
+      sessionFile: PLAYGROUND_FILE,
+      chats: { [PLAYGROUND_FILE]: createChatState() },
       models: playgroundModels,
       model: playgroundModel,
       thinkingLevel: 'low',
@@ -57,13 +60,12 @@ function usePlaygroundSession(isStreaming: boolean) {
       },
     })
     return () => {
-      useSession.setState(prevSession)
-      useChat.setState(prevChat)
+      useSession.setState(prev)
     }
   }, [])
 
   useEffect(() => {
-    useChat.setState({ isStreaming })
+    useSession.setState((state) => patchChat(state, PLAYGROUND_FILE, { isStreaming }))
   }, [isStreaming])
 }
 

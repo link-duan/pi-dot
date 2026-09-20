@@ -1,6 +1,5 @@
-import { applyIncomingEvent, chatCache } from '@/session/events'
-import { useChat } from '@/chat/store'
-import { applyContextUsage, applyLiveSnapshot, useSession } from '@/session/store'
+import { applyLiveSnapshot, useSession } from '@/session/store'
+import { activeChat, applyEvent } from '@/session/state'
 import type { AgentMessage, ConnectionStatus, SessionEvent } from '@shared/protocol'
 
 let bound = false
@@ -57,22 +56,7 @@ export function resolveQueuedStatus(
 }
 
 function dispatch(event: SessionEvent): void {
-  if (event.type === 'context_usage') {
-    applyContextUsage(event.sessionFile, event.usage)
-    return
-  }
-  const next = applyIncomingEvent(event, {
-    activeFile: useSession.getState().sessionFile,
-    running: useSession.getState().runningSessionFiles,
-    activeChat: useChat.getState(),
-    cache: chatCache,
-  })
-  if (next.running !== useSession.getState().runningSessionFiles) {
-    useSession.setState({ runningSessionFiles: next.running })
-  }
-  if (next.activeChat !== useChat.getState()) {
-    useChat.setState(next.activeChat)
-  }
+  useSession.setState((state) => applyEvent(state, event))
 }
 
 function flushPending(sessionFile: string): void {
@@ -119,10 +103,12 @@ function deliverQueued(item: Queued): void {
     applyStatus(item.status, item.error)
     return
   }
+  const session = useSession.getState()
+  const chat = activeChat(session)
   const event = replayQueuedEvent(item.event, {
-    sessionFile: useSession.getState().sessionFile,
-    isStreaming: useChat.getState().isStreaming,
-    lastMessage: useChat.getState().messages.at(-1),
+    sessionFile: session.sessionFile,
+    isStreaming: chat.isStreaming,
+    lastMessage: chat.messages.at(-1),
   })
   if (event) dispatch(event)
 }

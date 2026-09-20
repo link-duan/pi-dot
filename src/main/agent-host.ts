@@ -21,12 +21,14 @@ import {
   type ModelInfo,
   type ModelSelection,
   type SessionEvent,
+  type SessionSnapshot,
   type SessionState,
   type SkillInfo,
   type ThinkingLevel,
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
+import { SerialQueue } from '@shared/queue'
 
 const MODEL_REFRESH_MS = 15_000
 
@@ -59,7 +61,7 @@ export class AgentHost {
   private listeners: Array<(event: SessionEvent) => void> = []
   private agentDir: string | null = null
   private createRuntime: CreateAgentSessionRuntimeFactory | null = null
-  private op: Promise<unknown> = Promise.resolve()
+  private ops = new SerialQueue()
 
   constructor(readonly cwd: string) {}
 
@@ -83,7 +85,7 @@ export class AgentHost {
   }
 
   async start(): Promise<void> {
-    return this.enqueue(async () => {
+    return this.ops.enqueue(async () => {
       if (this.active) throw new Error('Agent already started')
 
       const agentDir = getAgentDir()
@@ -124,7 +126,7 @@ export class AgentHost {
   }
 
   async stop(): Promise<void> {
-    return this.enqueue(async () => {
+    return this.ops.enqueue(async () => {
       const sessions = [...this.live.values()]
       this.live.clear()
       this.active = null
@@ -159,7 +161,7 @@ export class AgentHost {
       live.promptRun = run
       void run.finally(() => {
         if (live.promptRun === run) live.promptRun = null
-        void this.enqueue(async () => {
+        void this.ops.enqueue(async () => {
           await this.discardIfUnused(live)
         })
       })
@@ -171,7 +173,7 @@ export class AgentHost {
     await this.session.abort()
   }
 
-  getState(): SessionState {
+  private getState(): SessionState {
     const session = this.session
     return {
       model: session.model ? toModelInfo(session.model) : null,
@@ -183,11 +185,11 @@ export class AgentHost {
     }
   }
 
-  getMessages(): AgentMessage[] {
+  private getMessages(): AgentMessage[] {
     return this.session.messages.filter(isAgentMessage) as AgentMessage[]
   }
 
-  getMessagePersistedAt(): number[] {
+  private getMessagePersistedAt(): number[] {
     const messages = this.getMessages()
     return alignPersistedAt(
       messages,
@@ -195,23 +197,37 @@ export class AgentHost {
     )
   }
 
-  getAvailableModels(): ModelInfo[] {
+  private getAvailableModels(): ModelInfo[] {
     return this.session.modelRuntime.getAvailableSnapshot().map(toModelInfo)
   }
 
-  getAvailableThinkingLevels(): ThinkingLevel[] {
+  private getAvailableThinkingLevels(): ThinkingLevel[] {
     return parseThinkingLevels(this.session.getAvailableThinkingLevels())
   }
 
-  getSkills(): SkillInfo[] {
+  private getSkills(): SkillInfo[] {
     return this.session.resourceLoader.getSkills().skills.map((skill) => ({
       name: skill.name,
       ...(skill.description ? { description: skill.description } : {}),
     }))
   }
 
-  getContextUsage(): ContextUsage | null {
+  private getContextUsage(): ContextUsage | null {
     return toContextUsage(this.session.getContextUsage())
+  }
+
+  snapshot(): SessionSnapshot {
+    return {
+      cwd: this.cwd,
+      state: this.getState(),
+      messages: this.getMessages(),
+      messagePersistedAt: this.getMessagePersistedAt(),
+      models: this.getAvailableModels(),
+      thinkingLevels: this.getAvailableThinkingLevels(),
+      runningSessionFiles: this.runningSessionFiles(),
+      skills: this.getSkills(),
+      contextUsage: this.getContextUsage(),
+    }
   }
 
   async setModel(provider: string, modelId: string): Promise<ModelSelection> {
@@ -229,16 +245,16 @@ export class AgentHost {
     return this.getModelSelection()
   }
 
-  async switchSession(sessionPath: string): Promise<{ cancelled: boolean }> {
-    return this.enqueue(async () => {
-      if (this.requireActive().sessionFile === sessionPath) return { cancelled: false }
+  async switchSession(sessionPath: string): Promise<SessionSnapshot> {
+    return this.ops.enqueue(async () => {
+      if (this.requireActive().sessionFile === sessionPath) return this.snapshot()
 
       const existing = this.live.get(sessionPath)
       const previous = this.requireActive()
       if (existing) {
         this.active = existing
         await this.discardIfUnused(previous)
-        return { cancelled: false }
+        return this.snapshot()
       }
 
       const next = await this.createLive(
@@ -248,15 +264,15 @@ export class AgentHost {
       this.live.set(next.sessionFile, next)
       this.active = next
       await this.discardIfUnused(previous)
-      return { cancelled: false }
+      return this.snapshot()
     })
   }
 
-  async newSession(): Promise<{ cancelled: boolean }> {
-    return this.enqueue(async () => {
+  async newSession(): Promise<SessionSnapshot> {
+    return this.ops.enqueue(async () => {
       const previous = this.requireActive()
       if (!previous.promptRun && previous.session.messages.length === 0) {
-        return { cancelled: false }
+        return this.snapshot()
       }
       const next = await this.createLive(
         SessionManager.create(this.cwd, previous.session.sessionManager.getSessionDir()),
@@ -269,7 +285,7 @@ export class AgentHost {
       this.live.set(next.sessionFile, next)
       this.active = next
       await this.discardIfUnused(previous)
-      return { cancelled: false }
+      return this.snapshot()
     })
   }
 
@@ -289,15 +305,6 @@ export class AgentHost {
       thinkingLevel: state.thinkingLevel,
       thinkingLevels: this.getAvailableThinkingLevels(),
     }
-  }
-
-  private enqueue<T>(fn: () => Promise<T>): Promise<T> {
-    const run = this.op.then(fn, fn)
-    this.op = run.then(
-      () => undefined,
-      () => undefined,
-    )
-    return run
   }
 
   private async createLive(
@@ -362,7 +369,10 @@ export class AgentHost {
       mode: 'rpc',
       commandContextActions: {
         waitForIdle: () => session.waitForIdle(),
-        newSession: () => this.newSession(),
+        newSession: async () => {
+          await this.newSession()
+          return { cancelled: false }
+        },
         fork: async (entryId, options) => {
           const result = await live.runtime.fork(entryId, options)
           return { cancelled: result.cancelled }
@@ -371,7 +381,10 @@ export class AgentHost {
           const result = await session.navigateTree(targetId, options)
           return { cancelled: result.cancelled }
         },
-        switchSession: (sessionPath) => this.switchSession(sessionPath),
+        switchSession: async (sessionPath) => {
+          await this.switchSession(sessionPath)
+          return { cancelled: false }
+        },
         reload: () => session.reload(),
       },
     })
