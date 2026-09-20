@@ -133,7 +133,7 @@ function ComposerForm() {
         submit()
       }}
     >
-      <div className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border/80 bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
+      <div className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-[#121316]/95 dark:shadow-black/50">
         {filePicker ? (
           <FilePicker
             hits={fileHits}

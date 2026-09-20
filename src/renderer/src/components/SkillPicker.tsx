@@ -34,7 +34,7 @@ export function SkillPicker({
 
   return (
     <div
-      className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-xl border border-border/80 bg-popover py-1.5 pl-1.5 text-popover-foreground shadow-md"
+      className="absolute inset-x-0 bottom-full z-20 mb-2 overflow-hidden rounded-xl border border-border bg-popover py-1.5 pl-1.5 text-popover-foreground shadow-md"
       onMouseDown={(event) => event.preventDefault()}
     >
       <ScrollArea>

@@ -35,9 +35,9 @@ export function FolderPicker() {
                 type="button"
                 disabled={busy}
                 onClick={() => void openCwd(lastCwd)}
-                className="group relative flex w-full items-center gap-3.5 rounded-xl border border-border/80 bg-card/60 p-3 text-left transition-all hover:border-foreground/20 hover:bg-card hover:shadow-sm disabled:opacity-50 dark:bg-card/40 dark:hover:bg-muted/40"
+                className="group relative flex w-full items-center gap-3.5 rounded-xl border border-border bg-card/60 p-3 text-left transition-all hover:border-foreground/20 hover:bg-card hover:shadow-sm disabled:opacity-50 dark:bg-card/40 dark:hover:bg-muted/40"
               >
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-muted/60 text-muted-foreground group-hover:text-foreground">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60 text-muted-foreground group-hover:text-foreground">
                   <Folder className="size-4" />
                 </div>
 
@@ -46,7 +46,7 @@ export function FolderPicker() {
                     <span className="truncate text-sm font-medium text-foreground">
                       {folderName(lastCwd)}
                     </span>
-                    <span className="rounded border border-border/50 bg-muted/40 px-1 py-0.5 font-mono text-xs text-muted-foreground uppercase">
+                    <span className="rounded border border-border bg-muted/40 px-1 py-0.5 font-mono text-xs text-muted-foreground uppercase">
                       Recent
                     </span>
                   </div>

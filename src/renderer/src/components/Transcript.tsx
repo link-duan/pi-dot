@@ -244,7 +244,7 @@ const MessageRow = memo(function MessageRow({
     const segments = keyedUserSegments(userText(message))
     return (
       <div className="my-4 flex justify-end">
-        <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border/70 bg-card/90 px-4 py-2.5 leading-relaxed whitespace-pre-wrap text-foreground shadow-xs select-text dark:bg-muted/60">
+        <div className="max-w-[85%] rounded-2xl rounded-br-sm border border-border bg-card/90 px-4 py-2.5 leading-relaxed whitespace-pre-wrap text-foreground shadow-xs select-text dark:bg-muted/60">
           {segments.map((segment) =>
             segment.type === 'skill' ? (
               <SkillChip key={segment.key} name={segment.name} />
