@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { History } from 'lucide-react'
 import type { SessionListItem } from '@shared/protocol'
 import { FileChip } from '@/components/composer/FileChip'
@@ -26,6 +26,7 @@ import { useSession } from '@/session/store'
 
 export function SessionSwitcher() {
   const [open, setOpen] = useState(false)
+  const [selected, setSelected] = useState('')
   const [items, setItems] = useState<SessionListItem[] | null>(null)
   const sessionFile = useSession((state) => state.sessionFile)
   const connection = useSession((state) => state.connection)
@@ -34,15 +35,23 @@ export function SessionSwitcher() {
   const switchSession = useSession((state) => state.switchSession)
   const canSwitch = connection === 'ready'
 
+  const setListOpen = useCallback(
+    (next: boolean) => {
+      if (next) setSelected(sessionFile ?? '')
+      setOpen(next)
+    },
+    [sessionFile],
+  )
+
   useEffect(() => {
     function onKey(event: KeyboardEvent) {
       if (event.key.toLowerCase() !== 'r' || !event.ctrlKey || event.metaKey || event.altKey) return
       event.preventDefault()
-      setOpen((current) => !current)
+      setListOpen(!open)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [])
+  }, [open, setListOpen])
 
   useEffect(() => {
     if (!open) return
@@ -68,16 +77,18 @@ export function SessionSwitcher() {
         className="app-no-drag text-muted-foreground"
         aria-label="Session history"
         title="Session history (Ctrl+R)"
-        onClick={() => setOpen(true)}
+        onClick={() => setListOpen(true)}
       >
         <History />
       </Button>
 
       <CommandDialog
         open={open}
-        onOpenChange={setOpen}
+        onOpenChange={setListOpen}
         title="Session history"
         description="Search and switch sessions in this project"
+        value={selected}
+        onValueChange={setSelected}
       >
         <CommandInput placeholder="Search sessions..." />
         <CommandList>
@@ -97,7 +108,8 @@ export function SessionSwitcher() {
                     return (
                       <CommandItem
                         key={item.path}
-                        value={`${title} ${item.firstMessage ?? ''} ${item.id}`}
+                        value={item.path}
+                        keywords={[title, item.firstMessage ?? '']}
                         disabled={!canSwitch && !current}
                         onSelect={() => {
                           if (current || !canSwitch) {
@@ -107,20 +119,20 @@ export function SessionSwitcher() {
                           void switchSession(item.path).then(() => setOpen(false))
                         }}
                       >
-                        {running ? (
-                          <Spinner className="size-3" aria-label="Running" />
-                        ) : (
-                          <span
-                            className={cn(
-                              'size-1.5 shrink-0 rounded-full',
-                              current ? 'bg-foreground' : 'bg-muted-foreground/55',
-                            )}
-                          />
-                        )}
+                        <span
+                          className={cn(
+                            'size-1.5 shrink-0 rounded-full',
+                            current ? 'bg-foreground' : 'bg-muted-foreground/55',
+                          )}
+                        />
                         <SessionTitle item={item} />
-                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                          {formatRelativeTime(item.modified)}
-                        </span>
+                        {running ? (
+                          <Spinner className="size-3 shrink-0" aria-label="Running" />
+                        ) : (
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {formatRelativeTime(item.modified)}
+                          </span>
+                        )}
                       </CommandItem>
                     )
                   })}

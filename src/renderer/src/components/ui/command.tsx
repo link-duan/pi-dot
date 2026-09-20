@@ -28,6 +28,8 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  value,
+  onValueChange,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, 'children'> & {
   title?: string
@@ -35,6 +37,8 @@ function CommandDialog({
   className?: string
   showCloseButton?: boolean
   children: React.ReactNode
+  value?: string
+  onValueChange?: (value: string) => void
 }) {
   return (
     <Dialog {...props}>
@@ -49,7 +53,9 @@ function CommandDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
-        <Command className="min-h-0 flex-1">{children}</Command>
+        <Command className="min-h-0 flex-1" value={value} onValueChange={onValueChange}>
+          {children}
+        </Command>
       </DialogContent>
     </Dialog>
   )
