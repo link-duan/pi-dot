@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, type RefObject } from 'react'
-import type { ChatState } from '@/chat/state'
+import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
 import { PiIcon } from '@/components/PiIcon'
@@ -17,6 +17,7 @@ export type TranscriptModel = Pick<
   | 'turnActive'
   | 'turnStartedAt'
   | 'turnEndedAt'
+  | 'retry'
 >
 
 export function Transcript({
@@ -37,6 +38,7 @@ export function Transcript({
     turnActive,
     turnStartedAt,
     turnEndedAt,
+    retry,
   } = model
   const stickToBottom = useRef(follow)
   const hasMessages = messages.length > 0
@@ -90,6 +92,7 @@ export function Transcript({
                 turnActive,
                 turnStartedAt,
                 turnEndedAt,
+                retry,
                 messages,
                 persistedAt,
                 turn,
@@ -113,7 +116,14 @@ export function Transcript({
               )
             })}
             {isStreaming && turns.length === 0 && turnStartedAt != null ? (
-              <TurnStatus kind="waiting" startedAt={turnStartedAt} endedAt={null} />
+              <TurnStatus
+                kind={retry ? 'retrying' : 'waiting'}
+                startedAt={turnStartedAt}
+                endedAt={null}
+                attempt={retry?.attempt}
+                maxAttempts={retry?.maxAttempts}
+                retryAt={retry?.retryAt}
+              />
             ) : null}
           </div>
         )}
@@ -147,6 +157,7 @@ function turnStatus({
   turnActive,
   turnStartedAt,
   turnEndedAt,
+  retry,
   messages,
   persistedAt,
   turn,
@@ -156,11 +167,29 @@ function turnStatus({
   turnActive: boolean
   turnStartedAt: number | null
   turnEndedAt: number | null
+  retry: RetryState | null
   messages: AgentMessage[]
   persistedAt: number[]
   turn: { start: number; end: number }
-}): { kind: 'waiting' | 'working' | 'worked'; startedAt: number; endedAt: number | null } | null {
+}): {
+  kind: 'waiting' | 'working' | 'worked' | 'retrying'
+  startedAt: number
+  endedAt: number | null
+  attempt?: number
+  maxAttempts?: number
+  retryAt?: number
+} | null {
   if (isStreaming && isLast && turnStartedAt != null) {
+    if (retry) {
+      return {
+        kind: 'retrying',
+        startedAt: turnStartedAt,
+        endedAt: null,
+        attempt: retry.attempt,
+        maxAttempts: retry.maxAttempts,
+        retryAt: retry.retryAt,
+      }
+    }
     return {
       kind: turnActive ? 'working' : 'waiting',
       startedAt: turnStartedAt,

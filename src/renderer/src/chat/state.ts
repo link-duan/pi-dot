@@ -15,6 +15,12 @@ export interface ToolLiveState {
   status: 'running' | 'done'
 }
 
+export interface RetryState {
+  attempt: number
+  maxAttempts: number
+  retryAt: number
+}
+
 export interface ChatState {
   messages: AgentMessage[]
   persistedAt: number[]
@@ -24,6 +30,7 @@ export interface ChatState {
   turnActive: boolean
   turnStartedAt: number | null
   turnEndedAt: number | null
+  retry: RetryState | null
 }
 
 export function createChatState(): ChatState {
@@ -36,6 +43,7 @@ export function createChatState(): ChatState {
     turnActive: false,
     turnStartedAt: null,
     turnEndedAt: null,
+    retry: null,
   }
 }
 
@@ -58,6 +66,7 @@ export function hydrateMessages(
       assistantStreaming || Object.values(toolLive).some((tool) => tool.status === 'running'),
     turnStartedAt: isStreaming ? Date.now() : null,
     turnEndedAt: null,
+    retry: null,
   }
 }
 
@@ -125,6 +134,7 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
           state.isStreaming && state.turnStartedAt != null ? state.turnStartedAt : Date.now(),
         turnEndedAt: null,
         turnActive: false,
+        retry: null,
       }
 
     case 'agent_end':
@@ -134,6 +144,7 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
         isStreaming: false,
         assistantStreaming: false,
         turnEndedAt: Date.now(),
+        retry: null,
       }
 
     case 'message_start': {
@@ -187,6 +198,20 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'context_usage':
       return state
+
+    case 'auto_retry_start':
+      return {
+        ...state,
+        isStreaming: true,
+        retry: {
+          attempt: event.attempt,
+          maxAttempts: event.maxAttempts,
+          retryAt: Date.now() + event.delayMs,
+        },
+      }
+
+    case 'auto_retry_end':
+      return { ...state, retry: null }
 
     case 'tool_execution_end': {
       const toolCallId = String(event.toolCallId ?? '')

@@ -71,6 +71,33 @@ describe('toSessionEvent', () => {
     ).toBeNull()
   })
 
+  it('forwards auto retry events', () => {
+    expect(
+      toSessionEvent(
+        {
+          type: 'auto_retry_start',
+          attempt: 1,
+          maxAttempts: 3,
+          delayMs: 2000,
+          errorMessage: 'terminated',
+        },
+        sessionFile,
+      ),
+    ).toEqual({
+      type: 'auto_retry_start',
+      sessionFile,
+      attempt: 1,
+      maxAttempts: 3,
+      delayMs: 2000,
+    })
+    expect(
+      toSessionEvent(
+        { type: 'auto_retry_end', success: false, attempt: 3, finalError: 'terminated' },
+        sessionFile,
+      ),
+    ).toEqual({ type: 'auto_retry_end', sessionFile })
+  })
+
   it('forwards tool execution by toolCallId', () => {
     expect(
       toSessionEvent(

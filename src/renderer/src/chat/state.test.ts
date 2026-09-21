@@ -141,6 +141,36 @@ describe('applySessionEvent', () => {
     expect(state.turnEndedAt).toEqual(expect.any(Number))
   })
 
+  it('tracks auto retry countdown and clears it on the next start', () => {
+    let state = createChatState()
+    state = applySessionEvent(state, { type: 'agent_start' })
+    state = applySessionEvent(state, {
+      type: 'auto_retry_start',
+      attempt: 1,
+      maxAttempts: 3,
+      delayMs: 2000,
+    })
+    expect(state.isStreaming).toBe(true)
+    expect(state.retry).toEqual({
+      attempt: 1,
+      maxAttempts: 3,
+      retryAt: expect.any(Number),
+    })
+    expect(state.retry!.retryAt).toBeGreaterThan(Date.now())
+
+    state = applySessionEvent(state, { type: 'auto_retry_end' })
+    expect(state.retry).toBeNull()
+
+    state = applySessionEvent(state, {
+      type: 'auto_retry_start',
+      attempt: 2,
+      maxAttempts: 3,
+      delayMs: 4000,
+    })
+    state = applySessionEvent(state, { type: 'agent_start' })
+    expect(state.retry).toBeNull()
+  })
+
   it('ignores context usage events', () => {
     const state = createChatState()
     expect(

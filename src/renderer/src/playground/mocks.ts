@@ -138,11 +138,13 @@ export const catalogModel = chat([
   { role: 'compactionSummary', summary: 'Dropped older tool output.', timestamp: at() },
   user('Stop if this takes too long.'),
   assistant([{ type: 'text', text: 'Working on it.' }], {
+    stopReason: 'aborted',
     errorMessage: 'Request aborted',
     timestamp: at(101_000),
   }),
   user('Try again.'),
   assistant([{ type: 'thinking', thinking: 'Retry the previous edit.' }], {
+    stopReason: 'error',
     errorMessage: 'Error Code internal_server_error: Internal error during token generation',
   }),
 ])

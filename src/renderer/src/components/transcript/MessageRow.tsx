@@ -150,7 +150,13 @@ function AssistantRow({
         return null
       })}
       {message.errorMessage ? (
-        <ActivityRow icon={CircleStop} label={message.errorMessage} summary="" />
+        <ActivityRow
+          icon={CircleStop}
+          label={
+            message.stopReason === 'error' ? `Error: ${message.errorMessage}` : message.errorMessage
+          }
+          summary=""
+        />
       ) : null}
     </div>
   )

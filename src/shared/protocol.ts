@@ -150,6 +150,8 @@ export type SessionEventBody =
       isError?: boolean
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
+  | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
+  | { type: 'auto_retry_end' }
 
 export type SessionEvent = SessionEventBody & { sessionFile: string }
 

@@ -38,6 +38,16 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
         result: event.result,
         isError: event.isError,
       }
+    case 'auto_retry_start':
+      return {
+        type: 'auto_retry_start',
+        sessionFile,
+        attempt: event.attempt,
+        maxAttempts: event.maxAttempts,
+        delayMs: event.delayMs,
+      }
+    case 'auto_retry_end':
+      return { type: 'auto_retry_end', sessionFile }
     default:
       return null
   }
