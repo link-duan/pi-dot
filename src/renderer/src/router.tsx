@@ -2,6 +2,7 @@ import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
 import { TooltipProvider } from './components/ui/tooltip'
 
 export const PATH = {
+  launcher: '/',
   picker: '/',
   session: '/session',
   settings: '/settings',
@@ -38,10 +39,10 @@ export const router = createMemoryRouter([
           import('./components/ChatPage').then(({ ChatPage }) => ({ Component: ChatPage })),
       },
       {
-        path: PATH.picker,
+        path: PATH.launcher,
         lazy: () =>
-          import('./components/FolderPicker').then(({ FolderPicker }) => ({
-            Component: FolderPicker,
+          import('./components/ProjectLauncher').then(({ ProjectLauncher }) => ({
+            Component: ProjectLauncher,
           })),
       },
     ],

@@ -3,7 +3,7 @@ import { IPC } from '@shared/ipc'
 import type { ConnectionStatus, StartResult } from '@shared/protocol'
 import { AgentHost } from './agent-host'
 import { projectCwd, withCwdLock } from './cwd'
-import { writeLastCwd } from './last-cwd'
+import { addRecentProject } from './recent-projects'
 import { SerialQueue } from '@shared/queue'
 
 type ConfirmKind = 'close' | 'quit' | 'change-folder'
@@ -204,7 +204,7 @@ class HostedWindow implements AppWindow {
           return { kind: 'cancelled' }
         }
         this.host = next
-        writeLastCwd(key)
+        addRecentProject(key)
         this.setTitle()
         this.sendStatus('ready')
         return { kind: 'started', snapshot: next.snapshot() }

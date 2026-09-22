@@ -6,7 +6,7 @@ import type { SettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
-import { readLastCwd } from './last-cwd'
+import { readRecentProjects, removeRecentProject } from './recent-projects'
 import { searchProjectFiles } from './search-files'
 import { listProjectSessions, withRunning } from './sessions'
 import { statPaths } from './stat-paths'
@@ -178,7 +178,9 @@ function registerIpc(): void {
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
 
-  ipcMain.handle(IPC.getLastCwd, () => readLastCwd())
+  ipcMain.handle(IPC.getRecentProjects, () => readRecentProjects())
+  ipcMain.handle(IPC.removeRecentProject, (_event, cwd: string) => removeRecentProject(cwd))
+  ipcMain.handle(IPC.getLastCwd, () => readRecentProjects()[0] ?? null)
 
   ipcMain.handle(IPC.getSnapshot, (event) => from(event.sender)?.host?.snapshot() ?? null)
 

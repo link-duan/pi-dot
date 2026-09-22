@@ -22,6 +22,9 @@ import type {
 const api: PiApi = {
   homedir: homedir(),
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder) as Promise<string | null>,
+  getRecentProjects: () => ipcRenderer.invoke(IPC.getRecentProjects) as Promise<string[]>,
+  removeRecentProject: (cwd: string) =>
+    ipcRenderer.invoke(IPC.removeRecentProject, cwd) as Promise<void>,
   getLastCwd: () => ipcRenderer.invoke(IPC.getLastCwd) as Promise<string | null>,
   getSnapshot: () => ipcRenderer.invoke(IPC.getSnapshot) as Promise<SessionSnapshot | null>,
   start: (cwd: string) => ipcRenderer.invoke(IPC.start, cwd) as Promise<StartResult>,

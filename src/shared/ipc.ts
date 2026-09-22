@@ -1,5 +1,7 @@
 export const IPC = {
   chooseFolder: 'pi:chooseFolder',
+  getRecentProjects: 'pi:getRecentProjects',
+  removeRecentProject: 'pi:removeRecentProject',
   getLastCwd: 'pi:getLastCwd',
   getSnapshot: 'pi:getSnapshot',
   start: 'pi:start',

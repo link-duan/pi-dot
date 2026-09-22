@@ -81,7 +81,7 @@ export function ChatPage() {
               className="font-medium underline underline-offset-2 hover:opacity-80"
               onClick={() => {
                 void leave().then((left) => {
-                  if (left) navigate(PATH.picker, { replace: true })
+                  if (left) navigate(PATH.launcher, { replace: true })
                 })
               }}
             >

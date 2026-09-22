@@ -120,7 +120,7 @@ export function Playground() {
             size="xs"
             variant="ghost"
             className="text-muted-foreground"
-            onClick={() => navigate(PATH.picker, { replace: true })}
+            onClick={() => navigate(PATH.launcher, { replace: true })}
           >
             Back
           </Button>

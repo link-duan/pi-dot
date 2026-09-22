@@ -19,6 +19,8 @@ import type {
 export interface PiApi {
   homedir: string
   chooseFolder(): Promise<string | null>
+  getRecentProjects(): Promise<string[]>
+  removeRecentProject(cwd: string): Promise<void>
   getLastCwd(): Promise<string | null>
   getSnapshot(): Promise<SessionSnapshot | null>
   start(cwd: string): Promise<StartResult>
