@@ -1,5 +1,6 @@
 import { AlertCircle, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { Collapsible as CollapsiblePrimitive } from '@base-ui/react/collapsible'
 import type { DiffStats } from './tool/diff'
 import { cn } from '@/lib/utils'
 
@@ -83,7 +84,7 @@ export function ActivityRow({
       {expandable ? (
         <ChevronRight
           className={cn(
-            'size-3.5 shrink-0 self-center text-muted-foreground transition',
+            'size-3.5 shrink-0 self-center text-muted-foreground transition-transform duration-200 ease-out',
             open ? 'rotate-90 opacity-100' : 'opacity-0 group-hover:opacity-100',
           )}
         />
@@ -91,29 +92,33 @@ export function ActivityRow({
     </span>
   )
 
-  return (
-    <div className="py-1.5">
-      {expandable ? (
-        <button
-          type="button"
-          aria-expanded={open}
-          onClick={() => {
-            const next = !open
-            onOpenChange?.(next)
-            if (openProp === undefined) setUserOpen(next)
-          }}
-          className="group inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none"
-        >
-          {iconSlot}
-          {text}
-        </button>
-      ) : (
+  if (!expandable) {
+    return (
+      <div className="py-1.5">
         <div className="inline-flex max-w-full items-center gap-2">
           {iconSlot}
           {text}
         </div>
-      )}
-      {open && expandable ? <div className="pl-1 select-text">{children}</div> : null}
-    </div>
+      </div>
+    )
+  }
+
+  return (
+    <CollapsiblePrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        onOpenChange?.(next)
+        if (openProp === undefined) setUserOpen(next)
+      }}
+      className="py-1.5"
+    >
+      <CollapsiblePrimitive.Trigger className="group inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none">
+        {iconSlot}
+        {text}
+      </CollapsiblePrimitive.Trigger>
+      <CollapsiblePrimitive.Panel className="h-(--collapsible-panel-height) overflow-hidden pl-1 transition-[height,opacity] duration-200 ease-out select-text data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0">
+        {children}
+      </CollapsiblePrimitive.Panel>
+    </CollapsiblePrimitive.Root>
   )
 }
