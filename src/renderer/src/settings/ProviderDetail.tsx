@@ -383,7 +383,7 @@ export function CustomProviderEditor({
                 <button
                   key={mid}
                   type="button"
-                  className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/15"
+                  className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors first:rounded-t-xl last:rounded-b-xl hover:bg-accent/60 focus-visible:bg-accent focus-visible:outline-none"
                   onClick={() => onSelectModel(mid)}
                 >
                   <div className="flex min-w-0 items-center gap-2">

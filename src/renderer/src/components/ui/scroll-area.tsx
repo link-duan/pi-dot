@@ -15,7 +15,7 @@ function ScrollAreaViewport({ className, style, ...props }: ScrollAreaPrimitive.
   return (
     <ScrollAreaPrimitive.Viewport
       data-slot="scroll-area-viewport"
-      className={cn('size-full', className)}
+      className={cn('size-full outline-none', className)}
       style={{ overflow: 'auto', ...style }}
       {...props}
     />

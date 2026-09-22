@@ -151,7 +151,7 @@ export function ProvidersPage() {
   return (
     <div className="app-no-drag flex h-full min-h-0 flex-1 overflow-hidden">
       <aside className="flex w-64 shrink-0 flex-col border-r border-border/40 bg-muted/10">
-        <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3 pb-2">
+        <div className="flex shrink-0 items-center justify-between gap-2 px-3 pt-3 pb-1.5">
           <span className="text-xs font-medium text-muted-foreground">Providers</span>
           <Button
             type="button"
@@ -164,7 +164,7 @@ export function ProvidersPage() {
           </Button>
         </div>
         <ScrollArea className="min-h-0 flex-1">
-          <ScrollAreaViewport className="px-2 pb-2">
+          <ScrollAreaViewport className="px-2 pt-1 pb-2">
             <ProviderGroup
               items={providers}
               selectedId={view === 'form' ? selectedId : null}
@@ -177,7 +177,7 @@ export function ProvidersPage() {
           <Button
             type="button"
             variant={view === 'json' ? 'secondary' : 'ghost'}
-            className="w-full justify-start gap-2 text-[13px] font-normal"
+            className="w-full justify-start gap-2 text-[13px] font-normal focus-visible:border-transparent focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-0"
             onClick={openAdvanced}
           >
             <Code2 className="size-4 shrink-0 text-muted-foreground" />
@@ -361,7 +361,7 @@ function ProviderGroup({
             key={item.id}
             type="button"
             variant={isSelected ? 'secondary' : 'ghost'}
-            className="h-8 w-full justify-between gap-2 px-2.5 text-left"
+            className="h-8 w-full justify-between gap-2 px-2.5 text-left focus-visible:border-transparent focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-0"
             onClick={() => onSelect(item.id)}
           >
             <span className="min-w-0 truncate text-xs font-medium text-foreground">

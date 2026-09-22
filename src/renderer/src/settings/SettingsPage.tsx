@@ -106,7 +106,7 @@ export function SettingsPage() {
                 key={item.id}
                 type="button"
                 variant={isActive ? 'secondary' : 'ghost'}
-                className="w-full justify-start gap-2 text-[13px] font-normal"
+                className="w-full justify-start gap-2 text-[13px] font-normal focus-visible:border-transparent focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:ring-0"
                 onClick={() => setParams({ section: item.id }, { replace: true })}
               >
                 <Icon className="size-4 shrink-0 text-muted-foreground" />
