@@ -44,6 +44,32 @@ function result(id: string, toolName: string, text: string, isError = false): To
   }
 }
 
+function imageResult(
+  id: string,
+  base64: string,
+  mimeType = 'image/png',
+  notice?: string,
+): ToolResultMessage {
+  return {
+    role: 'toolResult',
+    toolCallId: id,
+    toolName: 'read',
+    content: [
+      {
+        type: 'text',
+        text: `Read image file [${mimeType}]${notice ? `\n${notice}` : ''}`,
+      },
+      {
+        type: 'image',
+        data: base64,
+        mimeType,
+      },
+    ],
+    isError: false,
+    timestamp: at(),
+  }
+}
+
 function chat(messages: AgentMessage[], extra: Partial<ChatState> = {}): ChatState {
   return {
     ...createChatState(),
@@ -103,6 +129,7 @@ export const catalogModel = chat([
       text: 'Here is a **markdown** reply with `code` and a list:\n\n- one\n- two',
     },
     tool('read-1', 'read', { path: src, offset: 1, limit: 3 }),
+    tool('read-img', 'read', { path: 'public/favicon.png' }),
     tool('bash-ok', 'bash', { command: 'ls --color=always src' }),
     tool('bash-err', 'bash', { command: 'cat missing.txt' }),
     tool('grep-1', 'grep', { pattern: 'greet', path: 'src' }),
@@ -121,6 +148,12 @@ export const catalogModel = chat([
     tool('custom-1', 'weather', { city: 'Tokyo' }),
   ]),
   result('read-1', 'read', readBody),
+  imageResult(
+    'read-img',
+    'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABmJLR0QA/wD/AP+gvaeTAAAFUElEQVR4nO2b228TRxTGv5nsbtbrGzYFO2ADzUNakLgGA6ECiQqJVgJKCKgPbRX1AcSfUCp6oSCK1JeqT+1bpaotBUICgVYtBaJWKpSQkohAUWpZQTHlEmJbdmwT766nDzRAyMXOrr2bYP+klVYzc+Z8c7QzPjPeJciDNWvWLIzHH26TZXkDwOYCzMsY3PnYGgUhiADkLkDCgiBcEEWxpaPj4s2cdhNVLl26YlM6PXRQluWV2Wy2cGoNgFIKjuPaJcmyr6ur45fx2o0ZgEAg4I3FUl9nMkObGGPFU2kAhBBUVlb+JAi2d7u7/7w3qv7ZgmXLAsvi8USLosjzjZFoDDzP3bbbHfWdne3tT5ePCEBtbe2KaDTRpiiq3Vh5xsBxFQmHw7m+s7O9c7iMDt8sX75uVjQ6ePx5HTwAKIpqj8cTJwOBgHe4rGL4xm63nZDlzEpzpBlHNqs6VRULBwb6vwP+nwKLFwc2xuPRs9NtpdcKIQQul/O1rq6/fqYAkEolPi2VwQMAYwzJZHo/AJDa2rqXHzzo/7uUAgA8yhNmznxhEZdMJuqzWdVsPYaTzapIp5NbqKoqG8wWYxaKIr/KKQrzTfNkTzOqmvVRgFWZLcQsGCNVHMBmACX6CCDrprkbPd+UfAA4xoBSXQQZA7hH879EIwBWngIlHwBOj7HVKmFt3Sq4XTPG7pyrQHX1AgBAKNQLRck/5c7HNhKN4Y+Ll5FMpiat/bEfxhi0nPv5fXPw7TdfwuuZrdl5Ibh77z7eemcP+sL/TtqWMR1rwO5djaYPHgC8ntnYvatRs73mAHg9szQ7LTR6tGgOwNlf2zQ7LTR6tGjOA441nYIkWdCwfQssFsuo+pnuGbBarSPKkskkBiKxnH3na5tOp9F0ohXHmk5pGgPAQObNq2ayLGswnpjDhz5AQ/3mEWVNzafx3vsHimo7GXieL+cBJR8AE/YCenwVWmd5L2D8dliPr0LrZKy8BhRzDRirz3x96bGdDOU1oByAkl8Ey3lAgXucdpQDYLYAs9F8JpiLsfrM15ce28mg60ywmKRT6VFlVV4vCJnwxVZN6DoWLxZ94Tujyl5Zuwq/t51BMBjC/f5+XLnSiabm01BVfW+3TMkn4Hzbb2M+7nOqPFi/rg47tm/F4UMf4sD+vbp90Sd5QKGv8chtGwr1ovnkmZzidzZshc1m1aWTAo8yokJf0ejow89oNJa3/ceffIaOjq6cQdCjESjiFDhytBmp1JO/rFKpFI4cbc7bPpFI4O3GPfj8i68wODg4Zpujx0+NW5cvZO5cP8tkCn8qDADV1fPx5s5tAIAfjrUgFLqlqZ/KSgGrV9XC7/fBM3sW3G4Xrl27juMnWnUtgoLAg/h8/sjQUMaluZdpjCAIAxQgo39zSgRCyB2OMXqbMSwyW4xJ3KY8z503W4VZ8Dx/jjocUjOlBMXLB6bmRSmBzSa1EgDw+fyXHz4cChQiqtMFUay8FA731VEAkCTLXkqnZFZcFAghEEXrR8BTH035fAt+TKdTr5snyzgkSWrt6+vdCjyVCYqiq5Hn+ZDZc7PYlyBwt5xO267hcT8OQDB4td9mc+7gOC6hMbBTHo7j4na7643u7u7HH1COmPjB4I2rDod7vSDwvYarKzKCIISdTvvGnp7rI3ZYFc82jET673o8L35PSHaRqio1xkksDpRSWCxiqyi6NweDN/55tn7CM6aampqNg4Opg5lMZvV0+6iKUgpBEC6JorQvFOo5N167vA7ZlixZ8lIsFt+mKMoGxuAHmJcxNsU+nycRgNwhBGGO485LkrPl5s2unlx2/wF09Ql7BCuqNwAAAABJRU5ErkJggg==',
+    'image/png',
+    '[Image resized from 512x512 to 64x64.]',
+  ),
   result(
     'bash-ok',
     'bash',

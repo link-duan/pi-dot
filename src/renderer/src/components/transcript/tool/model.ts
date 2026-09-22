@@ -1,0 +1,149 @@
+import type { ToolLiveState } from '@/chat/state'
+import { asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
+import type { LucideIcon } from 'lucide-react'
+import { toolDiffStats, toolEditDiff, toolWriteDiff, type DiffLine, type DiffStats } from './diff'
+import { extractToolImages, resolveToolImageText, type ToolImageItem } from './images'
+import {
+  getToolIcon,
+  isCollapsedToolAttempt,
+  isEditTool,
+  isReadTool,
+  isShellTool,
+  isToolError,
+  isWriteTool,
+  toolLabel,
+} from './kind'
+
+export type ToolBodyModel =
+  | { kind: 'diff'; path: string; lines: DiffLine[]; stats: DiffStats }
+  | {
+      kind: 'images'
+      images: ToolImageItem[]
+      argsText?: string
+      notice?: string
+      description?: string
+    }
+  | { kind: 'code'; path: string; code: string; startLine: number; notice?: string }
+  | { kind: 'shell'; command: string; resultText: string; error?: boolean }
+  | { kind: 'error'; message: string }
+  | { kind: 'generic'; argsText?: string; resultText?: string; error?: boolean }
+
+export interface ToolViewModel {
+  icon: LucideIcon
+  label: string
+  summary: string
+  stats: DiffStats | null
+  running: boolean
+  hasError: boolean
+  hideMetaWhenOpen: boolean
+  body: ToolBodyModel | null
+}
+
+export interface ResolveToolParams {
+  name: string
+  args: unknown
+  live?: ToolLiveState
+  result?: unknown
+  pending?: boolean
+  cwd?: string | null
+  homedir?: string | null
+}
+
+function isArgsCoveredBySummary(args: unknown, summary: string): boolean {
+  if (!summary || !args || typeof args !== 'object' || Array.isArray(args)) return false
+  const keys = Object.keys(args)
+  if (keys.length !== 1) return false
+  const val = String((args as Record<string, unknown>)[keys[0]!] ?? '')
+  return val.length > 0 && summary.includes(val)
+}
+
+export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
+  const { name, args, live, result, pending, cwd, homedir } = params
+  const running = live?.status === 'running' || Boolean(pending && live?.status !== 'done')
+  const payload = live?.args ?? args
+  const resolved = live?.result ?? live?.partialResult ?? result
+  const rawError = Boolean(live?.isError) || isToolError(result)
+  const collapsedAttempt = isCollapsedToolAttempt(name, rawError)
+  const summary = collapsedAttempt ? '' : toolSummary(name, payload, cwd, homedir)
+
+  let body: ToolBodyModel | null = null
+
+  if (!collapsedAttempt) {
+    const fileDiff = isEditTool(name)
+      ? toolEditDiff(payload, resolved)
+      : isWriteTool(name)
+        ? toolWriteDiff(payload)
+        : null
+
+    if (fileDiff) {
+      const stats = toolDiffStats(name, payload, resolved) ?? { added: 0, removed: 0 }
+      body = { kind: 'diff', path: summary, lines: fileDiff, stats }
+    } else {
+      const toolImages = extractToolImages(resolved, payload, cwd, homedir)
+      if (toolImages.length > 0) {
+        const { notice, description } = resolveToolImageText(name, resolved)
+        const isSummaryRedundant = isArgsCoveredBySummary(payload, summary)
+        const rawArgs = isShellTool(name) ? '' : prettyJson(payload)
+        const argsText =
+          rawArgs &&
+          rawArgs !== '{}' &&
+          rawArgs !== 'null' &&
+          !isReadTool(name) &&
+          !isSummaryRedundant
+            ? rawArgs
+            : undefined
+        body = {
+          kind: 'images',
+          images: toolImages.map((image) => ({
+            ...image,
+            title: image.path ? undefined : summary || toolLabel(name),
+          })),
+          argsText,
+          notice,
+          description,
+        }
+      } else {
+        const readPreview =
+          isReadTool(name) && !rawError ? toolReadPreview(payload, resolved, cwd, homedir) : null
+        if (readPreview) {
+          body = readPreview
+        } else if (isReadTool(name) && rawError) {
+          const resultText = asText(resolved)
+          if (resultText) {
+            body = { kind: 'error', message: resultText }
+          }
+        } else if (isShellTool(name)) {
+          const command = toolSummary(name, payload)
+          body = { kind: 'shell', command, resultText: asText(resolved), error: rawError }
+        } else if (!isWriteTool(name)) {
+          const rawArgs = prettyJson(payload)
+          const argsText = rawArgs && rawArgs !== '{}' && rawArgs !== 'null' ? rawArgs : ''
+          const resultText = asText(resolved)
+          if (argsText || resultText) {
+            body = { kind: 'generic', argsText, resultText, error: rawError }
+          }
+        }
+      }
+    }
+  }
+
+  const hasImages = body?.kind === 'images'
+  const icon = getToolIcon(name, summary, hasImages)
+  const label = collapsedAttempt ? `${toolLabel(name)} attempted` : toolLabel(name)
+  const stats = collapsedAttempt ? null : toolDiffStats(name, payload, resolved)
+  const hasError = rawError && !collapsedAttempt && !isShellTool(name) && !isReadTool(name)
+  const hideMetaWhenOpen = Boolean(
+    body && (body.kind === 'diff' || body.kind === 'code' || body.kind === 'images'),
+  )
+
+  return {
+    icon,
+    label,
+    summary,
+    stats,
+    running: running && !collapsedAttempt,
+    hasError,
+    hideMetaWhenOpen,
+    body,
+  }
+}

@@ -1,20 +1,15 @@
 import { useEffect, useRef } from 'react'
 import type { ToolLiveState } from '@/chat/state'
-import {
-  isCollapsedToolAttempt,
-  toolEditDiff,
-  toolLabel,
-  toolReadPreview,
-  toolSummary,
-  toolWriteDiff,
-} from '@/lib/format'
 import { useSession } from '@/session/store'
+import { ScrollFade } from '@/components/ui/scroll-area'
 import { ActivityRow } from '../ActivityRow'
+import { MarkdownBody } from '../MarkdownBody'
 import { EditDiff } from './EditDiff'
-import { getToolIcon, isReadTool, isEditTool, isWriteTool, toolView } from './kind'
+import { resolveToolViewModel, type ToolBodyModel } from './model'
 import { ReadFile } from './ReadFile'
 import { ShellBody } from './ShellBody'
 import { ToolDetails } from './ToolDetails'
+import { ToolImage } from './ToolImage'
 
 export function ToolCard({
   name,
@@ -31,70 +26,106 @@ export function ToolCard({
 }) {
   const cwd = useSession((state) => state.cwd)
   const scrollRef = useRef<HTMLDivElement>(null)
-  const view = toolView(name, args, live, result, pending)
-  const collapsedAttempt = isCollapsedToolAttempt(name, view.error)
-  const resolved = live?.result ?? result
-  const fileDiff = collapsedAttempt
-    ? null
-    : isEditTool(name)
-      ? toolEditDiff(view.payload, resolved)
-      : isWriteTool(name)
-        ? toolWriteDiff(view.payload)
-        : null
-  const readPreview =
-    isReadTool(name) && !view.error
-      ? toolReadPreview(view.payload, resolved, cwd, window.pi.homedir)
-      : null
-  const summary = collapsedAttempt ? '' : toolSummary(name, view.payload, cwd, window.pi.homedir)
+
+  const model = resolveToolViewModel({
+    name,
+    args,
+    live,
+    result,
+    pending,
+    cwd,
+    homedir: window.pi.homedir,
+  })
 
   useEffect(() => {
-    if (!view.running) return
+    if (!model.running) return
     const node = scrollRef.current
     if (node) node.scrollTop = node.scrollHeight
-  }, [view.running, view.resultText])
-
-  let details = null
-  if (!collapsedAttempt) {
-    if (fileDiff) details = <EditDiff path={summary} stats={view.stats} lines={fileDiff} />
-    else if (readPreview) details = <ReadFile preview={readPreview} />
-    else if (isReadTool(name) && view.error) {
-      details = view.resultText ? (
-        <p className="mt-2 font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
-          {view.resultText}
-        </p>
-      ) : null
-    } else if (view.shell) {
-      details = (
-        <ShellBody
-          command={view.command}
-          resultText={view.resultText}
-          error={view.error}
-          scrollRef={scrollRef}
-        />
-      )
-    } else if (view.hasDetails && !isWriteTool(name)) {
-      details = (
-        <ToolDetails
-          argsText={view.argsText}
-          resultText={view.resultText}
-          error={view.error}
-          scrollRef={scrollRef}
-        />
-      )
-    }
-  }
+  }, [model.running, model.body])
 
   return (
     <ActivityRow
-      icon={getToolIcon(name)}
-      label={collapsedAttempt ? `${toolLabel(name)} attempted` : toolLabel(name)}
-      summary={summary}
-      stats={collapsedAttempt ? null : view.stats}
-      running={view.running && !collapsedAttempt}
-      error={view.error && !collapsedAttempt && !view.shell && !isReadTool(name)}
-      hideMetaWhenOpen={Boolean(fileDiff || readPreview)}
+      icon={model.icon}
+      label={model.label}
+      summary={model.summary}
+      stats={model.stats}
+      running={model.running}
+      error={model.hasError}
+      hideMetaWhenOpen={model.hideMetaWhenOpen}
     >
-      {details}
+      {model.body ? <ToolBody body={model.body} scrollRef={scrollRef} /> : null}
     </ActivityRow>
   )
+}
+
+function ToolBody({
+  body,
+  scrollRef,
+}: {
+  body: ToolBodyModel | null
+  scrollRef: React.RefObject<HTMLDivElement | null>
+}) {
+  if (!body) return null
+
+  switch (body.kind) {
+    case 'diff':
+      return <EditDiff path={body.path} stats={body.stats} lines={body.lines} />
+
+    case 'images':
+      return (
+        <div className="flex flex-col gap-2">
+          {body.argsText ? (
+            <ScrollFade className="max-h-32">
+              <pre className="font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                {body.argsText}
+              </pre>
+            </ScrollFade>
+          ) : null}
+          {body.description ? (
+            <div className="mt-2 font-mono text-xs leading-relaxed text-muted-foreground">
+              <MarkdownBody text={body.description} />
+            </div>
+          ) : null}
+          {body.images.map((image, i) => (
+            <ToolImage
+              key={i}
+              preview={{
+                ...image,
+                notice: i === body.images.length - 1 ? body.notice : undefined,
+              }}
+            />
+          ))}
+        </div>
+      )
+
+    case 'code':
+      return <ReadFile preview={body} />
+
+    case 'shell':
+      return (
+        <ShellBody
+          command={body.command}
+          resultText={body.resultText}
+          error={Boolean(body.error)}
+          scrollRef={scrollRef}
+        />
+      )
+
+    case 'error':
+      return (
+        <p className="mt-2 font-mono text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+          {body.message}
+        </p>
+      )
+
+    case 'generic':
+      return (
+        <ToolDetails
+          argsText={body.argsText ?? ''}
+          resultText={body.resultText ?? ''}
+          error={Boolean(body.error)}
+          scrollRef={scrollRef}
+        />
+      )
+  }
 }

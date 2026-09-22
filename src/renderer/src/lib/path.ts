@@ -79,3 +79,9 @@ export function displayPath(path: string, cwd?: string | null, home?: string | n
   const relative = relativePath(base, posix)
   return relative.length <= absolute.length ? relative : absolute
 }
+
+export function isImageFile(path?: string | null): boolean {
+  if (!path) return false
+  const clean = path.replace(/:\d+(?::\d+)?$/, '')
+  return /\.(png|jpe?g|gif|webp|bmp|svg|ico)$/i.test(clean)
+}

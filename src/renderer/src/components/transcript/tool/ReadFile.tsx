@@ -1,5 +1,5 @@
 import { citationLabel, languageFromPath } from '@/lib/code-citation'
-import type { ReadPreview } from '@/lib/format'
+import type { ReadCodePreview } from '@/lib/format'
 import { FileCard, HighlightedCode } from '../FileCard'
 
 function readEndLine(code: string, startLine: number): number {
@@ -9,7 +9,7 @@ function readEndLine(code: string, startLine: number): number {
   return startLine + Math.max(lines.length, 1) - 1
 }
 
-export function ReadFile({ preview }: { preview: ReadPreview }) {
+export function ReadFile({ preview }: { preview: ReadCodePreview }) {
   return (
     <>
       <FileCard

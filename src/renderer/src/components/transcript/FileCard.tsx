@@ -2,7 +2,8 @@ import { Suspense, use, type CSSProperties, type ReactNode } from 'react'
 import { CodeBlockCopyButton } from 'streamdown'
 import { DiffStatsLabel } from './ActivityRow'
 import { highlight, type HighlightToken } from '@/lib/highlight'
-import type { DiffLine, DiffStats } from '@/lib/format'
+import type { DiffLine, DiffStats } from './tool/diff'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { ScrollFade } from '@/components/ui/scroll-area'
 
@@ -32,7 +33,19 @@ export function FileCard({
     <div className="mt-2 w-full rounded-xl border border-border pt-2">
       <div className="flex items-center gap-2 px-2">
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{path}</span>
+          {path ? (
+            <Tooltip>
+              <TooltipTrigger
+                render={<span />}
+                className="min-w-0 cursor-default truncate font-mono text-xs text-muted-foreground"
+              >
+                {path}
+              </TooltipTrigger>
+              <TooltipContent className="max-w-lg font-mono text-xs break-all">
+                {path}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           {stats ? <DiffStatsLabel stats={stats} /> : null}
         </span>
         <CodeBlockCopyButton code={copy} />

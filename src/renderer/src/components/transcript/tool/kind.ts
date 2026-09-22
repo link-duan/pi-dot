@@ -1,16 +1,16 @@
-import type { ToolLiveState } from '@/chat/state'
 import {
   FilePenLine,
   FilePlus,
   FileText,
   Folder,
   FolderSearch,
+  ImageIcon,
   Search,
   Terminal,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { asText, prettyJson, toolDiffStats, toolSummary } from '@/lib/format'
+import { isImageFile } from '@/lib/path'
 
 export function isEditTool(name: string): boolean {
   return name.toLowerCase() === 'edit'
@@ -34,13 +34,37 @@ export function isShellTool(name: string): boolean {
   )
 }
 
-export function getToolIcon(name: string): LucideIcon {
+const TOOL_LABELS: Record<string, string> = {
+  bash: 'Bash',
+  grep: 'Grep',
+  edit: 'Edit',
+  read: 'Read',
+  write: 'Write',
+  find: 'Find',
+  ls: 'Ls',
+}
+
+export function toolLabel(name: string): string {
+  return TOOL_LABELS[name.toLowerCase()] ?? name
+}
+
+export function isCollapsedToolAttempt(name: string, error: boolean): boolean {
+  if (!error) return false
+  const lower = name.toLowerCase()
+  return lower === 'edit' || lower === 'write'
+}
+
+export function getToolIcon(name: string, path?: string | null, hasImage = false): LucideIcon {
+  if (hasImage) return ImageIcon
   const lower = name.toLowerCase()
   if (isShellTool(name)) return Terminal
   if (lower === 'grep') return Search
   if (lower === 'find') return FolderSearch
   if (isEditTool(name)) return FilePenLine
-  if (isReadTool(name)) return FileText
+  if (isReadTool(name)) {
+    if (isImageFile(path)) return ImageIcon
+    return FileText
+  }
   if (isWriteTool(name)) return FilePlus
   if (lower === 'ls') return Folder
   if (
@@ -57,34 +81,6 @@ export function getToolIcon(name: string): LucideIcon {
   return Wrench
 }
 
-function isToolError(result: unknown): boolean {
+export function isToolError(result: unknown): boolean {
   return Boolean(result && typeof result === 'object' && 'isError' in result && result.isError)
-}
-
-export function toolView(
-  name: string,
-  args: unknown,
-  live?: ToolLiveState,
-  result?: unknown,
-  pending?: boolean,
-) {
-  const running = live?.status === 'running' || Boolean(pending && live?.status !== 'done')
-  const payload = live?.args ?? args
-  const resultText = asText(live?.result ?? live?.partialResult ?? result)
-  const error = Boolean(live?.isError) || isToolError(result)
-  const shell = isShellTool(name)
-  const command = shell ? toolSummary(name, payload) : ''
-  const rawArgs = shell ? '' : prettyJson(payload)
-  const argsText = rawArgs && rawArgs !== '{}' && rawArgs !== 'null' ? rawArgs : ''
-  return {
-    running,
-    payload,
-    resultText,
-    error,
-    shell,
-    command,
-    argsText,
-    hasDetails: Boolean(command || argsText || resultText),
-    stats: toolDiffStats(name, payload, live?.result ?? result),
-  }
 }

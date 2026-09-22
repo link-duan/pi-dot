@@ -1,6 +1,6 @@
 import { AlertCircle, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
-import type { DiffStats } from '@/lib/format'
+import type { DiffStats } from './tool/diff'
 import { cn } from '@/lib/utils'
 
 export function DiffStatsLabel({ stats }: { stats: DiffStats }) {

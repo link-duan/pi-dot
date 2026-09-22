@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import {
-  formatMessageTime,
-  formatRelativeTime,
-  sessionTimeGroup,
-  formatElapsed,
-  formatTokenCount,
-  sessionTitle,
-  sessionTitleSegments,
   formatDiffCopy,
   toolDiffStats,
   toolEditDiff,
   toolWriteDiff,
-  isCollapsedToolAttempt,
-  toolLabel,
+} from '@/components/transcript/tool/diff'
+import { extractToolImages, resolveToolImageText } from '@/components/transcript/tool/images'
+import { isCollapsedToolAttempt, toolLabel } from '@/components/transcript/tool/kind'
+import {
+  formatElapsed,
+  formatMessageTime,
+  formatRelativeTime,
+  formatTokenCount,
+  sessionTimeGroup,
+  sessionTitle,
+  sessionTitleSegments,
   toolReadPreview,
   toolSummary,
 } from './format'
@@ -199,6 +201,7 @@ describe('toolReadPreview', () => {
         home,
       ),
     ).toEqual({
+      kind: 'code',
       path: 'src/x.ts',
       code: 'export const n = 1\n',
       startLine: 1,
@@ -209,6 +212,7 @@ describe('toolReadPreview', () => {
     expect(
       toolReadPreview({ path: 'a.ts', offset: 12, limit: 4 }, { content: 'keep\nthis' }, cwd),
     ).toEqual({
+      kind: 'code',
       path: 'a.ts',
       code: 'keep\nthis',
       startLine: 12,
@@ -229,6 +233,7 @@ describe('toolReadPreview', () => {
         },
       ),
     ).toEqual({
+      kind: 'code',
       path: 'a.ts',
       code: 'const tags = ["[keep]"]',
       startLine: 1,
@@ -240,6 +245,7 @@ describe('toolReadPreview', () => {
         'line\n\n[3 more lines in file. Use offset=2 to continue.]',
       ),
     ).toEqual({
+      kind: 'code',
       path: 'a.ts',
       code: 'line',
       startLine: 1,
@@ -247,11 +253,24 @@ describe('toolReadPreview', () => {
     })
   })
 
-  it('returns null for missing results, images, and oversize lines', () => {
+  it('returns null for missing results, images without data, and oversize lines', () => {
     expect(toolReadPreview({ path: 'a.ts' }, null)).toBeNull()
     expect(toolReadPreview({ path: 'a.ts' }, undefined)).toBeNull()
     expect(toolReadPreview(null, 'hello')).toBeNull()
     expect(toolReadPreview({ path: 'pic.png' }, 'Read image file [image/png]')).toBeNull()
+    expect(
+      toolReadPreview(
+        { path: '/proj/assets/icon.png' },
+        {
+          content: [
+            { type: 'text', text: 'Read image file [image/png]' },
+            { type: 'image', data: 'iVBORw0KGgoAAAANSUhEUg==', mimeType: 'image/png' },
+          ],
+        },
+        cwd,
+        home,
+      ),
+    ).toBeNull()
     expect(
       toolReadPreview(
         { path: 'a.ts' },
@@ -264,9 +283,122 @@ describe('toolReadPreview', () => {
     expect(
       toolReadPreview({ path: '/proj/empty.ts' }, { content: [{ type: 'text', text: '' }] }, cwd),
     ).toEqual({
+      kind: 'code',
       path: 'empty.ts',
       code: '',
       startLine: 1,
+    })
+  })
+})
+
+describe('extractToolImages', () => {
+  it('returns empty array when result has no images', () => {
+    expect(extractToolImages(null)).toEqual([])
+    expect(extractToolImages('hello')).toEqual([])
+    expect(extractToolImages({ content: [{ type: 'text', text: 'no image' }] })).toEqual([])
+  })
+
+  it('extracts image from direct block and content array', () => {
+    expect(extractToolImages({ type: 'image', data: 'abc==', mimeType: 'image/webp' })).toEqual([
+      { src: 'data:image/webp;base64,abc==', mimeType: 'image/webp' },
+    ])
+    expect(
+      extractToolImages({
+        content: [{ type: 'image', data: 'def==', mimeType: 'image/jpeg' }],
+      }),
+    ).toEqual([{ src: 'data:image/jpeg;base64,def==', mimeType: 'image/jpeg' }])
+  })
+
+  it('extracts images nested inside MCP details.raw.content', () => {
+    const mcpRes = {
+      role: 'toolResult',
+      toolName: 'figma_get_screenshot',
+      content: [{ type: 'text', text: '[image content: image/png]' }],
+      details: {
+        raw: {
+          content: [{ type: 'image', data: 'mcpImageBase64', mimeType: 'image/png' }],
+        },
+      },
+    }
+    const extracted = extractToolImages(mcpRes)
+    expect(extracted).toEqual([
+      { src: 'data:image/png;base64,mcpImageBase64', mimeType: 'image/png' },
+    ])
+  })
+
+  it('extracts multiple images from any tool result', () => {
+    const res = {
+      content: [
+        { type: 'text', text: 'screenshots' },
+        { type: 'image', data: 'img1', mimeType: 'image/png' },
+        { type: 'image', data: 'img2', mimeType: 'image/png' },
+      ],
+    }
+    const extracted = extractToolImages(res)
+    expect(extracted).toHaveLength(2)
+    expect(extracted[0].src).toBe('data:image/png;base64,img1')
+    expect(extracted[1].src).toBe('data:image/png;base64,img2')
+  })
+})
+
+describe('resolveToolImageText', () => {
+  it('extracts notice hints for read tool and drops boilerplate header', () => {
+    expect(
+      resolveToolImageText('read', {
+        content: [
+          {
+            type: 'text',
+            text: 'Read image file [image/png]\n[Image resized from 200x200 to 100x100.]',
+          },
+        ],
+      }),
+    ).toEqual({
+      notice: '[Image resized from 200x200 to 100x100.]',
+      description: undefined,
+    })
+
+    expect(
+      resolveToolImageText('read', {
+        content: [
+          {
+            type: 'text',
+            text: 'Read image file [image/png]\n[Image: original 2656x2076, displayed at 2000x1563. Multiply coordinates by 1.33 to map to original image.]',
+          },
+        ],
+      }),
+    ).toEqual({
+      notice:
+        '[Image: original 2656x2076, displayed at 2000x1563. Multiply coordinates by 1.33 to map to original image.]',
+      description: undefined,
+    })
+
+    expect(
+      resolveToolImageText('read', {
+        content: [{ type: 'text', text: 'Read image file [image/png]' }],
+      }),
+    ).toEqual({
+      notice: undefined,
+      description: undefined,
+    })
+  })
+
+  it('drops MCP placeholder and extracts real description for other tools', () => {
+    expect(
+      resolveToolImageText('figma_get_screenshot', {
+        content: [{ type: 'text', text: '[image content: image/png]' }],
+      }),
+    ).toEqual({
+      notice: undefined,
+      description: undefined,
+    })
+
+    expect(
+      resolveToolImageText('figma_get_screenshot', {
+        content: [{ type: 'text', text: 'Screenshot of canvas\nFound 2 issues' }],
+      }),
+    ).toEqual({
+      notice: undefined,
+      description: 'Screenshot of canvas\nFound 2 issues',
     })
   })
 })
