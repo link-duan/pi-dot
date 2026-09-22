@@ -1,5 +1,5 @@
 import { ArrowUp, Folder, Square } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   $createParagraphNode,
   $getRoot,
@@ -11,7 +11,6 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
-import { HistoryPlugin } from '@lexical/react/LexicalHistoryPlugin'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import type { FileHit, SkillInfo } from '@shared/protocol'
@@ -28,6 +27,7 @@ import { $replaceAtQueryWithFile } from './composer/insert-file'
 import { $replaceSlashQueryWithSkill } from './composer/insert-skill'
 import { SkillNode } from './composer/SkillNode'
 import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
+import { activateSession, draftText, rememberDraft } from './composer/drafts'
 import { serializeEditorState } from './composer/serialize'
 import { ContextUsageRing } from './ContextUsageRing'
 import { ModelSelect } from './ModelSelect'
@@ -53,13 +53,16 @@ export function Composer() {
 
 function ComposerForm() {
   const [editor] = useLexicalComposerContext()
-  const [draft, setDraft] = useState('')
+  const [draft, setDraft] = useState(() => draftText(useSession.getState().sessionFile))
   const [picker, setPicker] = useState<SkillPickerState | null>(null)
   const [filePicker, setFilePicker] = useState<FilePickerState | null>(null)
   const [fileResults, setFileResults] = useState<{ query: string; hits: FileHit[] }>({
     query: '',
     hits: [],
   })
+  const sessionRef = useRef<string | null | undefined>(undefined)
+  const focusNonce = useSession((state) => state.focusNonce)
+  const focusAtMount = useRef(focusNonce)
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const skills = useSession((state) => state.skills)
@@ -72,15 +75,44 @@ function ComposerForm() {
   const submit = useCallback(() => {
     const next = serializeEditorState(editor.getEditorState()).trim()
     if (!next || isStreaming || connection !== 'ready') return
-    editor.update(() => {
-      $getRoot().clear()
-      $getRoot().append($createParagraphNode())
-    })
+    editor.update(
+      () => {
+        $getRoot().clear()
+        $getRoot().append($createParagraphNode())
+      },
+      { discrete: true },
+    )
     setDraft('')
     setPicker(null)
     setFilePicker(null)
     void send(next)
   }, [connection, editor, isStreaming, send])
+
+  useLayoutEffect(() => {
+    if (focusNonce === focusAtMount.current) return
+    editor.focus()
+  }, [editor, focusNonce])
+
+  useLayoutEffect(() => {
+    const initial = useSession.getState().sessionFile
+    sessionRef.current = initial
+    let unbind = activateSession(editor, null, initial)
+
+    const stop = useSession.subscribe((state, prev) => {
+      if (state.sessionFile === prev.sessionFile) return
+      unbind()
+      const from = sessionRef.current ?? null
+      sessionRef.current = state.sessionFile
+      unbind = activateSession(editor, from, state.sessionFile)
+      setDraft(serializeEditorState(editor.getEditorState()))
+      setPicker(null)
+      setFilePicker(null)
+    })
+    return () => {
+      stop()
+      unbind()
+    }
+  }, [editor])
 
   const fileQuery = filePicker?.query
   const fileHits = fileQuery == null ? [] : fileResults.hits
@@ -171,10 +203,10 @@ function ComposerForm() {
             ErrorBoundary={LexicalErrorBoundary}
           />
         </div>
-        <HistoryPlugin />
         <OnChangePlugin
           onChange={(state) => {
             setDraft(serializeEditorState(state))
+            rememberDraft(sessionRef.current ?? null, state)
           }}
         />
         <SlashSkillPlugin skills={skills} picker={picker} setPicker={setPicker} />

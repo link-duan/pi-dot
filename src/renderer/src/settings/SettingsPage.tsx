@@ -5,7 +5,6 @@ import type { AppSettings, SettingsSection } from '@shared/settings'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
-import { parseSection } from '@/route'
 import { useSession } from '@/session/store'
 import { GeneralPage } from './GeneralPage'
 import { ModelsPage } from './ModelsPage'
@@ -42,7 +41,8 @@ export function SettingsPage() {
   const generation = useSettings((state) => state.generation)
   const catalogGeneration = useSettings((state) => state.catalogGeneration)
   const [params, setParams] = useSearchParams()
-  const section = parseSection(params.get('section'))
+  const activeSection = SECTIONS.find((item) => item.id === params.get('section')) ?? SECTIONS[0]
+  const section = activeSection.id
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [available, setAvailable] = useState(() => useSession.getState().models)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -77,8 +77,6 @@ export function SettingsPage() {
     setSettings(next)
     apply(next)
   }
-
-  const activeSection = SECTIONS.find((item) => item.id === section) ?? SECTIONS[0]
 
   return (
     <div

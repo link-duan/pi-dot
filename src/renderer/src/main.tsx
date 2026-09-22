@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindIpc, releaseIpcQueue } from './ipc'
 import { applySystemTheme } from './lib/theme'
-import { App, initRouter } from './router'
+import { App, PATH, router } from './router'
 import { loadSettings } from './settings/store'
 import { applyLiveSnapshot, useSession } from './session/store'
 import './styles.css'
@@ -17,7 +17,7 @@ bindIpc()
 const snapshot = await window.pi.getSnapshot()
 if (snapshot) applyLiveSnapshot(snapshot)
 else useSession.setState({ lastCwd: await window.pi.getLastCwd() })
-initRouter(useSession.getState().cwd)
+if (useSession.getState().cwd) await router.navigate(PATH.session, { replace: true })
 releaseIpcQueue()
 void loadSettings()
 

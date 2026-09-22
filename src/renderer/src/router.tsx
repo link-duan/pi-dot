@@ -1,10 +1,12 @@
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
-import { ChatPage } from './components/ChatPage'
-import { FolderPicker } from './components/FolderPicker'
 import { TooltipProvider } from './components/ui/tooltip'
-import { Playground } from './playground/Playground'
-import { initialEntry, PATH } from './route'
-import { SettingsPage } from './settings/SettingsPage'
+
+export const PATH = {
+  picker: '/',
+  session: '/session',
+  settings: '/settings',
+  playground: '/playground',
+} as const
 
 function Shell() {
   return (
@@ -14,24 +16,37 @@ function Shell() {
   )
 }
 
-export let router: ReturnType<typeof createMemoryRouter>
-
-export function initRouter(cwd: string | null): void {
-  router = createMemoryRouter(
-    [
+export const router = createMemoryRouter([
+  {
+    Component: Shell,
+    children: [
       {
-        Component: Shell,
-        children: [
-          { path: PATH.settings, Component: SettingsPage },
-          { path: PATH.playground, Component: Playground },
-          { path: PATH.session, Component: ChatPage },
-          { path: PATH.picker, Component: FolderPicker },
-        ],
+        path: PATH.settings,
+        lazy: () =>
+          import('./settings/SettingsPage').then(({ SettingsPage }) => ({
+            Component: SettingsPage,
+          })),
+      },
+      {
+        path: PATH.playground,
+        lazy: () =>
+          import('./playground/Playground').then(({ Playground }) => ({ Component: Playground })),
+      },
+      {
+        path: PATH.session,
+        lazy: () =>
+          import('./components/ChatPage').then(({ ChatPage }) => ({ Component: ChatPage })),
+      },
+      {
+        path: PATH.picker,
+        lazy: () =>
+          import('./components/FolderPicker').then(({ FolderPicker }) => ({
+            Component: FolderPicker,
+          })),
       },
     ],
-    { initialEntries: [initialEntry(cwd)] },
-  )
-}
+  },
+])
 
 export function App() {
   return <RouterProvider router={router} />

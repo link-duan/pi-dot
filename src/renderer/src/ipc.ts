@@ -1,5 +1,4 @@
-import { PATH, settingsPath } from '@/route'
-import { router } from '@/router'
+import { PATH, router } from '@/router'
 import { loadSettings, useSettings } from '@/settings/store'
 import { applyLiveSnapshot, useSession } from '@/session/store'
 import { activeChat, applyEvent } from '@/session/state'
@@ -133,9 +132,14 @@ export function bindIpc(): void {
   })
 
   window.pi.onCommand((command) => {
-    if (command === 'newSession') void useSession.getState().newSession()
+    if (command === 'newSession') {
+      void useSession
+        .getState()
+        .newSession()
+        .then(() => useSession.getState().requestComposerFocus())
+    }
     if (command === 'openSettings' && router.state.location.pathname !== PATH.settings) {
-      void router.navigate(settingsPath())
+      void router.navigate(PATH.settings)
     }
     if (command === 'reloadSettings') void reloadSettings()
     if (command === 'reloadSnapshot') void reloadSnapshot()

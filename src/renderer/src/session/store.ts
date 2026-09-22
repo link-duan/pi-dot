@@ -28,6 +28,7 @@ interface SessionStore extends WindowState {
   listSessions: () => Promise<SessionListItem[]>
   switchSession: (sessionPath: string) => Promise<void>
   newSession: () => Promise<void>
+  requestComposerFocus: () => void
 }
 
 function selectionPatch(selection: ModelSelection) {
@@ -163,6 +164,8 @@ export const useSession = create<SessionStore>((set, get) => ({
       set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
+
+  requestComposerFocus: () => set((state) => ({ focusNonce: state.focusNonce + 1 })),
 }))
 
 export function useChat(): ChatState

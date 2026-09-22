@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { History } from 'lucide-react'
 import type { SessionListItem } from '@shared/protocol'
 import { FileChip } from '@/components/composer/FileChip'
@@ -36,10 +36,12 @@ export function SessionSwitcher() {
   const listSessions = useSession((state) => state.listSessions)
   const switchSession = useSession((state) => state.switchSession)
   const canSwitch = connection === 'ready'
+  const returnToComposer = useRef(false)
 
   const setListOpen = useCallback(
     (next: boolean) => {
       if (next) setSelected(sessionFile ?? '')
+      else returnToComposer.current = true
       setOpen(next)
     },
     [sessionFile],
@@ -103,6 +105,12 @@ export function SessionSwitcher() {
         description="Search and switch sessions in this project"
         value={selected}
         onValueChange={setSelected}
+        finalFocus={() => {
+          if (!returnToComposer.current) return false
+          returnToComposer.current = false
+          useSession.getState().requestComposerFocus()
+          return false
+        }}
       >
         <CommandInput placeholder="Search sessions..." />
         <CommandList>
@@ -127,10 +135,10 @@ export function SessionSwitcher() {
                         disabled={!canSwitch && !current}
                         onSelect={() => {
                           if (current || !canSwitch) {
-                            setOpen(false)
+                            setListOpen(false)
                             return
                           }
-                          void switchSession(item.path).then(() => setOpen(false))
+                          void switchSession(item.path).then(() => setListOpen(false))
                         }}
                       >
                         <span

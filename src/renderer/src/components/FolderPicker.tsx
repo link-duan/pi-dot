@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { folderName } from '@/lib/path'
-import { PATH } from '@/route'
+import { PATH } from '@/router'
 import { useSession } from '@/session/store'
 import { PiLogo } from './PiIcon'
 

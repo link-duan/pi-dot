@@ -22,6 +22,7 @@ export type WindowState = {
   contextUsage: ContextUsage | null
   sessionId: string | null
   sessionFile: string | null
+  focusNonce: number
   running: string[]
   chats: Record<string, ChatState>
 }
@@ -42,6 +43,7 @@ export function createWindowState(): WindowState {
     contextUsage: null,
     sessionId: null,
     sessionFile: null,
+    focusNonce: 0,
     running: [],
     chats: {},
   }

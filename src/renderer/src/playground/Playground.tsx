@@ -5,7 +5,7 @@ import { Composer } from '@/components/Composer'
 import { Transcript } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { PATH } from '@/route'
+import { PATH } from '@/router'
 import { patchChat } from '@/session/state'
 import { useSession } from '@/session/store'
 import {

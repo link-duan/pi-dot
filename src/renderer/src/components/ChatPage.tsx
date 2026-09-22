@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Plus } from 'lucide-react'
 import { useNavigate } from 'react-router'
-import { PATH } from '@/route'
+import { PATH } from '@/router'
 import { useChat, useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -44,7 +44,9 @@ export function ChatPage() {
                   className="app-no-drag text-muted-foreground"
                   aria-label="New session"
                   disabled={!canCreate}
-                  onClick={() => void newSession()}
+                  onClick={() => {
+                    void newSession().then(() => useSession.getState().requestComposerFocus())
+                  }}
                 />
               }
             >

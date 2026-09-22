@@ -30,6 +30,7 @@ function CommandDialog({
   showCloseButton = false,
   value,
   onValueChange,
+  finalFocus,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, 'children'> & {
   title?: string
@@ -39,6 +40,7 @@ function CommandDialog({
   children: React.ReactNode
   value?: string
   onValueChange?: (value: string) => void
+  finalFocus?: React.ComponentProps<typeof DialogContent>['finalFocus']
 }) {
   return (
     <Dialog {...props}>
@@ -48,6 +50,7 @@ function CommandDialog({
           className,
         )}
         showCloseButton={showCloseButton}
+        finalFocus={finalFocus}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>{title}</DialogTitle>
