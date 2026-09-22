@@ -1,11 +1,13 @@
-import { Fragment, useEffect, useMemo, useRef, type RefObject } from 'react'
+import { Fragment, useMemo, useRef, type RefObject } from 'react'
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
 import { PiIcon } from '@/components/PiIcon'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
+import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { TurnStatus } from './TurnStatus'
+import { useStickyToBottom } from './useStickyToBottom'
 
 export type TranscriptModel = Pick<
   ChatState,
@@ -40,7 +42,13 @@ export function Transcript({
     turnEndedAt,
     retry,
   } = model
-  const stickToBottom = useRef(follow)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const { showScrollBottom, scrollToBottom, onScroll, onWheel } = useStickyToBottom({
+    viewportRef: scrollerRef,
+    contentRef,
+    initialFollow: follow,
+  })
+
   const hasMessages = messages.length > 0
   const turns = userTurns(messages)
   const streamingIndex = assistantStreaming ? lastAssistantIndex(messages) : -1
@@ -52,81 +60,75 @@ export function Transcript({
     return map
   }, [messages])
 
-  useEffect(() => {
-    const node = scrollerRef.current
-    if (!node || !stickToBottom.current) return
-    node.scrollTop = node.scrollHeight
-  }, [messages, toolLive, isStreaming, scrollerRef])
-
   return (
     <ScrollArea className="min-h-0 flex-1">
       <ScrollAreaViewport
         ref={scrollerRef}
         className="overscroll-contain px-6"
-        onScroll={(event) => {
-          const node = event.currentTarget
-          stickToBottom.current = node.scrollHeight - node.scrollTop - node.clientHeight < 80
-        }}
+        onWheel={onWheel}
+        onScroll={onScroll}
       >
-        {!hasMessages && !isStreaming ? (
-          <div className="flex h-full flex-col items-center justify-center py-12 text-center select-none">
-            <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
-            <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
-          </div>
-        ) : (
-          <div className="mx-auto flex max-w-3xl flex-col pt-12 pb-10">
-            {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
-              <MessageRow
-                key={messageKey(message, index)}
-                message={message}
-                toolLive={toolLive}
-                toolResults={toolResults}
-                streaming={index === streamingIndex}
-              />
-            ))}
-            {turns.map((turn, turnIndex) => {
-              const isLast = turnIndex === turns.length - 1
-              const status = turnStatus({
-                isLast,
-                isStreaming,
-                turnActive,
-                turnStartedAt,
-                turnEndedAt,
-                retry,
-                messages,
-                persistedAt,
-                turn,
-              })
-              return (
-                <Fragment key={turn.start}>
-                  {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
-                    const index = turn.start + offset
-                    return (
-                      <MessageRow
-                        key={messageKey(message, index)}
-                        message={message}
-                        toolLive={toolLive}
-                        toolResults={toolResults}
-                        streaming={index === streamingIndex}
-                      />
-                    )
-                  })}
-                  {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
-                </Fragment>
-              )
-            })}
-            {isStreaming && turns.length === 0 && turnStartedAt != null ? (
-              <TurnStatus
-                kind={retry ? 'retrying' : 'waiting'}
-                startedAt={turnStartedAt}
-                endedAt={null}
-                attempt={retry?.attempt}
-                maxAttempts={retry?.maxAttempts}
-                retryAt={retry?.retryAt}
-              />
-            ) : null}
-          </div>
-        )}
+        <div ref={contentRef} className="flex min-h-full flex-col">
+          {!hasMessages && !isStreaming ? (
+            <div className="flex flex-1 flex-col items-center justify-center py-12 text-center select-none">
+              <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
+              <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
+            </div>
+          ) : (
+            <div className="mx-auto flex w-full max-w-3xl flex-col pt-12 pb-10">
+              {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
+                <MessageRow
+                  key={messageKey(message, index)}
+                  message={message}
+                  toolLive={toolLive}
+                  toolResults={toolResults}
+                  streaming={index === streamingIndex}
+                />
+              ))}
+              {turns.map((turn, turnIndex) => {
+                const isLast = turnIndex === turns.length - 1
+                const status = turnStatus({
+                  isLast,
+                  isStreaming,
+                  turnActive,
+                  turnStartedAt,
+                  turnEndedAt,
+                  retry,
+                  messages,
+                  persistedAt,
+                  turn,
+                })
+                return (
+                  <Fragment key={turn.start}>
+                    {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
+                      const index = turn.start + offset
+                      return (
+                        <MessageRow
+                          key={messageKey(message, index)}
+                          message={message}
+                          toolLive={toolLive}
+                          toolResults={toolResults}
+                          streaming={index === streamingIndex}
+                        />
+                      )
+                    })}
+                    {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
+                  </Fragment>
+                )
+              })}
+              {isStreaming && turns.length === 0 && turnStartedAt != null ? (
+                <TurnStatus
+                  kind={retry ? 'retrying' : 'waiting'}
+                  startedAt={turnStartedAt}
+                  endedAt={null}
+                  attempt={retry?.attempt}
+                  maxAttempts={retry?.maxAttempts}
+                  retryAt={retry?.retryAt}
+                />
+              ) : null}
+            </div>
+          )}
+        </div>
       </ScrollAreaViewport>
       <ScrollAreaScrollbar className="mt-9" />
       <div
@@ -137,6 +139,7 @@ export function Transcript({
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent"
       />
+      <ScrollToBottomButton visible={showScrollBottom} onClick={scrollToBottom} />
     </ScrollArea>
   )
 }
