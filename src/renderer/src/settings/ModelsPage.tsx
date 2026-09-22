@@ -227,7 +227,7 @@ function ModelCombobox({
       <ComboboxContent align="start">
         <ComboboxEmpty className="py-4 text-xs">No models available</ComboboxEmpty>
         <ComboboxList>
-          {models.map((item) => (
+          {(item: ModelInfo) => (
             <ComboboxItem
               key={modelKey(item)}
               value={item}
@@ -242,7 +242,7 @@ function ModelCombobox({
                 ) : null}
               </div>
             </ComboboxItem>
-          ))}
+          )}
         </ComboboxList>
       </ComboboxContent>
     </Combobox>
