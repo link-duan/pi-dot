@@ -11,6 +11,13 @@ import type {
   StartResult,
   ThinkingLevel,
 } from '@shared/protocol'
+import type {
+  AppSettings,
+  LoginEvent,
+  ModelsFileResult,
+  SettingsCatalog,
+  SettingsPatch,
+} from '@shared/settings'
 
 const api: PiApi = {
   homedir: homedir(),
@@ -38,6 +45,19 @@ const api: PiApi = {
     >,
   saveClipboardImage: (data: Uint8Array, mimeType: string) =>
     ipcRenderer.invoke(IPC.saveClipboardImage, data, mimeType) as Promise<string>,
+  getSettings: () => ipcRenderer.invoke(IPC.getSettings) as Promise<AppSettings>,
+  patchSettings: (patch: SettingsPatch) =>
+    ipcRenderer.invoke(IPC.patchSettings, patch) as Promise<AppSettings>,
+  getModelsFile: () => ipcRenderer.invoke(IPC.getModelsFile) as Promise<ModelsFileResult>,
+  setModelsFile: (text: string) =>
+    ipcRenderer.invoke(IPC.setModelsFile, text) as Promise<ModelsFileResult>,
+  getCatalog: () => ipcRenderer.invoke(IPC.getCatalog) as Promise<SettingsCatalog>,
+  login: (providerId: string, type: 'api_key' | 'oauth') =>
+    ipcRenderer.invoke(IPC.login, providerId, type) as Promise<void>,
+  loginRespond: (id: string, value: string) =>
+    ipcRenderer.invoke(IPC.loginRespond, id, value) as Promise<void>,
+  loginCancel: () => ipcRenderer.invoke(IPC.loginCancel) as Promise<void>,
+  logout: (providerId: string) => ipcRenderer.invoke(IPC.logout, providerId) as Promise<void>,
   onEvent: (cb: (event: SessionEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SessionEvent) => cb(payload)
     ipcRenderer.on(IPC.event, listener)
@@ -63,6 +83,13 @@ const api: PiApi = {
     ipcRenderer.on(IPC.command, listener)
     return () => {
       ipcRenderer.removeListener(IPC.command, listener)
+    }
+  },
+  onLoginEvent: (cb: (event: LoginEvent) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: LoginEvent) => cb(payload)
+    ipcRenderer.on(IPC.loginEvent, listener)
+    return () => {
+      ipcRenderer.removeListener(IPC.loginEvent, listener)
     }
   },
 }

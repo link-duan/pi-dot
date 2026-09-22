@@ -18,9 +18,9 @@ import {
 } from './state'
 
 interface SessionStore extends WindowState {
-  openFolder: () => Promise<void>
-  openCwd: (cwd: string) => Promise<void>
-  leave: () => Promise<void>
+  openFolder: () => Promise<boolean>
+  openCwd: (cwd: string) => Promise<boolean>
+  leave: () => Promise<boolean>
   send: (text: string) => Promise<void>
   abort: () => Promise<void>
   setModel: (provider: string, modelId: string) => Promise<void>
@@ -47,7 +47,8 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()
-    if (cwd) await get().openCwd(cwd)
+    if (!cwd) return false
+    return get().openCwd(cwd)
   },
 
   openCwd: async (cwd: string) => {
@@ -57,26 +58,29 @@ export const useSession = create<SessionStore>((set, get) => ({
       const result = await window.pi.start(cwd)
       if (result.kind !== 'started') {
         set(previous)
-        return
+        return false
       }
       set((state) => applySnapshot({ ...state, chats: {} }, result.snapshot))
+      return true
     } catch (error) {
       set({
         cwd,
         connection: 'error',
         error: error instanceof Error ? error.message : String(error),
       })
+      return true
     }
   },
 
   leave: async () => {
     try {
       const result = await window.pi.stop()
-      if (result.cancelled) return
+      if (result.cancelled) return false
     } catch {
       // drop the local session even if stop fails
     }
     set((state) => resetFolder(state))
+    return true
   },
 
   send: async (text: string) => {

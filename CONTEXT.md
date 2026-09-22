@@ -35,3 +35,11 @@ _Avoid_: Mention, pill, tag
 **File Chip**:
 An Embed Chip for a file or directory. `@` in the Composer opens the file picker; sending serializes the chip to `@file:path`. Transcript only projects `@file:` tokens, never a bare `@path`.
 _Avoid_: Mention, attachment
+
+**Settings**:
+App-level (global) configuration for providers, the model catalog, and agent behavior. Shared with the local Pi agent. A folder may also have `.pi/settings.json`, which overrides these app settings for that project.
+_Avoid_: Preferences, options, config panel
+
+**Provider**:
+A model backend: a built-in catalog entry authenticated with credentials, or a custom endpoint in the model catalog.
+_Avoid_: API, vendor, service

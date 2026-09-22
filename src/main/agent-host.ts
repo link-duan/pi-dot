@@ -12,6 +12,7 @@ import {
   SessionManager,
   SettingsManager,
 } from '@earendil-works/pi-coding-agent'
+import { getSupportedThinkingLevels, type Api, type Model } from '@earendil-works/pi-ai'
 import {
   asThinkingLevel,
   isAgentMessage,
@@ -245,6 +246,21 @@ export class AgentHost {
     return this.getModelSelection()
   }
 
+  async refreshModels(): Promise<void> {
+    const live = this.active
+    if (!live) return
+    await live.session.modelRuntime.refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+  }
+
+  async reloadSettings(): Promise<void> {
+    const live = this.active
+    if (!live) return
+    const settings = live.session.settingsManager
+    await settings.reload()
+    live.session.setAutoCompactionEnabled(settings.getCompactionEnabled())
+    live.session.setAutoRetryEnabled(settings.getRetryEnabled())
+  }
+
   async switchSession(sessionPath: string): Promise<SessionSnapshot> {
     return this.ops.enqueue(async () => {
       if (this.requireActive().sessionFile === sessionPath) return this.snapshot()
@@ -417,10 +433,11 @@ function toContextUsage(
   }
 }
 
-function toModelInfo(model: { id?: string; name?: string; provider?: string }): ModelInfo {
+function toModelInfo(model: Model<Api>): ModelInfo {
   return {
     id: String(model.id ?? ''),
     name: String(model.name || model.id || 'unknown'),
     provider: String(model.provider ?? ''),
+    thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(model)),
   }
 }

@@ -13,6 +13,7 @@ import type {
   UserMessage,
 } from '@shared/protocol'
 import { ScrollFade } from '@/components/ui/scroll-area'
+import { useSettings } from '@/settings/store'
 import { ActivityRow } from './ActivityRow'
 import { MarkdownBody } from './MarkdownBody'
 import { ToolCard } from './tool/ToolCard'
@@ -108,10 +109,12 @@ function AssistantRow({
   toolResults: Record<string, ToolResultMessage>
   streaming: boolean
 }) {
+  const hideThinking = useSettings((state) => state.hideThinking)
   return (
     <div className="flex flex-col select-text">
       {message.content.map((block, contentIndex) => {
         if (block.type === 'thinking') {
+          if (hideThinking) return null
           const thinking = block.thinking
           const inProgress = streaming && contentIndex === message.content.length - 1
           if (!thinking?.trim() && !inProgress) return null

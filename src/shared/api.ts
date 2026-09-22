@@ -8,6 +8,13 @@ import type {
   StartResult,
   ThinkingLevel,
 } from './protocol'
+import type {
+  AppSettings,
+  LoginEvent,
+  ModelsFileResult,
+  SettingsCatalog,
+  SettingsPatch,
+} from './settings'
 
 export interface PiApi {
   homedir: string
@@ -27,7 +34,17 @@ export interface PiApi {
   searchFiles(cwd: string, query: string): Promise<FileHit[]>
   statPaths(paths: string[]): Promise<Array<{ path: string; isDirectory: boolean }>>
   saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>
+  getSettings(): Promise<AppSettings>
+  patchSettings(patch: SettingsPatch): Promise<AppSettings>
+  getModelsFile(): Promise<ModelsFileResult>
+  setModelsFile(text: string): Promise<ModelsFileResult>
+  getCatalog(): Promise<SettingsCatalog>
+  login(providerId: string, type: 'api_key' | 'oauth'): Promise<void>
+  loginRespond(id: string, value: string): Promise<void>
+  loginCancel(): Promise<void>
+  logout(providerId: string): Promise<void>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
   onCommand(cb: (command: string) => void): () => void
+  onLoginEvent(cb: (event: LoginEvent) => void): () => void
 }

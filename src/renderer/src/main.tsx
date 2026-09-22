@@ -1,8 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { App } from './App'
 import { bindIpc, releaseIpcQueue } from './ipc'
 import { applySystemTheme } from './lib/theme'
+import { App, initRouter } from './router'
+import { loadSettings } from './settings/store'
 import { applyLiveSnapshot, useSession } from './session/store'
 import './styles.css'
 
@@ -16,7 +17,9 @@ bindIpc()
 const snapshot = await window.pi.getSnapshot()
 if (snapshot) applyLiveSnapshot(snapshot)
 else useSession.setState({ lastCwd: await window.pi.getLastCwd() })
+initRouter(useSession.getState().cwd)
 releaseIpcQueue()
+void loadSettings()
 
 createRoot(root).render(
   <StrictMode>

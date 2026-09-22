@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, shell } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { StartResult, ThinkingLevel } from '@shared/protocol'
+import type { SettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
@@ -9,6 +10,17 @@ import { readLastCwd } from './last-cwd'
 import { searchProjectFiles } from './search-files'
 import { listProjectSessions, withRunning } from './sessions'
 import { statPaths } from './stat-paths'
+import {
+  cancelLogin,
+  getCatalog,
+  getSettings,
+  logoutProvider,
+  patchSettings,
+  readModelsFileText,
+  respondLogin,
+  startLogin,
+  writeModelsFileText,
+} from './settings-host'
 import { attach, clampCascade, from, getFocusedWindow, getWindows, onBeforeQuit } from './window'
 
 if (!app.isPackaged) {
@@ -88,9 +100,31 @@ function createWindow(): BrowserWindow {
 
 function installMenu(): void {
   const isMac = process.platform === 'darwin'
+  const settingsItem = {
+    label: 'Settings…',
+    accelerator: 'CmdOrCtrl+,',
+    click: () => getFocusedWindow()?.send('openSettings'),
+  }
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(isMac ? [{ role: 'appMenu' as const }] : []),
+      ...(isMac
+        ? [
+            {
+              label: app.name,
+              submenu: [
+                { role: 'about' as const },
+                { type: 'separator' as const },
+                settingsItem,
+                { type: 'separator' as const },
+                { role: 'hide' as const },
+                { role: 'hideOthers' as const },
+                { role: 'unhide' as const },
+                { type: 'separator' as const },
+                { role: 'quit' as const },
+              ],
+            },
+          ]
+        : []),
       {
         label: 'File',
         submenu: [
@@ -106,7 +140,14 @@ function installMenu(): void {
           },
           { type: 'separator' },
           { role: 'close' },
-          ...(!isMac ? [{ type: 'separator' as const }, { role: 'quit' as const }] : []),
+          ...(!isMac
+            ? [
+                { type: 'separator' as const },
+                settingsItem,
+                { type: 'separator' as const },
+                { role: 'quit' as const },
+              ]
+            : []),
         ],
       },
       { role: 'editMenu' },
@@ -198,6 +239,42 @@ function registerIpc(): void {
   ipcMain.handle(IPC.saveClipboardImage, async (_event, data: Uint8Array, mimeType: string) => {
     if (!data || typeof mimeType !== 'string') throw new Error('Invalid image')
     return saveClipboardImage(data, mimeType)
+  })
+
+  ipcMain.handle(IPC.getSettings, (event) => getSettings(from(event.sender)?.host?.cwd))
+
+  ipcMain.handle(IPC.patchSettings, (event, patch: SettingsPatch) => {
+    return patchSettings(from(event.sender)?.host?.cwd, patch)
+  })
+
+  ipcMain.handle(IPC.getModelsFile, () => readModelsFileText())
+
+  ipcMain.handle(IPC.setModelsFile, (_event, text: string) => {
+    if (typeof text !== 'string') throw new Error('Invalid models.json')
+    return writeModelsFileText(text)
+  })
+
+  ipcMain.handle(IPC.getCatalog, () => getCatalog())
+
+  ipcMain.handle(IPC.login, async (event, providerId: string, type: 'api_key' | 'oauth') => {
+    if (typeof providerId !== 'string' || (type !== 'api_key' && type !== 'oauth')) {
+      throw new Error('Invalid login')
+    }
+    await startLogin(event.sender, providerId, type)
+  })
+
+  ipcMain.handle(IPC.loginRespond, (event, id: string, value: string) => {
+    if (typeof id !== 'string' || typeof value !== 'string') return
+    respondLogin(event.sender.id, id, value)
+  })
+
+  ipcMain.handle(IPC.loginCancel, (event) => {
+    cancelLogin(event.sender.id)
+  })
+
+  ipcMain.handle(IPC.logout, async (_event, providerId: string) => {
+    if (typeof providerId !== 'string') throw new Error('Invalid provider')
+    await logoutProvider(providerId)
   })
 }
 

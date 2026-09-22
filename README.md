@@ -7,7 +7,7 @@
 ## 需要
 
 - [bun](https://bun.sh)
-- 已在 `~/.pi/agent` 配好凭据（终端里对 `pi` 做 `/login`，或设置对应 API key 环境变量）
+- 在 Settings（`Cmd+,`）里配置 Provider 凭据，或沿用本机 `pi` 已有的 `~/.pi/agent` 配置
 
 ## 开发
 

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
 import { Transcript } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { PATH } from '@/route'
 import { patchChat } from '@/session/state'
 import { useSession } from '@/session/store'
 import {
@@ -48,7 +50,7 @@ function usePlaygroundSession(isStreaming: boolean) {
       contextUsage: playgroundContextUsage,
       send: async () => {},
       abort: async () => {},
-      openFolder: async () => {},
+      openFolder: async () => false,
       setModel: async (provider, modelId) => {
         const next = playgroundModels.find(
           (item) => item.provider === provider && item.id === modelId,
@@ -70,6 +72,7 @@ function usePlaygroundSession(isStreaming: boolean) {
 }
 
 export function Playground() {
+  const navigate = useNavigate()
   const [tab, setTab] = useState(TABS[1]?.title ?? TABS[0].title)
   const pane = TABS.find((item) => item.title === tab) ?? TABS[0]
   const scrollerRef = useRef<HTMLDivElement>(null)
@@ -117,9 +120,7 @@ export function Playground() {
             size="xs"
             variant="ghost"
             className="text-muted-foreground"
-            onClick={() => {
-              window.location.hash = '/'
-            }}
+            onClick={() => navigate(PATH.picker, { replace: true })}
           >
             Back
           </Button>

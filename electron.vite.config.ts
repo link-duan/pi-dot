@@ -30,5 +30,11 @@ export default defineConfig({
       },
     },
     plugins: [react(), tailwindcss()],
+    worker: {
+      format: 'es',
+    },
+    optimizeDeps: {
+      include: ['monaco-editor'],
+    },
   },
 })

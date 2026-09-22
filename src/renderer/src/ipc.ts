@@ -1,3 +1,6 @@
+import { PATH, settingsPath } from '@/route'
+import { router } from '@/router'
+import { loadSettings, useSettings } from '@/settings/store'
 import { applyLiveSnapshot, useSession } from '@/session/store'
 import { activeChat, applyEvent } from '@/session/state'
 import type { AgentMessage, ConnectionStatus, SessionEvent } from '@shared/protocol'
@@ -131,7 +134,25 @@ export function bindIpc(): void {
 
   window.pi.onCommand((command) => {
     if (command === 'newSession') void useSession.getState().newSession()
+    if (command === 'openSettings' && router.state.location.pathname !== PATH.settings) {
+      void router.navigate(settingsPath())
+    }
+    if (command === 'reloadSettings') void reloadSettings()
+    if (command === 'reloadSnapshot') void reloadSnapshot()
   })
+}
+
+async function reloadSettings(): Promise<void> {
+  await loadSettings()
+  useSettings.getState().bump()
+}
+
+async function reloadSnapshot(): Promise<void> {
+  const snapshot = await window.pi.getSnapshot()
+  if (snapshot) applyLiveSnapshot(snapshot)
+  await loadSettings()
+  useSettings.getState().bump()
+  useSettings.getState().bumpCatalog()
 }
 
 export function releaseIpcQueue(): void {

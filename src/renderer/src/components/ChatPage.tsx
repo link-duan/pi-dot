@@ -1,5 +1,7 @@
 import { useRef } from 'react'
 import { Plus } from 'lucide-react'
+import { useNavigate } from 'react-router'
+import { PATH } from '@/route'
 import { useChat, useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
@@ -9,6 +11,7 @@ import { SessionSwitcher } from './SessionSwitcher'
 import { Transcript } from './transcript/Transcript'
 
 export function ChatPage() {
+  const navigate = useNavigate()
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const error = useSession((state) => state.error)
@@ -74,7 +77,11 @@ export function ChatPage() {
             <button
               type="button"
               className="font-medium underline underline-offset-2 hover:opacity-80"
-              onClick={() => void leave()}
+              onClick={() => {
+                void leave().then((left) => {
+                  if (left) navigate(PATH.picker, { replace: true })
+                })
+              }}
             >
               Change folder
             </button>

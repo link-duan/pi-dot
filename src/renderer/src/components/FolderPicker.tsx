@@ -1,11 +1,14 @@
 import { ArrowRight, CornerDownLeft, Folder, FolderOpen } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
 import { folderName } from '@/lib/path'
+import { PATH } from '@/route'
 import { useSession } from '@/session/store'
 import { PiLogo } from './PiIcon'
 
 export function FolderPicker() {
+  const navigate = useNavigate()
   const lastCwd = useSession((state) => state.lastCwd)
   const connection = useSession((state) => state.connection)
   const error = useSession((state) => state.error)
@@ -13,13 +16,17 @@ export function FolderPicker() {
   const openCwd = useSession((state) => state.openCwd)
   const busy = connection === 'connecting'
 
+  async function enter(open: () => Promise<boolean>): Promise<void> {
+    if (await open()) navigate(PATH.session, { replace: true })
+  }
+
   return (
     <main className="flex h-full flex-col bg-background text-foreground select-none">
       {/* Frameless window drag area - provides breathing room for macOS native traffic lights */}
       <div className="app-drag h-10 w-full shrink-0" />
 
       <div className="flex flex-1 items-center justify-center px-6 pb-12">
-        <div className="w-full max-w-[380px]">
+        <div className="w-full max-w-95">
           <div className="mb-6 size-16 overflow-hidden rounded-[14px] shadow-sm ring-1 ring-black/10 dark:ring-white/10">
             <PiLogo className="block size-16" />
           </div>
@@ -34,7 +41,7 @@ export function FolderPicker() {
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => void openCwd(lastCwd)}
+                onClick={() => void enter(() => openCwd(lastCwd))}
                 className="group relative flex w-full items-center gap-3.5 rounded-xl border border-border bg-card/60 p-3 text-left transition-all hover:border-foreground/20 hover:bg-card hover:shadow-sm disabled:opacity-50 dark:bg-card/40 dark:hover:bg-muted/40"
               >
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/60 text-muted-foreground group-hover:text-foreground">
@@ -70,7 +77,7 @@ export function FolderPicker() {
 
             <Button
               disabled={busy}
-              onClick={() => void openFolder()}
+              onClick={() => void enter(openFolder)}
               variant={lastCwd ? 'outline' : 'default'}
               className="h-9.5 w-full rounded-xl text-sm font-medium shadow-xs"
             >

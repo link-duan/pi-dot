@@ -32,6 +32,7 @@ export interface ModelInfo {
   id: string
   name: string
   provider: string
+  thinkingLevels?: ThinkingLevel[]
 }
 
 export interface SkillInfo {

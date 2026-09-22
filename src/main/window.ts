@@ -98,7 +98,7 @@ class HostedWindow implements AppWindow {
   }
 
   send(command: string): void {
-    if (!this.host || this.window.isDestroyed()) return
+    if (this.window.isDestroyed()) return
     this.window.webContents.send(IPC.command, command)
   }
 
