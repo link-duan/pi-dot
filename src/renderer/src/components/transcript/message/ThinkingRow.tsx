@@ -5,13 +5,22 @@ import { ActivityRow } from '../ActivityRow'
 import { MarkdownBody } from '../MarkdownBody'
 
 function useThinkingOpen(inProgress: boolean) {
-  const [override, setOverride] = useState<{ inProgress: boolean; open: boolean } | null>(null)
-  const open = override?.inProgress === inProgress ? override.open : inProgress
-  const setOpen = (next: boolean) => setOverride({ inProgress, open: next })
-  return [open, setOpen] as const
+  const [userToggled, setUserToggled] = useState<boolean | null>(null)
+  const [everStarted] = useState(() => inProgress)
+
+  const open = userToggled ?? (everStarted || inProgress)
+  return [open, setUserToggled] as const
 }
 
-export function ThinkingRow({ thinking, inProgress }: { thinking: string; inProgress: boolean }) {
+export function ThinkingRow({
+  thinking,
+  inProgress,
+  animateIn,
+}: {
+  thinking: string
+  inProgress: boolean
+  animateIn?: boolean
+}) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useThinkingOpen(inProgress)
 
@@ -28,6 +37,7 @@ export function ThinkingRow({ thinking, inProgress }: { thinking: string; inProg
       summary=""
       running={inProgress}
       open={open}
+      animateIn={animateIn}
       onOpenChange={setOpen}
     >
       {thinking.trim() ? (

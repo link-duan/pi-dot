@@ -27,6 +27,7 @@ export function ActivityRow({
   open: openProp,
   defaultOpen = false,
   hideMetaWhenOpen = false,
+  animateIn = false,
   onOpenChange,
   children,
 }: {
@@ -39,9 +40,11 @@ export function ActivityRow({
   open?: boolean
   defaultOpen?: boolean
   hideMetaWhenOpen?: boolean
+  animateIn?: boolean
   onOpenChange?: (open: boolean) => void
   children?: ReactNode
 }) {
+  const [initialAnimate] = useState(() => animateIn)
   const [userOpen, setUserOpen] = useState<boolean | null>(null)
   const expandable = Boolean(children)
   const open = openProp ?? userOpen ?? (expandable && defaultOpen)
@@ -92,33 +95,30 @@ export function ActivityRow({
     </span>
   )
 
-  if (!expandable) {
-    return (
-      <div className="py-1.5">
+  return (
+    <div className={cn('py-1.5', initialAnimate && 'animate-in duration-200 ease-out fade-in')}>
+      {!expandable ? (
         <div className="inline-flex max-w-full items-center gap-2">
           {iconSlot}
           {text}
         </div>
-      </div>
-    )
-  }
-
-  return (
-    <CollapsiblePrimitive.Root
-      open={open}
-      onOpenChange={(next) => {
-        onOpenChange?.(next)
-        if (openProp === undefined) setUserOpen(next)
-      }}
-      className="py-1.5"
-    >
-      <CollapsiblePrimitive.Trigger className="group inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none">
-        {iconSlot}
-        {text}
-      </CollapsiblePrimitive.Trigger>
-      <CollapsiblePrimitive.Panel className="h-(--collapsible-panel-height) overflow-hidden pl-1 transition-[height,opacity] duration-200 ease-out select-text data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0">
-        {children}
-      </CollapsiblePrimitive.Panel>
-    </CollapsiblePrimitive.Root>
+      ) : (
+        <CollapsiblePrimitive.Root
+          open={open}
+          onOpenChange={(next) => {
+            onOpenChange?.(next)
+            if (openProp === undefined) setUserOpen(next)
+          }}
+        >
+          <CollapsiblePrimitive.Trigger className="group inline-flex max-w-full items-center gap-2 rounded-sm p-0 text-left select-none focus-visible:ring-1 focus-visible:ring-ring/40 focus-visible:outline-none">
+            {iconSlot}
+            {text}
+          </CollapsiblePrimitive.Trigger>
+          <CollapsiblePrimitive.Panel className="h-(--collapsible-panel-height) overflow-hidden pl-1 transition-[height,opacity] duration-200 ease-out select-text data-ending-style:h-0 data-ending-style:opacity-0 data-starting-style:h-0 data-starting-style:opacity-0">
+            {children}
+          </CollapsiblePrimitive.Panel>
+        </CollapsiblePrimitive.Root>
+      )}
+    </div>
   )
 }

@@ -7,17 +7,13 @@ import {
   type UIEvent,
   type WheelEvent,
 } from 'react'
-import { animate, type AnimationPlaybackControls } from 'motion'
 
 const DETACH_THRESHOLD = 50
 const ATTACH_THRESHOLD = 16
-
-const SPRING_OPTIONS = {
-  type: 'spring' as const,
-  stiffness: 180,
-  damping: 24,
-  mass: 1,
-}
+const STIFFNESS = 220
+const DAMPING = 28
+const REST_DELTA = 1
+const REST_SPEED = 5
 
 export interface UseStickyToBottomOptions {
   viewportRef: RefObject<HTMLDivElement | null>
@@ -38,81 +34,88 @@ export function useStickyToBottom({
   initialFollow = true,
 }: UseStickyToBottomOptions): UseStickyToBottomResult {
   const stickToBottom = useRef(initialFollow)
-  const [showScrollBottom, setShowScrollBottom] = useState(false)
+  const isAnimating = useRef(false)
+  const currentPos = useRef(0)
+  const targetPos = useRef(0)
+  const velocity = useRef(0)
+  const lastFrameTime = useRef(0)
+  const rafId = useRef<number | null>(null)
   const isFirstMount = useRef(true)
 
-  const isAnimating = useRef(false)
-  const lastScrollTop = useRef(0)
-  const currentVelocity = useRef(0)
-  const lastUpdateTime = useRef(0)
-  const animationControls = useRef<AnimationPlaybackControls | null>(null)
+  const [showScrollBottom, setShowScrollBottom] = useState(false)
 
   const stopAnimation = useCallback(() => {
-    if (animationControls.current) {
-      animationControls.current.stop()
-      animationControls.current = null
+    if (rafId.current != null) {
+      cancelAnimationFrame(rafId.current)
+      rafId.current = null
     }
     isAnimating.current = false
-    currentVelocity.current = 0
+    velocity.current = 0
   }, [])
 
-  const startFollow = useCallback(() => {
-    const viewport = viewportRef.current
-    if (!viewport || !stickToBottom.current) return
+  const animateTo = useCallback(
+    (target: number) => {
+      const viewport = viewportRef.current
+      if (!viewport || !stickToBottom.current) return
 
-    const target = viewport.scrollHeight - viewport.clientHeight
-    const current = viewport.scrollTop
+      targetPos.current = target
 
-    if (Math.abs(target - current) <= 1 && Math.abs(currentVelocity.current) < 1) {
-      viewport.scrollTop = target
-      lastScrollTop.current = target
-      stopAnimation()
-      return
-    }
+      if (isAnimating.current) {
+        return
+      }
 
-    if (animationControls.current) {
-      animationControls.current.stop()
-      animationControls.current = null
-    }
+      currentPos.current = viewport.scrollTop
 
-    isAnimating.current = true
-    lastUpdateTime.current = performance.now()
-    let prevVal = current
+      if (
+        Math.abs(target - currentPos.current) <= REST_DELTA &&
+        Math.abs(velocity.current) <= REST_SPEED
+      ) {
+        viewport.scrollTop = target
+        currentPos.current = target
+        stopAnimation()
+        return
+      }
 
-    animationControls.current = animate(current, target, {
-      ...SPRING_OPTIONS,
-      velocity: Math.max(currentVelocity.current, 0),
-      onUpdate: (latest) => {
+      isAnimating.current = true
+      lastFrameTime.current = performance.now()
+
+      const tick = (now: number) => {
         const node = viewportRef.current
         if (!node || !stickToBottom.current) {
           stopAnimation()
           return
         }
 
-        const now = performance.now()
-        const dt = (now - lastUpdateTime.current) / 1000
-        if (dt > 0.001) {
-          currentVelocity.current = (latest - prevVal) / dt
-          prevVal = latest
-          lastUpdateTime.current = now
+        const dt = Math.min((now - lastFrameTime.current) / 1000, 0.033)
+        lastFrameTime.current = now
+
+        const curTarget = targetPos.current
+        const dist = currentPos.current - curTarget
+        const fSpring = -STIFFNESS * dist
+        const fDamping = -DAMPING * velocity.current
+        const a = fSpring + fDamping
+
+        velocity.current += a * dt
+        currentPos.current += velocity.current * dt
+
+        if (
+          Math.abs(currentPos.current - curTarget) <= REST_DELTA &&
+          Math.abs(velocity.current) <= REST_SPEED
+        ) {
+          node.scrollTop = curTarget
+          currentPos.current = curTarget
+          stopAnimation()
+          return
         }
 
-        node.scrollTop = latest
-        lastScrollTop.current = latest
-      },
-      onComplete: () => {
-        const node = viewportRef.current
-        if (node && stickToBottom.current) {
-          const finalTarget = node.scrollHeight - node.clientHeight
-          node.scrollTop = finalTarget
-          lastScrollTop.current = finalTarget
-        }
-        isAnimating.current = false
-        currentVelocity.current = 0
-        animationControls.current = null
-      },
-    })
-  }, [viewportRef, stopAnimation])
+        node.scrollTop = currentPos.current
+        rafId.current = requestAnimationFrame(tick)
+      }
+
+      rafId.current = requestAnimationFrame(tick)
+    },
+    [viewportRef, stopAnimation],
+  )
 
   const updateScrollState = useCallback((viewport: HTMLDivElement) => {
     if (isAnimating.current) return
@@ -146,10 +149,10 @@ export function useStickyToBottom({
         if (isFirstMount.current) {
           isFirstMount.current = false
           viewport.scrollTop = viewport.scrollHeight - viewport.clientHeight
-          lastScrollTop.current = viewport.scrollTop
+          currentPos.current = viewport.scrollTop
           return
         }
-        startFollow()
+        animateTo(viewport.scrollHeight - viewport.clientHeight)
       } else {
         updateScrollState(viewport)
       }
@@ -162,19 +165,21 @@ export function useStickyToBottom({
       stopAnimation()
       observer.disconnect()
     }
-  }, [viewportRef, contentRef, startFollow, stopAnimation, updateScrollState])
+  }, [viewportRef, contentRef, animateTo, stopAnimation, updateScrollState])
 
   const scrollToBottom = useCallback(() => {
+    const viewport = viewportRef.current
+    if (!viewport) return
     stickToBottom.current = true
     setShowScrollBottom(false)
-    startFollow()
-  }, [startFollow])
+    animateTo(viewport.scrollHeight - viewport.clientHeight)
+  }, [viewportRef, animateTo])
 
   const onScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       const viewport = event.currentTarget
       if (isAnimating.current) {
-        if (viewport.scrollTop < lastScrollTop.current - 1) {
+        if (Math.abs(viewport.scrollTop - currentPos.current) > 40) {
           stopAnimation()
           stickToBottom.current = false
           setShowScrollBottom(true)
@@ -182,8 +187,6 @@ export function useStickyToBottom({
         }
         return
       }
-
-      lastScrollTop.current = viewport.scrollTop
       updateScrollState(viewport)
     },
     [updateScrollState, stopAnimation],

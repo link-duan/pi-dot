@@ -12,11 +12,13 @@ export function AssistantRow({
   toolLive,
   toolResults,
   streaming,
+  isLive = false,
 }: {
   message: AssistantMessage
   toolLive: Record<string, ToolLiveState>
   toolResults: Record<string, ToolResultMessage>
   streaming: boolean
+  isLive?: boolean
 }) {
   const hideThinking = useSettings((state) => state.hideThinking)
   const lastIndex = message.content.length - 1
@@ -28,6 +30,7 @@ export function AssistantRow({
           key={blockKey(block, message.timestamp, index)}
           block={block}
           isLatest={streaming && index === lastIndex}
+          isLive={isLive}
           hideThinking={hideThinking}
           toolLive={toolLive}
           toolResults={toolResults}
@@ -40,6 +43,7 @@ export function AssistantRow({
             message.stopReason === 'error' ? `Error: ${message.errorMessage}` : message.errorMessage
           }
           summary=""
+          animateIn={isLive}
         />
       ) : null}
     </div>
@@ -54,12 +58,14 @@ function blockKey(block: ContentBlock, timestamp: number, index: number): string
 function ContentBlockView({
   block,
   isLatest,
+  isLive,
   hideThinking,
   toolLive,
   toolResults,
 }: {
   block: ContentBlock
   isLatest: boolean
+  isLive: boolean
   hideThinking: boolean
   toolLive: Record<string, ToolLiveState>
   toolResults: Record<string, ToolResultMessage>
@@ -69,7 +75,7 @@ function ContentBlockView({
       if (hideThinking) return null
       const thinking = block.thinking
       if (!thinking?.trim() && !isLatest) return null
-      return <ThinkingRow thinking={thinking} inProgress={isLatest} />
+      return <ThinkingRow thinking={thinking} inProgress={isLatest} animateIn={isLive} />
     }
 
     case 'text': {
@@ -90,6 +96,7 @@ function ContentBlockView({
           live={toolLive[block.id]}
           result={toolResults[block.id]}
           pending={isLatest}
+          animateIn={isLive}
         />
       )
 

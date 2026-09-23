@@ -95,6 +95,7 @@ export function Transcript({
               ))}
               {turns.map((turn, turnIndex) => {
                 const isLast = turnIndex === turns.length - 1
+                const isTurnLive = isLast && (isStreaming || turnActive)
                 const status = turnStatus({
                   isLast,
                   isStreaming,
@@ -117,6 +118,7 @@ export function Transcript({
                           toolLive={toolLive}
                           toolResults={toolResults}
                           streaming={index === streamingIndex}
+                          isLive={isTurnLive}
                         />
                       )
                     })}

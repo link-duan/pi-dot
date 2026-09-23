@@ -17,12 +17,14 @@ export function ToolCard({
   live,
   result,
   pending,
+  animateIn,
 }: {
   name: string
   args: unknown
   live?: ToolLiveState
   result?: unknown
   pending?: boolean
+  animateIn?: boolean
 }) {
   const cwd = useSession((state) => state.cwd)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -52,6 +54,7 @@ export function ToolCard({
       running={model.running}
       error={model.hasError}
       hideMetaWhenOpen={model.hideMetaWhenOpen}
+      animateIn={animateIn}
     >
       {model.body ? <ToolBody body={model.body} scrollRef={scrollRef} /> : null}
     </ActivityRow>

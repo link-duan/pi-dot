@@ -10,11 +10,13 @@ export const MessageRow = memo(function MessageRow({
   toolLive,
   toolResults,
   streaming,
+  isLive = false,
 }: {
   message: AgentMessage
   toolLive: Record<string, ToolLiveState>
   toolResults: Record<string, ToolResultMessage>
   streaming: boolean
+  isLive?: boolean
 }) {
   switch (message.role) {
     case 'user':
@@ -27,6 +29,7 @@ export const MessageRow = memo(function MessageRow({
           toolLive={toolLive}
           toolResults={toolResults}
           streaming={streaming}
+          isLive={isLive}
         />
       )
 
