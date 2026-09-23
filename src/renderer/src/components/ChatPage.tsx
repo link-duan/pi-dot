@@ -8,7 +8,7 @@ import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Composer } from './Composer'
 import { SessionSwitcher } from './SessionSwitcher'
-import { Transcript } from './transcript/Transcript'
+import { Transcript, type TranscriptHandle } from './transcript/Transcript'
 
 export function ChatPage() {
   const navigate = useNavigate()
@@ -20,6 +20,7 @@ export function ChatPage() {
   const newSession = useSession((state) => state.newSession)
   const chat = useChat()
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const transcriptRef = useRef<TranscriptHandle>(null)
   const canCreate = connection === 'ready' && (chat.isStreaming || chat.messages.length > 0)
 
   return (
@@ -91,8 +92,8 @@ export function ChatPage() {
         </div>
       ) : null}
 
-      <Transcript scrollerRef={scrollerRef} model={chat} />
-      <Composer />
+      <Transcript ref={transcriptRef} scrollerRef={scrollerRef} model={chat} />
+      <Composer onSend={() => transcriptRef.current?.scrollToBottom()} />
     </div>
   )
 }

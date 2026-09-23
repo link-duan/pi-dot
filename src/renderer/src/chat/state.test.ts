@@ -44,6 +44,23 @@ describe('applySessionEvent', () => {
     expect(userText(state.messages[0]!)).toBe('hi')
   })
 
+  it('reconciles optimistic user message on backend message_start', () => {
+    let state = createChatState()
+    // Optimistic user message pushed locally with temporary timestamp
+    state = {
+      ...state,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }], timestamp: 100 }],
+    }
+    // Backend returns official message_start with server timestamp
+    state = applySessionEvent(state, {
+      type: 'message_start',
+      message: { role: 'user', content: [{ type: 'text', text: 'hello' }], timestamp: 200 },
+    })
+    expect(state.messages).toHaveLength(1)
+    expect(state.messages[0]?.timestamp).toBe(200)
+    expect(userText(state.messages[0]!)).toBe('hello')
+  })
+
   it('appends message_start even when role and timestamp match the last message', () => {
     let state = createChatState()
     state = applySessionEvent(state, { type: 'message_start', message: assistant('Hel') })

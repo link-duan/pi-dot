@@ -1,5 +1,6 @@
 import type { ChatState } from '@/chat/state'
 import type {
+  AgentMessage,
   ModelSelection,
   SessionListItem,
   SessionSnapshot,
@@ -86,15 +87,22 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   send: async (text: string) => {
     const file = get().sessionFile
+    const optimisticMessage: AgentMessage = {
+      role: 'user',
+      content: [{ type: 'text', text }],
+      timestamp: Date.now(),
+    }
     set((state) => {
       const running =
         file && !state.running.includes(file) ? [...state.running, file] : state.running
+      const currentChat = file ? state.chats[file] : undefined
       const next = file
         ? patchChat(state, file, {
             isStreaming: true,
             turnActive: false,
             turnStartedAt: Date.now(),
             turnEndedAt: null,
+            messages: [...(currentChat?.messages ?? []), optimisticMessage],
           })
         : state
       return { ...next, error: null, running }

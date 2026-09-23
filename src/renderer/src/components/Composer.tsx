@@ -43,15 +43,15 @@ const initialConfig = {
   },
 }
 
-export function Composer() {
+export function Composer({ onSend }: { onSend?: () => void } = {}) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <ComposerForm />
+      <ComposerForm onSend={onSend} />
     </LexicalComposer>
   )
 }
 
-function ComposerForm() {
+function ComposerForm({ onSend }: { onSend?: () => void }) {
   const [editor] = useLexicalComposerContext()
   const [draft, setDraft] = useState(() => draftText(useSession.getState().sessionFile))
   const [picker, setPicker] = useState<SkillPickerState | null>(null)
@@ -85,8 +85,9 @@ function ComposerForm() {
     setDraft('')
     setPicker(null)
     setFilePicker(null)
+    onSend?.()
     void send(next)
-  }, [connection, editor, isStreaming, send])
+  }, [connection, editor, isStreaming, onSend, send])
 
   useLayoutEffect(() => {
     if (focusNonce === focusAtMount.current) return

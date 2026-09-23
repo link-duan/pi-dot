@@ -149,6 +149,15 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'message_start': {
       if (!event.message?.role) return state
+      const last = state.messages[state.messages.length - 1]
+      if (
+        last &&
+        last.role === 'user' &&
+        event.message.role === 'user' &&
+        userText(last) === userText(event.message)
+      ) {
+        return withMessages(state, replaceLastWithRole(state.messages, event.message))
+      }
       return {
         ...withMessages(state, [...state.messages, event.message]),
         assistantStreaming: event.message.role === 'assistant' ? true : state.assistantStreaming,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
-import { Transcript } from '@/components/transcript/Transcript'
+import { Transcript, type TranscriptHandle } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PATH } from '@/router'
@@ -76,6 +76,7 @@ export function Playground() {
   const [tab, setTab] = useState(TABS[1]?.title ?? TABS[0].title)
   const pane = TABS.find((item) => item.title === tab) ?? TABS[0]
   const scrollerRef = useRef<HTMLDivElement>(null)
+  const transcriptRef = useRef<TranscriptHandle>(null)
   const [startedAt] = useState(() => Date.now())
   const model =
     pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs }
@@ -126,8 +127,14 @@ export function Playground() {
           </Button>
         </div>
       </header>
-      <Transcript key={pane.title} scrollerRef={scrollerRef} model={model} follow={false} />
-      <Composer />
+      <Transcript
+        ref={transcriptRef}
+        key={pane.title}
+        scrollerRef={scrollerRef}
+        model={model}
+        follow={false}
+      />
+      <Composer onSend={() => transcriptRef.current?.scrollToBottom()} />
     </div>
   )
 }

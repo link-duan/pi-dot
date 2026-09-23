@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, type RefObject } from 'react'
+import { Fragment, useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
@@ -8,6 +8,10 @@ import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { TurnStatus } from './TurnStatus'
 import { useStickyToBottom } from './useStickyToBottom'
+
+export interface TranscriptHandle {
+  scrollToBottom: () => void
+}
 
 export type TranscriptModel = Pick<
   ChatState,
@@ -23,10 +27,12 @@ export type TranscriptModel = Pick<
 >
 
 export function Transcript({
+  ref,
   scrollerRef,
   model,
   follow = true,
 }: {
+  ref?: Ref<TranscriptHandle | null>
   scrollerRef: RefObject<HTMLDivElement | null>
   model: TranscriptModel
   follow?: boolean
@@ -48,6 +54,8 @@ export function Transcript({
     contentRef,
     initialFollow: follow,
   })
+
+  useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom])
 
   const hasMessages = messages.length > 0
   const turns = userTurns(messages)
