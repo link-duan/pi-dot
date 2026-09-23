@@ -52,3 +52,7 @@ export const router = createMemoryRouter([
 export function App() {
   return <RouterProvider router={router} />
 }
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  Object.assign(window, { router })
+}

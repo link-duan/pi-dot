@@ -2,8 +2,6 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@source '../../../node_modules/streamdown/dist/*.js';
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -313,4 +311,22 @@
 
 .composer-editor .skill-chip-host + .skill-chip-host {
   margin-left: 0.25rem;
+}
+
+/* KaTeX math styling */
+.katex {
+  font-size: 0.88em;
+  line-height: inherit;
+  text-rendering: auto;
+}
+
+.katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  margin: 0.75rem 0;
+}
+
+.katex-display .katex {
+  font-size: 1.05em;
 }

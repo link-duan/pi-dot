@@ -1,11 +1,16 @@
 import { isValidElement, type ComponentProps, type ReactNode } from 'react'
+import { createMathPlugin } from '@streamdown/math'
 import { Streamdown, useIsCodeFenceIncomplete } from 'streamdown'
 import { citationLabel, languageFromPath, parseCodeCitation } from '@/lib/code-citation'
 import { cn } from '@/lib/utils'
 import { FileCard, HighlightedCode } from './FileCard'
+import { MermaidCard } from './MermaidCard'
+import 'katex/dist/katex.min.css'
 import 'streamdown/styles.css'
 
 const linkSafety = { enabled: false }
+const mathPlugin = createMathPlugin({ singleDollarTextMath: true })
+const plugins = { math: mathPlugin }
 const components = { table: MarkdownTable, code: MarkdownCode }
 const LANGUAGE_CLASS = /language-([^\s]+)/
 
@@ -46,8 +51,13 @@ function MarkdownCode({
   }
 
   const info = fenceLanguage(className)
-  const citation = parseCodeCitation(info)
   const source = fenceCode(children)
+
+  if (info === 'mermaid') {
+    return <MermaidCard code={source} isIncomplete={isIncomplete} />
+  }
+
+  const citation = parseCodeCitation(info)
   return (
     <FileCard path={citation ? citationLabel(citation) : info || 'code'} copy={source}>
       <HighlightedCode
@@ -77,6 +87,7 @@ export function MarkdownBody({
       caret={streaming ? 'block' : undefined}
       lineNumbers={false}
       linkSafety={linkSafety}
+      plugins={plugins}
       components={components}
     >
       {text}
