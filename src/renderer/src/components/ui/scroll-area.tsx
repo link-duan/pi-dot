@@ -80,7 +80,7 @@ function ScrollAreaThumb({ className, ...props }: ScrollAreaPrimitive.Thumb.Prop
     <ScrollAreaPrimitive.Thumb
       data-slot="scroll-area-thumb"
       className={cn(
-        'rounded-full bg-[color-mix(in_oklch,var(--foreground)_22%,transparent)] transition-[width,height,background-color] duration-150 group-hover/scrollbar:bg-[color-mix(in_oklch,var(--foreground)_40%,transparent)] in-data-[orientation=horizontal]:h-1.5 in-data-[orientation=horizontal]:group-hover/scrollbar:h-2 in-data-[orientation=vertical]:w-1.5 in-data-[orientation=vertical]:group-hover/scrollbar:w-2',
+        'rounded-full bg-[color-mix(in_oklch,var(--foreground)_22%,transparent)] transition-[width,background-color] duration-150 group-hover/scrollbar:bg-[color-mix(in_oklch,var(--foreground)_40%,transparent)] in-data-[orientation=horizontal]:h-1.5 in-data-[orientation=horizontal]:transition-[height,background-color] in-data-[orientation=horizontal]:group-hover/scrollbar:h-2 in-data-[orientation=vertical]:w-1.5 in-data-[orientation=vertical]:group-hover/scrollbar:w-2',
         className,
       )}
       {...props}
