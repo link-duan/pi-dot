@@ -195,6 +195,9 @@ export function useStickyToBottom({
   const onWheel = useCallback(
     (event: WheelEvent<HTMLDivElement>) => {
       if (event.deltaY < 0) {
+        const viewport = event.currentTarget
+        if (viewport.scrollHeight <= viewport.clientHeight) return
+
         stopAnimation()
         stickToBottom.current = false
         setShowScrollBottom(true)
