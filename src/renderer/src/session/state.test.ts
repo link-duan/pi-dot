@@ -146,6 +146,8 @@ describe('applySnapshot', () => {
       ...createChatState(),
       messages: [assistant('streamed')],
       isStreaming: true,
+      steeringQueue: ['old steering'],
+      followUpQueue: ['old follow-up'],
     }
     let state = windowWith({
       sessionFile: fileA,
@@ -158,11 +160,27 @@ describe('applySnapshot', () => {
     const taken = state.chats[nextFile]
     state = applySnapshot(
       parkActive(state),
-      snapshot(fileB, { messages: [assistant('disk')] }),
+      snapshot(fileB, {
+        messages: [assistant('disk')],
+        steeringQueue: ['new steering'],
+        followUpQueue: ['new follow-up'],
+      }),
       taken,
     )
     expect(state.sessionFile).toBe(fileB)
     expect(state.chats[fileB]?.messages).toEqual(cached.messages)
+    expect(state.chats[fileB]?.steeringQueue).toEqual(['new steering'])
+    expect(state.chats[fileB]?.followUpQueue).toEqual(['new follow-up'])
     expect(state.chats[fileA]).toBeUndefined()
+  })
+
+  it('restores steering and follow-up queues from snapshot', () => {
+    const snap = snapshot(fileA, {
+      steeringQueue: ['s1'],
+      followUpQueue: ['f1', 'f2'],
+    })
+    const state = applySnapshot(createWindowState(), snap)
+    expect(state.chats[fileA]?.steeringQueue).toEqual(['s1'])
+    expect(state.chats[fileA]?.followUpQueue).toEqual(['f1', 'f2'])
   })
 })

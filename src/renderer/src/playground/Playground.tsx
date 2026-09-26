@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PATH } from '@/router'
 import { patchChat } from '@/session/state'
-import { useSession } from '@/session/store'
+import { useChat, useSession } from '@/session/store'
 import {
   catalogModel,
   emptyModel,
@@ -20,6 +20,7 @@ import {
   thinkingModel,
   waitingModel,
   workingModel,
+  queuedModel,
 } from './mocks'
 
 const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
@@ -29,11 +30,12 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
   { title: 'Running tool', model: runningToolModel, agoMs: 2_800 },
   { title: 'Waiting', model: waitingModel, agoMs: 1_500 },
   { title: 'Working', model: workingModel, agoMs: 3_600 },
+  { title: 'Queued', model: queuedModel, agoMs: 3_600 },
 ]
 
 const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
 
-function usePlaygroundSession(isStreaming: boolean) {
+function usePlaygroundSession(model: ChatState) {
   useEffect(() => {
     const prev = useSession.getState()
     useSession.setState({
@@ -49,7 +51,106 @@ function usePlaygroundSession(isStreaming: boolean) {
       skills: playgroundSkills,
       contextUsage: playgroundContextUsage,
       send: async () => {},
-      abort: async () => {},
+      steer: async (text) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            steeringQueue: [...chat.steeringQueue, text],
+          })
+        })
+      },
+      removeSteering: async (index) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            steeringQueue: chat.steeringQueue.filter((_, i) => i !== index),
+          })
+        })
+      },
+      followUp: async (text) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            followUpQueue: [...chat.followUpQueue, text],
+          })
+        })
+      },
+      setFollowUpQueue: async (messages) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            followUpQueue: [...messages],
+          })
+        })
+      },
+      editFollowUp: async (index, newText) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          const next = [...chat.followUpQueue]
+          next[index] = newText
+          return patchChat(state, PLAYGROUND_FILE, { followUpQueue: next })
+        })
+      },
+      deleteFollowUp: async (index) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            followUpQueue: chat.followUpQueue.filter((_, i) => i !== index),
+          })
+        })
+      },
+      moveFollowUp: async (fromIndex, toIndex) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          const next = [...chat.followUpQueue]
+          const [removed] = next.splice(fromIndex, 1)
+          if (removed !== undefined) next.splice(toIndex, 0, removed)
+          return patchChat(state, PLAYGROUND_FILE, { followUpQueue: next })
+        })
+      },
+      promoteFollowUpToSteer: async (index) => {
+        useSession.setState((state) => {
+          const chat = state.chats[PLAYGROUND_FILE]
+          if (!chat) return state
+          const text = chat.followUpQueue[index]
+          if (!text) return state
+          return patchChat(state, PLAYGROUND_FILE, {
+            followUpQueue: chat.followUpQueue.filter((_, i) => i !== index),
+            steeringQueue: [...chat.steeringQueue, text],
+          })
+        })
+      },
+      clearQueue: async () => {
+        useSession.setState((state) =>
+          patchChat(state, PLAYGROUND_FILE, {
+            steeringQueue: [],
+            followUpQueue: [],
+          }),
+        )
+      },
+      clearSteeringQueue: async () => {
+        useSession.setState((state) =>
+          patchChat(state, PLAYGROUND_FILE, {
+            steeringQueue: [],
+          }),
+        )
+      },
+      abort: async () => {
+        useSession.setState((state) =>
+          patchChat(state, PLAYGROUND_FILE, {
+            isStreaming: false,
+            steeringQueue: [],
+            followUpQueue: [],
+          }),
+        )
+      },
       openFolder: async () => false,
       setModel: async (provider, modelId) => {
         const next = playgroundModels.find(
@@ -67,8 +168,14 @@ function usePlaygroundSession(isStreaming: boolean) {
   }, [])
 
   useEffect(() => {
-    useSession.setState((state) => patchChat(state, PLAYGROUND_FILE, { isStreaming }))
-  }, [isStreaming])
+    useSession.setState((state) => ({
+      ...state,
+      chats: {
+        ...state.chats,
+        [PLAYGROUND_FILE]: model,
+      },
+    }))
+  }, [model])
 }
 
 export function Playground() {
@@ -78,14 +185,19 @@ export function Playground() {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const transcriptRef = useRef<TranscriptHandle>(null)
   const [startedAt] = useState(() => Date.now())
-  const model =
-    pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs }
-  usePlaygroundSession(model.isStreaming)
+  const model = useMemo(
+    () =>
+      pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs },
+    [pane, startedAt],
+  )
+  usePlaygroundSession(model)
+  const chat = useChat()
+  const activeModel = chat.messages.length > 0 || chat.steeringQueue.length > 0 ? chat : model
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
-      <header className="app-drag flex shrink-0 items-center gap-2 overflow-hidden border-b border-border py-1.5 pr-3 pl-20">
-        <nav className="app-no-drag flex min-w-0 flex-1 items-center gap-0.5">
+      <header className="app-drag flex h-9 shrink-0 items-center gap-2 overflow-hidden border-b border-border pr-3 pl-20">
+        <nav className="app-no-drag flex shrink-0 items-center gap-0.5">
           {TABS.map((item) => {
             const selected = item.title === pane.title
             return (
@@ -106,6 +218,7 @@ export function Playground() {
             )
           })}
         </nav>
+        <div className="app-drag h-full min-w-0 flex-1" />
         <div className="app-no-drag flex shrink-0 items-center gap-1">
           <Button
             type="button"
@@ -131,7 +244,7 @@ export function Playground() {
         ref={transcriptRef}
         key={pane.title}
         scrollerRef={scrollerRef}
-        model={model}
+        model={activeModel}
         follow={false}
       />
       <Composer onSend={() => transcriptRef.current?.scrollToBottom()} />

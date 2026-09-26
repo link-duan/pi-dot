@@ -6,8 +6,10 @@ import { PiIcon } from '@/components/PiIcon'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { SteeringRow } from './message/SteeringRow'
 import { TurnStatus } from './TurnStatus'
 import { useStickyToBottom } from './useStickyToBottom'
+import { useSession } from '@/session/store'
 
 export interface TranscriptHandle {
   scrollToBottom: () => void
@@ -24,6 +26,7 @@ export type TranscriptModel = Pick<
   | 'turnStartedAt'
   | 'turnEndedAt'
   | 'retry'
+  | 'steeringQueue'
 >
 
 export function Transcript({
@@ -37,6 +40,7 @@ export function Transcript({
   model: TranscriptModel
   follow?: boolean
 }) {
+  const removeSteering = useSession((state) => state.removeSteering)
   const {
     messages,
     persistedAt,
@@ -47,6 +51,7 @@ export function Transcript({
     turnStartedAt,
     turnEndedAt,
     retry,
+    steeringQueue = [],
   } = model
   const contentRef = useRef<HTMLDivElement>(null)
   const { showScrollBottom, scrollToBottom, onScroll, onWheel } = useStickyToBottom({
@@ -136,6 +141,17 @@ export function Transcript({
                   retryAt={retry?.retryAt}
                 />
               ) : null}
+              {steeringQueue.map((text, i) => (
+                <SteeringRow
+                  key={`steering-${i}-${text}`}
+                  text={text}
+                  onCancel={() =>
+                    void removeSteering(i).catch((error: unknown) => {
+                      console.error('Failed to cancel steering', error)
+                    })
+                  }
+                />
+              ))}
             </div>
           )}
         </div>

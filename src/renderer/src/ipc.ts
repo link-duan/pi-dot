@@ -141,6 +141,9 @@ export function bindIpc(): void {
     if (command === 'openSettings' && router.state.location.pathname !== PATH.settings) {
       void router.navigate(PATH.settings)
     }
+    if (command === 'openPlayground' && router.state.location.pathname !== PATH.playground) {
+      void router.navigate(PATH.playground)
+    }
     if (command === 'reloadSettings') void reloadSettings()
     if (command === 'reloadSnapshot') void reloadSnapshot()
   })

@@ -23,6 +23,16 @@ interface SessionStore extends WindowState {
   openCwd: (cwd: string) => Promise<boolean>
   leave: () => Promise<boolean>
   send: (text: string) => Promise<void>
+  steer: (text: string) => Promise<void>
+  removeSteering: (index: number) => Promise<void>
+  followUp: (text: string) => Promise<void>
+  setFollowUpQueue: (messages: string[]) => Promise<void>
+  editFollowUp: (index: number, newText: string) => Promise<void>
+  deleteFollowUp: (index: number) => Promise<void>
+  moveFollowUp: (fromIndex: number, toIndex: number) => Promise<void>
+  promoteFollowUpToSteer: (index: number) => Promise<void>
+  clearQueue: () => Promise<void>
+  clearSteeringQueue: () => Promise<void>
   abort: () => Promise<void>
   setModel: (provider: string, modelId: string) => Promise<void>
   setThinkingLevel: (level: ThinkingLevel) => Promise<void>
@@ -42,6 +52,18 @@ function selectionPatch(selection: ModelSelection) {
 
 export function applyLiveSnapshot(snapshot: SessionSnapshot, chat?: ChatState) {
   useSession.setState((state) => applySnapshot(state, snapshot, chat))
+}
+
+const queueOperations = new Map<string, SerialQueue>()
+
+function enqueueQueueOperation(file: string, operation: () => Promise<void>): Promise<void> {
+  const queue = queueOperations.get(file) ?? new SerialQueue()
+  queueOperations.set(file, queue)
+  return queue.enqueue(operation)
+}
+
+function sameQueue(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((item, index) => item === b[index])
 }
 
 export const useSession = create<SessionStore>((set, get) => ({
@@ -78,8 +100,8 @@ export const useSession = create<SessionStore>((set, get) => ({
     try {
       const result = await window.pi.stop()
       if (result.cancelled) return false
-    } catch {
-      // drop the local session even if stop fails
+    } catch (error) {
+      console.error('Failed to stop session', error)
     }
     set((state) => resetFolder(state))
     return true
@@ -87,6 +109,7 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   send: async (text: string) => {
     const file = get().sessionFile
+    if (!file) return
     const optimisticMessage: AgentMessage = {
       role: 'user',
       content: [{ type: 'text', text }],
@@ -108,7 +131,7 @@ export const useSession = create<SessionStore>((set, get) => ({
       return { ...next, error: null, running }
     })
     try {
-      await window.pi.prompt(text)
+      await window.pi.prompt(text, file)
     } catch (error) {
       set((state) => {
         let next = {
@@ -119,15 +142,217 @@ export const useSession = create<SessionStore>((set, get) => ({
         if (file) next = patchChat(next, file, { isStreaming: false, turnEndedAt: Date.now() })
         return next
       })
+      throw error
     }
   },
 
+  steer: async (text: string) => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.steeringQueue ?? []
+      try {
+        await window.pi.steer(text, file)
+        const current = get().chats[file]?.steeringQueue
+        if (current && sameQueue(current, before)) {
+          set((state) => patchChat(state, file, { steeringQueue: [...before, text] }))
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  removeSteering: async (index: number) => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.steeringQueue ?? []
+      const next = before.filter((_, itemIndex) => itemIndex !== index)
+      if (sameQueue(before, next)) return
+      try {
+        await window.pi.removeSteering(index, file)
+        const current = get().chats[file]?.steeringQueue
+        if (current && sameQueue(current, before)) {
+          set((state) => patchChat(state, file, { steeringQueue: next }))
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  followUp: async (text: string) => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.followUpQueue ?? []
+      try {
+        await window.pi.followUp(text, file)
+        const current = get().chats[file]?.followUpQueue
+        if (current && sameQueue(current, before)) {
+          set((state) => patchChat(state, file, { followUpQueue: [...before, text] }))
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  setFollowUpQueue: async (messages: string[]) => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.followUpQueue ?? []
+      try {
+        await window.pi.setFollowUpQueue(messages, file)
+        const current = get().chats[file]?.followUpQueue
+        if (current && sameQueue(current, before)) {
+          set((state) => patchChat(state, file, { followUpQueue: [...messages] }))
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  editFollowUp: async (index: number, newText: string) => {
+    const file = get().sessionFile
+    if (!file) return
+    const chat = get().chats[file]
+    if (!chat || chat.followUpQueue[index] === undefined) return
+    const next = [...chat.followUpQueue]
+    next[index] = newText
+    await get().setFollowUpQueue(next)
+  },
+
+  deleteFollowUp: async (index: number) => {
+    const file = get().sessionFile
+    if (!file) return
+    const chat = get().chats[file]
+    if (!chat) return
+    const next = chat.followUpQueue.filter((_, i) => i !== index)
+    await get().setFollowUpQueue(next)
+  },
+
+  moveFollowUp: async (fromIndex: number, toIndex: number) => {
+    const file = get().sessionFile
+    if (!file) return
+    const chat = get().chats[file]
+    if (!chat) return
+    if (toIndex < 0 || toIndex >= chat.followUpQueue.length) return
+    const next = [...chat.followUpQueue]
+    const [removed] = next.splice(fromIndex, 1)
+    if (removed === undefined) return
+    next.splice(toIndex, 0, removed)
+    await get().setFollowUpQueue(next)
+  },
+
+  promoteFollowUpToSteer: async (index: number) => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.followUpQueue ?? []
+      const beforeSteering = get().chats[file]?.steeringQueue ?? []
+      const text = before[index]
+      const next = before.filter((_, itemIndex) => itemIndex !== index)
+      if (text === undefined || sameQueue(before, next)) return
+      try {
+        await window.pi.promoteFollowUp(index, file)
+        const current = get().chats[file]
+        if (current && sameQueue(current.followUpQueue, before)) {
+          set((state) =>
+            patchChat(state, file, {
+              followUpQueue: next,
+              ...(sameQueue(current.steeringQueue, beforeSteering)
+                ? { steeringQueue: [...beforeSteering, text] }
+                : {}),
+            }),
+          )
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  clearQueue: async () => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]
+      if (!before) return
+      try {
+        await window.pi.clearQueue(file)
+        const current = get().chats[file]
+        if (
+          current &&
+          sameQueue(current.steeringQueue, before.steeringQueue) &&
+          sameQueue(current.followUpQueue, before.followUpQueue)
+        ) {
+          set((state) =>
+            patchChat(state, file, {
+              steeringQueue: [],
+              followUpQueue: [],
+            }),
+          )
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
+  clearSteeringQueue: async () => {
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]?.steeringQueue ?? []
+      try {
+        await window.pi.clearSteeringQueue(file)
+        const current = get().chats[file]?.steeringQueue
+        if (current && sameQueue(current, before)) {
+          set((state) => patchChat(state, file, { steeringQueue: [] }))
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
+  },
+
   abort: async () => {
-    try {
-      await window.pi.abort()
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : String(error) })
-    }
+    const file = get().sessionFile
+    if (!file) return
+    return enqueueQueueOperation(file, async () => {
+      const before = get().chats[file]
+      if (!before) return
+      try {
+        await window.pi.abort(file)
+        const current = get().chats[file]
+        if (
+          current &&
+          sameQueue(current.steeringQueue, before.steeringQueue) &&
+          sameQueue(current.followUpQueue, before.followUpQueue)
+        ) {
+          set((state) =>
+            patchChat(state, file, {
+              steeringQueue: [],
+              followUpQueue: [],
+            }),
+          )
+        }
+      } catch (error) {
+        set({ error: error instanceof Error ? error.message : String(error) })
+        throw error
+      }
+    })
   },
 
   setModel: async (provider: string, modelId: string) => {

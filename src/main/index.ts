@@ -4,6 +4,7 @@ import { IPC } from '@shared/ipc'
 import type { StartResult, ThinkingLevel } from '@shared/protocol'
 import type { SettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
+import type { AgentHost } from './agent-host'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
 import { readRecentProjects, removeRecentProject } from './recent-projects'
@@ -156,6 +157,14 @@ function installMenu(): void {
         submenu: [
           { role: 'reload', accelerator: isMac ? 'Cmd+R' : 'F5' },
           { role: 'toggleDevTools' },
+          ...(import.meta.env.DEV
+            ? [
+                {
+                  label: 'Playground',
+                  click: () => getFocusedWindow()?.send('openPlayground'),
+                },
+              ]
+            : []),
           { type: 'separator' },
           { role: 'resetZoom' },
           { role: 'zoomIn' },
@@ -170,6 +179,13 @@ function installMenu(): void {
 }
 
 function registerIpc(): void {
+  function handleHost<A extends unknown[], R>(
+    channel: string,
+    fn: (host: AgentHost, ...args: A) => Promise<R> | R,
+  ): void {
+    ipcMain.handle(channel, (event, ...args: unknown[]) => fn(requireHost(event), ...(args as A)))
+  }
+
   ipcMain.handle(IPC.chooseFolder, async (event) => {
     const result = await dialog.showOpenDialog(requireWindow(event).window, {
       title: 'Choose working directory',
@@ -180,7 +196,6 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.getRecentProjects, () => readRecentProjects())
   ipcMain.handle(IPC.removeRecentProject, (_event, cwd: string) => removeRecentProject(cwd))
-  ipcMain.handle(IPC.getLastCwd, () => readRecentProjects()[0] ?? null)
 
   ipcMain.handle(IPC.getSnapshot, (event) => from(event.sender)?.host?.snapshot() ?? null)
 
@@ -191,21 +206,35 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.stop, async (event) => requireWindow(event).leave())
 
-  ipcMain.handle(IPC.prompt, async (event, text: string) => {
-    await requireHost(event).prompt(text)
+  handleHost(IPC.prompt, (host, text: string, sessionFile: string) =>
+    host.prompt(text, sessionFile),
+  )
+  handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
+  handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>
+    host.removeSteering(index, sessionFile),
+  )
+  handleHost(IPC.followUp, (host, text: string, sessionFile: string) =>
+    host.followUp(text, sessionFile),
+  )
+  handleHost(IPC.setFollowUpQueue, (host, messages: string[], sessionFile: string) =>
+    host.setFollowUpQueue(messages, sessionFile),
+  )
+  handleHost(IPC.promoteFollowUp, (host, index: number, sessionFile: string) =>
+    host.promoteFollowUp(index, sessionFile),
+  )
+  handleHost(IPC.clearQueue, (host, sessionFile: string) => host.clearQueue(sessionFile))
+  handleHost(IPC.clearSteeringQueue, (host, sessionFile: string) =>
+    host.clearSteeringQueue(sessionFile),
+  )
+
+  ipcMain.handle(IPC.abort, async (event, sessionFile: string) => {
+    await from(event.sender)?.host?.abort(sessionFile)
   })
 
-  ipcMain.handle(IPC.abort, async (event) => {
-    await from(event.sender)?.host?.abort()
-  })
-
-  ipcMain.handle(IPC.setModel, async (event, provider: string, modelId: string) => {
-    return requireHost(event).setModel(provider, modelId)
-  })
-
-  ipcMain.handle(IPC.setThinkingLevel, async (event, level: ThinkingLevel) => {
-    return requireHost(event).setThinkingLevel(level)
-  })
+  handleHost(IPC.setModel, (host, provider: string, modelId: string) =>
+    host.setModel(provider, modelId),
+  )
+  handleHost(IPC.setThinkingLevel, (host, level: ThinkingLevel) => host.setThinkingLevel(level))
 
   ipcMain.handle(IPC.listSessions, async (event, cwd: string) => {
     if (typeof cwd !== 'string' || !cwd) return []
@@ -215,13 +244,8 @@ function registerIpc(): void {
     return withRunning(items, host.runningSessionFiles())
   })
 
-  ipcMain.handle(IPC.switchSession, async (event, sessionPath: string) => {
-    return requireHost(event).switchSession(sessionPath)
-  })
-
-  ipcMain.handle(IPC.newSession, async (event) => {
-    return requireHost(event).newSession()
-  })
+  handleHost(IPC.switchSession, (host, sessionPath: string) => host.switchSession(sessionPath))
+  handleHost(IPC.newSession, (host) => host.newSession())
 
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return

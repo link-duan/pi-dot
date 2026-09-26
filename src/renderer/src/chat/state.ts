@@ -31,6 +31,8 @@ export interface ChatState {
   turnStartedAt: number | null
   turnEndedAt: number | null
   retry: RetryState | null
+  steeringQueue: string[]
+  followUpQueue: string[]
 }
 
 export function createChatState(): ChatState {
@@ -44,12 +46,19 @@ export function createChatState(): ChatState {
     turnStartedAt: null,
     turnEndedAt: null,
     retry: null,
+    steeringQueue: [],
+    followUpQueue: [],
   }
 }
 
 export function hydrateMessages(
   messages: unknown[],
-  options?: { isStreaming?: boolean; persistedAt?: number[] },
+  options?: {
+    isStreaming?: boolean
+    persistedAt?: number[]
+    steeringQueue?: string[]
+    followUpQueue?: string[]
+  },
 ): ChatState {
   const next = messages.filter(isAgentMessage)
   const isStreaming = Boolean(options?.isStreaming)
@@ -67,6 +76,8 @@ export function hydrateMessages(
     turnStartedAt: isStreaming ? Date.now() : null,
     turnEndedAt: null,
     retry: null,
+    steeringQueue: options?.steeringQueue ? [...options.steeringQueue] : [],
+    followUpQueue: options?.followUpQueue ? [...options.followUpQueue] : [],
   }
 }
 
@@ -207,6 +218,13 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'context_usage':
       return state
+
+    case 'queue_update':
+      return {
+        ...state,
+        steeringQueue: [...event.steering],
+        followUpQueue: [...event.followUp],
+      }
 
     case 'auto_retry_start':
       return {

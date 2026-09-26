@@ -2,6 +2,7 @@ import { ArrowUp, Folder, Square } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   $createParagraphNode,
+  $createTextNode,
   $getRoot,
   COMMAND_PRIORITY_NORMAL,
   INSERT_LINE_BREAK_COMMAND,
@@ -19,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { displayPath } from '@/lib/path'
 import { useChat, useSession } from '@/session/store'
 import { FilePicker } from './FilePicker'
+import { FollowUpQueue } from './FollowUpQueue'
 import { SkillPicker } from './SkillPicker'
 import { AtFilePlugin, type FilePickerState } from './composer/AtFilePlugin'
 import { ComposerPastePlugin } from './composer/ComposerPastePlugin'
@@ -67,27 +69,52 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const connection = useSession((state) => state.connection)
   const skills = useSession((state) => state.skills)
   const send = useSession((state) => state.send)
+  const steer = useSession((state) => state.steer)
+  const followUp = useSession((state) => state.followUp)
   const abort = useSession((state) => state.abort)
   const openFolder = useSession((state) => state.openFolder)
   const isStreaming = useChat((state) => state.isStreaming)
-  const canSend = connection === 'ready' && draft.trim().length > 0 && !isStreaming
+  const hasDraft = draft.trim().length > 0
+  const canSend = connection === 'ready' && hasDraft
 
-  const submit = useCallback(() => {
-    const next = serializeEditorState(editor.getEditorState()).trim()
-    if (!next || isStreaming || connection !== 'ready') return
-    editor.update(
-      () => {
-        $getRoot().clear()
-        $getRoot().append($createParagraphNode())
-      },
-      { discrete: true },
-    )
-    setDraft('')
-    setPicker(null)
-    setFilePicker(null)
-    onSend?.()
-    void send(next)
-  }, [connection, editor, isStreaming, onSend, send])
+  const submit = useCallback(
+    async (mode?: 'steer' | 'followUp') => {
+      const next = serializeEditorState(editor.getEditorState()).trim()
+      if (!next || connection !== 'ready') return
+      try {
+        if (isStreaming) {
+          try {
+            if (mode === 'followUp') {
+              await followUp(next)
+            } else {
+              await steer(next)
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (!message.includes('Session is not streaming')) throw error
+            await send(next)
+          }
+        } else {
+          await send(next)
+        }
+      } catch (error) {
+        console.error('Failed to submit prompt', error)
+        return
+      }
+      editor.update(
+        () => {
+          $getRoot().clear()
+          $getRoot().append($createParagraphNode())
+        },
+        { discrete: true },
+      )
+      setDraft('')
+      setPicker(null)
+      setFilePicker(null)
+      onSend?.()
+    },
+    [connection, editor, followUp, isStreaming, onSend, send, steer],
+  )
 
   useLayoutEffect(() => {
     if (focusNonce === focusAtMount.current) return
@@ -158,15 +185,42 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
     [editor],
   )
 
+  const handleEditFollowUp = useCallback(
+    (text: string) => {
+      editor.update(() => {
+        const root = $getRoot()
+        root.clear()
+        const lines = text.split('\n')
+        for (const line of lines) {
+          const paragraph = $createParagraphNode()
+          if (line) {
+            paragraph.append($createTextNode(line))
+          }
+          root.append(paragraph)
+        }
+        const lastChild = root.getLastChild()
+        if (lastChild) {
+          lastChild.selectEnd()
+        }
+      })
+      editor.focus()
+    },
+    [editor],
+  )
+
   return (
-    <form
-      className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        submit()
-      }}
-    >
-      <div className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50">
+    <div className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3">
+      <div className="pointer-events-auto mx-auto max-w-3xl">
+        <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
+      </div>
+
+      <form
+        className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50"
+        onSubmit={(event) => {
+          event.preventDefault()
+          submit(isStreaming ? 'steer' : undefined)
+        }}
+      >
         {filePicker ? (
           <FilePicker
             hits={fileHits}
@@ -212,7 +266,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         />
         <SlashSkillPlugin skills={skills} picker={picker} setPicker={setPicker} />
         <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
-        <ComposerKeyPlugin onSubmit={submit} />
+        <ComposerKeyPlugin isStreaming={isStreaming} onSubmit={submit} />
         <ComposerPastePlugin cwd={cwd} />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
@@ -242,35 +296,61 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
             <ContextUsageRing />
             <ModelSelect />
 
-            {isStreaming ? (
-              <Button
-                type="button"
-                size="icon-sm"
-                className="rounded-full shadow-xs"
-                aria-label="Stop"
-                onClick={() => void abort()}
-              >
-                <Square className="size-2.5 fill-current" />
-              </Button>
+            {isStreaming && !hasDraft ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      className="rounded-full shadow-xs"
+                      aria-label="Stop"
+                      onClick={() =>
+                        void abort().catch((error: unknown) => {
+                          console.error('Failed to abort session', error)
+                        })
+                      }
+                    />
+                  }
+                >
+                  <Square className="size-2.5 fill-current" />
+                </TooltipTrigger>
+                <TooltipContent>Stop</TooltipContent>
+              </Tooltip>
             ) : (
-              <Button
-                type="submit"
-                size="icon-sm"
-                className="rounded-full shadow-xs transition-opacity"
-                disabled={!canSend}
-                aria-label="Send"
-              >
-                <ArrowUp className="size-3.5" />
-              </Button>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <Button
+                      type="submit"
+                      size="icon-sm"
+                      className="rounded-full shadow-xs transition-opacity"
+                      disabled={!canSend}
+                      aria-label={isStreaming ? 'Steer' : 'Send'}
+                    />
+                  }
+                >
+                  <ArrowUp className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  {isStreaming ? 'Steer · ⌥Enter for follow-up' : 'Send'}
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </div>
   )
 }
 
-function ComposerKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
+function ComposerKeyPlugin({
+  isStreaming,
+  onSubmit,
+}: {
+  isStreaming: boolean
+  onSubmit: (mode?: 'steer' | 'followUp') => void
+}) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
@@ -282,13 +362,21 @@ function ComposerKeyPlugin({ onSubmit }: { onSubmit: () => void }) {
           editor.dispatchCommand(INSERT_LINE_BREAK_COMMAND, false)
           return true
         }
+        if (event?.altKey) {
+          if (isStreaming) {
+            event?.preventDefault()
+            onSubmit('followUp')
+            return true
+          }
+          return false
+        }
         event?.preventDefault()
-        onSubmit()
+        onSubmit(isStreaming ? 'steer' : undefined)
         return true
       },
       COMMAND_PRIORITY_NORMAL,
     )
-  }, [editor, onSubmit])
+  }, [editor, isStreaming, onSubmit])
 
   return null
 }

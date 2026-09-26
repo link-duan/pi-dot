@@ -137,8 +137,8 @@ export class AgentHost {
     })
   }
 
-  async prompt(message: string): Promise<void> {
-    const live = this.requireActive()
+  async prompt(message: string, sessionFile?: string): Promise<void> {
+    const live = this.requireActive(sessionFile)
     const session = live.session
     await new Promise<void>((resolve, reject) => {
       let settled = false
@@ -170,8 +170,126 @@ export class AgentHost {
     })
   }
 
-  async abort(): Promise<void> {
-    await this.session.abort()
+  async steer(message: string, sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      if (!live.session.isStreaming) throw new Error('Session is not streaming')
+      await live.session.steer(message)
+    })
+  }
+
+  async removeSteering(index: number, sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      const session = live.session
+      const messages = [...session.getSteeringMessages()]
+      if (!Number.isInteger(index) || index < 0 || index >= messages.length) return
+      await this.replaceSteeringQueue(
+        session,
+        messages.filter((_, itemIndex) => itemIndex !== index),
+      )
+    })
+  }
+
+  async followUp(message: string, sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      if (!live.session.isStreaming) throw new Error('Session is not streaming')
+      await live.session.followUp(message)
+    })
+  }
+
+  async setFollowUpQueue(messages: string[], sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      await this.replaceFollowUpQueue(live.session, messages)
+    })
+  }
+
+  async promoteFollowUp(index: number, sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      const session = live.session
+      if (!session.isStreaming) throw new Error('Session is not streaming')
+      const previous = [...session.getFollowUpMessages()]
+      const text = previous[index]
+      if (text === undefined) return
+      const next = previous.filter((_, itemIndex) => itemIndex !== index)
+      await this.replaceFollowUpQueue(session, next)
+      try {
+        await session.steer(text)
+      } catch (error) {
+        await this.replaceFollowUpQueue(session, previous)
+        throw error
+      }
+    })
+  }
+
+  async clearQueue(sessionFile?: string): Promise<{ steering: string[]; followUp: string[] }> {
+    return this.ops.enqueue(async () => this.requireActive(sessionFile).session.clearQueue())
+  }
+
+  async clearSteeringQueue(sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      await this.replaceSteeringQueue(live.session, [])
+    })
+  }
+
+  async abort(sessionFile?: string): Promise<void> {
+    await this.ops.enqueue(async () => {
+      const live = this.requireActive(sessionFile)
+      live.session.clearQueue()
+      await live.session.abort()
+    })
+  }
+
+  private async replaceSteeringQueue(session: AgentSession, messages: string[]): Promise<void> {
+    const previous = [...session.getSteeringMessages()]
+    const target = session as unknown as {
+      _steeringMessages: string[]
+      _emitQueueUpdate?: () => void
+    }
+    try {
+      session.agent.clearSteeringQueue()
+      target._steeringMessages = []
+      if (messages.length === 0) target._emitQueueUpdate?.()
+      for (const text of messages) {
+        await session.steer(text)
+      }
+    } catch (error) {
+      session.agent.clearSteeringQueue()
+      target._steeringMessages = []
+      if (previous.length === 0) target._emitQueueUpdate?.()
+      for (const text of previous) {
+        await session.steer(text)
+      }
+      throw error
+    }
+  }
+
+  private async replaceFollowUpQueue(session: AgentSession, messages: string[]): Promise<void> {
+    const previous = [...session.getFollowUpMessages()]
+    const target = session as unknown as {
+      _followUpMessages: string[]
+      _emitQueueUpdate?: () => void
+    }
+    try {
+      session.agent.clearFollowUpQueue()
+      target._followUpMessages = []
+      for (const text of messages) {
+        await session.followUp(text)
+      }
+      if (messages.length === 0) target._emitQueueUpdate?.()
+    } catch (error) {
+      session.agent.clearFollowUpQueue()
+      target._followUpMessages = []
+      for (const text of previous) {
+        await session.followUp(text)
+      }
+      if (previous.length === 0) target._emitQueueUpdate?.()
+      throw error
+    }
   }
 
   private getState(): SessionState {
@@ -183,6 +301,8 @@ export class AgentHost {
       sessionFile: session.sessionFile,
       sessionId: session.sessionId,
       messageCount: session.messages.length,
+      steeringQueue: [...session.getSteeringMessages()],
+      followUpQueue: [...session.getFollowUpMessages()],
     }
   }
 
@@ -228,6 +348,8 @@ export class AgentHost {
       runningSessionFiles: this.runningSessionFiles(),
       skills: this.getSkills(),
       contextUsage: this.getContextUsage(),
+      steeringQueue: [...this.session.getSteeringMessages()],
+      followUpQueue: [...this.session.getFollowUpMessages()],
     }
   }
 
@@ -257,6 +379,8 @@ export class AgentHost {
     if (!live) return
     const settings = live.session.settingsManager
     await settings.reload()
+    live.session.agent.steeringMode = settings.getSteeringMode()
+    live.session.agent.followUpMode = settings.getFollowUpMode()
     live.session.setAutoCompactionEnabled(settings.getCompactionEnabled())
     live.session.setAutoRetryEnabled(settings.getRetryEnabled())
   }
@@ -309,8 +433,15 @@ export class AgentHost {
     return this.requireActive().session
   }
 
-  private requireActive(): LiveSession {
+  private requireActive(sessionFile?: string): LiveSession {
+    if (sessionFile) {
+      const match = this.live.get(sessionFile)
+      if (match) return match
+    }
     if (!this.active) throw new Error('No active session')
+    if (sessionFile && this.active.sessionFile !== sessionFile) {
+      throw new Error('Session changed')
+    }
     return this.active
   }
 
@@ -354,7 +485,9 @@ export class AgentHost {
 
     void runtime.session.modelRuntime
       .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
-      .catch(() => {})
+      .catch((error: unknown) => {
+        console.error('Failed to refresh model runtime', error)
+      })
 
     return live
   }
@@ -372,8 +505,8 @@ export class AgentHost {
     live.unsubscribe = null
     try {
       await live.runtime.session.abort()
-    } catch {
-      // still dispose
+    } catch (error) {
+      console.error('Failed to abort session during dispose', error)
     }
     await live.runtime.dispose()
   }

@@ -81,12 +81,20 @@ export function applySnapshot<T extends WindowState>(
   cached?: ChatState,
 ): T {
   const sessionFile = snapshot.state.sessionFile ?? null
-  const chat =
-    cached ??
-    hydrateMessages(snapshot.messages, {
-      isStreaming: snapshot.state.isStreaming,
-      persistedAt: snapshot.messagePersistedAt,
-    })
+  const steeringQueue = snapshot.steeringQueue ?? snapshot.state.steeringQueue ?? []
+  const followUpQueue = snapshot.followUpQueue ?? snapshot.state.followUpQueue ?? []
+  const chat = cached
+    ? {
+        ...cached,
+        steeringQueue: [...steeringQueue],
+        followUpQueue: [...followUpQueue],
+      }
+    : hydrateMessages(snapshot.messages, {
+        isStreaming: snapshot.state.isStreaming,
+        persistedAt: snapshot.messagePersistedAt,
+        steeringQueue,
+        followUpQueue,
+      })
   const chats = { ...state.chats }
   if (sessionFile) chats[sessionFile] = chat
   return {

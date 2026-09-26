@@ -33,6 +33,15 @@ describe('hydrateMessages', () => {
     expect(state.persistedAt).toEqual([2, 3])
     expect(state.toolLive.call_1).toMatchObject({ toolName: 'bash', status: 'running' })
   })
+
+  it('restores queued messages from options', () => {
+    const state = hydrateMessages([], {
+      steeringQueue: ['steer 1'],
+      followUpQueue: ['follow 1', 'follow 2'],
+    })
+    expect(state.steeringQueue).toEqual(['steer 1'])
+    expect(state.followUpQueue).toEqual(['follow 1', 'follow 2'])
+  })
 })
 
 describe('applySessionEvent', () => {
@@ -196,5 +205,16 @@ describe('applySessionEvent', () => {
         usage: { tokens: 1000, contextWindow: 128_000, percent: 1 },
       }),
     ).toBe(state)
+  })
+
+  it('updates steeringQueue and followUpQueue on queue_update event', () => {
+    let state = createChatState()
+    state = applySessionEvent(state, {
+      type: 'queue_update',
+      steering: ['fix the typo'],
+      followUp: ['add tests', 'update docs'],
+    })
+    expect(state.steeringQueue).toEqual(['fix the typo'])
+    expect(state.followUpQueue).toEqual(['add tests', 'update docs'])
   })
 })

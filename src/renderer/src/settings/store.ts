@@ -23,7 +23,7 @@ export async function loadSettings(): Promise<void> {
   try {
     const settings = await window.pi.getSettings()
     useSettings.getState().apply(settings)
-  } catch {
-    // settings are optional at startup
+  } catch (error) {
+    console.error('Failed to load settings', error)
   }
 }

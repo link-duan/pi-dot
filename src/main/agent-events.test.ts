@@ -71,6 +71,24 @@ describe('toSessionEvent', () => {
     ).toBeNull()
   })
 
+  it('forwards queue_update events', () => {
+    expect(
+      toSessionEvent(
+        {
+          type: 'queue_update',
+          steering: ['steer msg'],
+          followUp: ['followup msg'],
+        } as AgentSessionEvent,
+        sessionFile,
+      ),
+    ).toEqual({
+      type: 'queue_update',
+      sessionFile,
+      steering: ['steer msg'],
+      followUp: ['followup msg'],
+    })
+  })
+
   it('forwards auto retry events', () => {
     expect(
       toSessionEvent(

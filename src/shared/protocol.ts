@@ -64,6 +64,8 @@ export interface SessionState {
   sessionFile?: string
   sessionId?: string
   messageCount: number
+  steeringQueue?: string[]
+  followUpQueue?: string[]
 }
 
 export interface TextContent {
@@ -151,6 +153,7 @@ export type SessionEventBody =
       isError?: boolean
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
+  | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
   | { type: 'auto_retry_end' }
 
@@ -166,6 +169,8 @@ export interface SessionSnapshot {
   runningSessionFiles: string[]
   skills: SkillInfo[]
   contextUsage?: ContextUsage | null
+  steeringQueue?: string[]
+  followUpQueue?: string[]
 }
 
 export type StartResult =

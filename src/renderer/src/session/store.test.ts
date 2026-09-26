@@ -60,4 +60,117 @@ describe('applyLiveSnapshot', () => {
     applyLiveSnapshot({ ...snapshot, contextUsage: undefined })
     expect(useSession.getState().contextUsage).toBeNull()
   })
+
+  it('manages steering and follow-up queues', async () => {
+    const calls: string[] = []
+    const mockPi = {
+      steer: async (text: string) => {
+        calls.push(`steer:${text}`)
+      },
+      removeSteering: async (index: number) => {
+        calls.push(`removeSteering:${index}`)
+      },
+      followUp: async (text: string) => {
+        calls.push(`followUp:${text}`)
+      },
+      setFollowUpQueue: async (msgs: string[]) => {
+        calls.push(`setFollowUpQueue:${msgs.join(',')}`)
+      },
+      promoteFollowUp: async (index: number) => {
+        calls.push(`promoteFollowUp:${index}`)
+      },
+      clearQueue: async () => {
+        calls.push('clearQueue')
+        return { steering: [], followUp: [] }
+      },
+      clearSteeringQueue: async () => {
+        calls.push('clearSteeringQueue')
+      },
+    }
+    ;(globalThis as unknown as { window: { pi: unknown } }).window = {
+      pi: mockPi,
+    }
+
+    applyLiveSnapshot(snapshot)
+    const file = '/tmp/project/session.jsonl'
+
+    await useSession.getState().steer('steer message')
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual(['steer message'])
+    expect(calls).toContain('steer:steer message')
+
+    await useSession.getState().followUp('follow 1')
+    await useSession.getState().followUp('follow 2')
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['follow 1', 'follow 2'])
+
+    await useSession.getState().editFollowUp(0, 'follow 1 edited')
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual([
+      'follow 1 edited',
+      'follow 2',
+    ])
+
+    await useSession.getState().moveFollowUp(1, 0)
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual([
+      'follow 2',
+      'follow 1 edited',
+    ])
+
+    await useSession.getState().promoteFollowUpToSteer(0)
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['follow 1 edited'])
+    expect(calls).toContain('promoteFollowUp:0')
+
+    await useSession.getState().deleteFollowUp(0)
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual([])
+
+    // Test clearSteeringQueue without wiping followUpQueue
+    await useSession.getState().followUp('keep me')
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual(['steer message', 'follow 2'])
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['keep me'])
+
+    await useSession.getState().clearSteeringQueue()
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual([])
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['keep me'])
+    expect(calls).toContain('clearSteeringQueue')
+
+    await useSession.getState().clearQueue()
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual([])
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual([])
+    expect(calls).toContain('clearQueue')
+
+    mockPi.promoteFollowUp = async () => {
+      throw new Error('promote failed')
+    }
+    await useSession.getState().followUp('keep follow-up')
+    await expect(useSession.getState().promoteFollowUpToSteer(0)).rejects.toThrow('promote failed')
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['keep follow-up'])
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual([])
+
+    await useSession.getState().steer('cancel me')
+    await useSession.getState().removeSteering(0)
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual([])
+    expect(calls).toContain('removeSteering:0')
+  })
+
+  it('serializes queue operations and preserves later successful updates', async () => {
+    let rejectSteer!: (error: Error) => void
+    const steerResult = new Promise<void>((_, reject) => {
+      rejectSteer = reject
+    })
+    ;(globalThis as unknown as { window: { pi: unknown } }).window = {
+      pi: {
+        steer: async () => steerResult,
+        followUp: async () => {},
+      },
+    }
+    applyLiveSnapshot(snapshot)
+    const file = '/tmp/project/session.jsonl'
+
+    const first = useSession.getState().steer('first')
+    const second = useSession.getState().followUp('second')
+    rejectSteer(new Error('failed'))
+
+    await expect(first).rejects.toThrow('failed')
+    await second
+    expect(useSession.getState().chats[file]?.steeringQueue).toEqual([])
+    expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['second'])
+  })
 })

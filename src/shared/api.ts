@@ -21,12 +21,18 @@ export interface PiApi {
   chooseFolder(): Promise<string | null>
   getRecentProjects(): Promise<string[]>
   removeRecentProject(cwd: string): Promise<void>
-  getLastCwd(): Promise<string | null>
   getSnapshot(): Promise<SessionSnapshot | null>
   start(cwd: string): Promise<StartResult>
   stop(): Promise<{ cancelled: boolean }>
-  prompt(text: string): Promise<void>
-  abort(): Promise<void>
+  prompt(text: string, sessionFile: string): Promise<void>
+  steer(text: string, sessionFile: string): Promise<void>
+  removeSteering(index: number, sessionFile: string): Promise<void>
+  followUp(text: string, sessionFile: string): Promise<void>
+  setFollowUpQueue(messages: string[], sessionFile: string): Promise<void>
+  promoteFollowUp(index: number, sessionFile: string): Promise<void>
+  clearQueue(sessionFile: string): Promise<{ steering: string[]; followUp: string[] }>
+  clearSteeringQueue(sessionFile: string): Promise<void>
+  abort(sessionFile: string): Promise<void>
   setModel(provider: string, modelId: string): Promise<ModelSelection>
   setThinkingLevel(level: ThinkingLevel): Promise<ModelSelection>
   listSessions(cwd: string): Promise<SessionListItem[]>

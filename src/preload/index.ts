@@ -25,12 +25,29 @@ const api: PiApi = {
   getRecentProjects: () => ipcRenderer.invoke(IPC.getRecentProjects) as Promise<string[]>,
   removeRecentProject: (cwd: string) =>
     ipcRenderer.invoke(IPC.removeRecentProject, cwd) as Promise<void>,
-  getLastCwd: () => ipcRenderer.invoke(IPC.getLastCwd) as Promise<string | null>,
   getSnapshot: () => ipcRenderer.invoke(IPC.getSnapshot) as Promise<SessionSnapshot | null>,
   start: (cwd: string) => ipcRenderer.invoke(IPC.start, cwd) as Promise<StartResult>,
   stop: () => ipcRenderer.invoke(IPC.stop) as Promise<{ cancelled: boolean }>,
-  prompt: (text: string) => ipcRenderer.invoke(IPC.prompt, text) as Promise<void>,
-  abort: () => ipcRenderer.invoke(IPC.abort) as Promise<void>,
+  prompt: (text: string, sessionFile: string) =>
+    ipcRenderer.invoke(IPC.prompt, text, sessionFile) as Promise<void>,
+  steer: (text: string, sessionFile: string) =>
+    ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
+  removeSteering: (index: number, sessionFile: string) =>
+    ipcRenderer.invoke(IPC.removeSteering, index, sessionFile) as Promise<void>,
+  followUp: (text: string, sessionFile: string) =>
+    ipcRenderer.invoke(IPC.followUp, text, sessionFile) as Promise<void>,
+  setFollowUpQueue: (messages: string[], sessionFile: string) =>
+    ipcRenderer.invoke(IPC.setFollowUpQueue, messages, sessionFile) as Promise<void>,
+  promoteFollowUp: (index: number, sessionFile: string) =>
+    ipcRenderer.invoke(IPC.promoteFollowUp, index, sessionFile) as Promise<void>,
+  clearQueue: (sessionFile: string) =>
+    ipcRenderer.invoke(IPC.clearQueue, sessionFile) as Promise<{
+      steering: string[]
+      followUp: string[]
+    }>,
+  clearSteeringQueue: (sessionFile: string) =>
+    ipcRenderer.invoke(IPC.clearSteeringQueue, sessionFile) as Promise<void>,
+  abort: (sessionFile: string) => ipcRenderer.invoke(IPC.abort, sessionFile) as Promise<void>,
   setModel: (provider: string, modelId: string) =>
     ipcRenderer.invoke(IPC.setModel, provider, modelId),
   setThinkingLevel: (level: ThinkingLevel) => ipcRenderer.invoke(IPC.setThinkingLevel, level),

@@ -48,6 +48,13 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
       }
     case 'auto_retry_end':
       return { type: 'auto_retry_end', sessionFile }
+    case 'queue_update':
+      return {
+        type: 'queue_update',
+        sessionFile,
+        steering: [...event.steering],
+        followUp: [...event.followUp],
+      }
     default:
       return null
   }
