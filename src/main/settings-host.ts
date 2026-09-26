@@ -3,7 +3,12 @@ import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
-import { getAgentDir, ModelRuntime, SettingsManager } from '@earendil-works/pi-coding-agent'
+import {
+  createAgentSessionServices,
+  getAgentDir,
+  ModelRuntime,
+  SettingsManager,
+} from '@earendil-works/pi-coding-agent'
 import {
   getSupportedThinkingLevels,
   type AuthEvent,
@@ -57,11 +62,29 @@ function hasProjectSettings(cwd?: string | null): boolean {
 }
 
 async function runtime(): Promise<ModelRuntime> {
-  runtimePromise ??= ModelRuntime.create({
-    modelsPath: modelsPath(),
-    authPath: join(agentDir(), 'auth.json'),
-    refreshOnCreate: false,
-  })
+  if (!runtimePromise) {
+    runtimePromise = (async () => {
+      try {
+        const services = await createAgentSessionServices({
+          cwd: homedir(),
+          agentDir: agentDir(),
+          settingsManager: globalManager(),
+          modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
+        })
+        return services.modelRuntime
+      } catch (error) {
+        console.warn(
+          'Failed to create agent session services for settings, falling back to basic runtime',
+          error,
+        )
+        return ModelRuntime.create({
+          modelsPath: modelsPath(),
+          authPath: join(agentDir(), 'auth.json'),
+          refreshOnCreate: false,
+        })
+      }
+    })()
+  }
   return runtimePromise
 }
 
@@ -101,7 +124,11 @@ export async function writeModelsFileText(text: string): Promise<ModelsFileResul
   if (!parsed.ok) return { text, error: parsed.error }
   await writeFile(modelsPath(), text.endsWith('\n') ? text : `${text}\n`, 'utf8')
   const current = await runtime()
-  await current.refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) }).catch(() => {})
+  await current
+    .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+    .catch((error: unknown) => {
+      console.warn('Failed to refresh model settings', error)
+    })
   await refreshLiveModels()
   return { text, error: null }
 }
@@ -110,7 +137,11 @@ export async function getCatalog(): Promise<SettingsCatalog> {
   const file = await readModelsFileText()
   const parsed = parseModelsFile(file.text)
   const models = await runtime()
-  await models.refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) }).catch(() => {})
+  await models
+    .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+    .catch((error: unknown) => {
+      console.warn('Failed to refresh model settings', error)
+    })
   const providers = models.getProviders()
   const nativeIds = new Set(
     providers.filter((item) => models.getRegisteredNativeProvider(item.id)).map((item) => item.id),
@@ -154,12 +185,23 @@ export async function getCatalog(): Promise<SettingsCatalog> {
   const addable = providers
     .filter((item) => !customSet.has(item.id))
     .map((item) => items(item, 'builtin'))
-  const available: ModelInfo[] = models.getAvailableSnapshot().map((item) => ({
-    id: item.id,
-    name: item.name || item.id,
-    provider: item.provider,
-    thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(item)),
-  }))
+  const rawModels = models.getModels()
+  const available: ModelInfo[] = [...rawModels]
+    .sort((a, b) => {
+      const aConfigured = configured.has(a.provider)
+      const bConfigured = configured.has(b.provider)
+      if (aConfigured && !bConfigured) return -1
+      if (!aConfigured && bConfigured) return 1
+      const providerCmp = a.provider.localeCompare(b.provider)
+      if (providerCmp !== 0) return providerCmp
+      return (a.name || a.id).localeCompare(b.name || b.id)
+    })
+    .map((item) => ({
+      id: item.id,
+      name: item.name || item.id,
+      provider: item.provider,
+      thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(item)),
+    }))
   return { providers: [...custom, ...builtin], available, addable }
 }
 
@@ -204,7 +246,11 @@ export async function startLogin(
   }
   try {
     await models.login(providerId, type, interaction)
-    await models.refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) }).catch(() => {})
+    await models
+      .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+      .catch((error: unknown) => {
+        console.warn('Failed to refresh model settings', error)
+      })
     await refreshLiveModels()
     sendLogin(sender, { kind: 'done', ok: true })
   } catch (error) {
@@ -229,7 +275,11 @@ export function cancelLogin(senderId: number): void {
 export async function logoutProvider(providerId: string): Promise<void> {
   const models = await runtime()
   await models.logout(providerId)
-  await models.refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) }).catch(() => {})
+  await models
+    .refresh({ signal: AbortSignal.timeout(MODEL_REFRESH_MS) })
+    .catch((error: unknown) => {
+      console.warn('Failed to refresh model settings', error)
+    })
   await refreshLiveModels()
 }
 
@@ -239,6 +289,7 @@ async function refreshLiveModels(): Promise<void> {
 }
 
 async function reloadLiveSettings(): Promise<void> {
+  runtimePromise = null
   await Promise.all(getWindows().map(async (hosted) => hosted.host?.reloadSettings()))
   notifyWindows('reloadSettings')
 }

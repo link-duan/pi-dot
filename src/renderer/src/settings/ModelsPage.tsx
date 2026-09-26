@@ -8,22 +8,10 @@ import {
 } from '@shared/protocol'
 import type { AppSettings } from '@shared/settings'
 import { Button } from '@/components/ui/button'
-import {
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-} from '@/components/ui/combobox'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { cn } from '@/lib/utils'
 import { SettingCard, SettingRow, SettingSection } from './components/SettingCard'
 import { LabeledSelectValue } from './fields'
-
-function modelKey(model: ModelInfo): string {
-  return `${model.provider}/${model.id}`
-}
+import { ModelPickerDropdown, modelKey } from '@/components/ModelPicker'
 
 export function ModelsPage({
   settings,
@@ -41,18 +29,39 @@ export function ModelsPage({
 
   const options = useMemo(() => {
     const keys = new Set(available.map(modelKey))
-    const extras = Object.keys(settings.modelThinkingLevels)
-      .filter((key) => !keys.has(key))
-      .map((key) => {
-        const [provider, ...rest] = key.split('/')
-        return { provider: provider ?? '', id: rest.join('/'), name: rest.join('/') }
+    const extras: ModelInfo[] = []
+    if (
+      settings.defaultProvider &&
+      settings.defaultModel &&
+      !keys.has(`${settings.defaultProvider}/${settings.defaultModel}`)
+    ) {
+      extras.push({
+        provider: settings.defaultProvider,
+        id: settings.defaultModel,
+        name: settings.defaultModel,
+        thinkingLevels: [...THINKING_LEVELS],
       })
+      keys.add(`${settings.defaultProvider}/${settings.defaultModel}`)
+    }
+    for (const key of Object.keys(settings.modelThinkingLevels)) {
+      if (!keys.has(key)) {
+        const [provider, ...rest] = key.split('/')
+        const id = rest.join('/')
+        extras.push({
+          provider: provider ?? '',
+          id,
+          name: id,
+          thinkingLevels: [...THINKING_LEVELS],
+        })
+        keys.add(key)
+      }
+    }
     return [...available, ...extras]
-  }, [available, settings.modelThinkingLevels])
+  }, [available, settings.defaultProvider, settings.defaultModel, settings.modelThinkingLevels])
 
   const overridesList = Object.entries(settings.modelThinkingLevels)
 
-  const defaultModelInfo = available.find(
+  const defaultModelInfo = options.find(
     (item) => item.provider === settings.defaultProvider && item.id === settings.defaultModel,
   )
   const defaultModelLevels = defaultModelInfo?.thinkingLevels ?? THINKING_LEVELS
@@ -62,32 +71,25 @@ export function ModelsPage({
       <SettingSection title="Default model & reasoning">
         <SettingCard>
           <SettingRow title="Default model">
-            <div className="w-64">
-              <ModelCombobox
-                models={available}
-                value={defaultKey}
-                onChange={(key) => {
-                  const [provider, ...rest] = key.split('/')
-                  const id = rest.join('/')
-                  if (provider && id) {
-                    const nextModel = available.find((m) => m.provider === provider && m.id === id)
-                    const nextLevels = nextModel?.thinkingLevels ?? THINKING_LEVELS
-                    const nextLevel =
-                      settings.defaultThinkingLevel &&
-                      nextLevels.includes(settings.defaultThinkingLevel)
-                        ? settings.defaultThinkingLevel
-                        : nextLevels.includes('high')
-                          ? 'high'
-                          : (nextLevels[0] ?? 'off')
-                    onPatch({
-                      defaultProvider: provider,
-                      defaultModel: id,
-                      defaultThinkingLevel: nextLevel,
-                    })
-                  }
-                }}
-              />
-            </div>
+            <ModelPickerDropdown
+              models={options}
+              value={defaultKey}
+              onChange={(_key, nextModel) => {
+                const nextLevels = nextModel.thinkingLevels ?? THINKING_LEVELS
+                const nextLevel =
+                  settings.defaultThinkingLevel &&
+                  nextLevels.includes(settings.defaultThinkingLevel)
+                    ? settings.defaultThinkingLevel
+                    : nextLevels.includes('high')
+                      ? 'high'
+                      : (nextLevels[0] ?? 'off')
+                onPatch({
+                  defaultProvider: nextModel.provider,
+                  defaultModel: nextModel.id,
+                  defaultThinkingLevel: nextLevel,
+                })
+              }}
+            />
           </SettingRow>
 
           <SettingRow title="Default reasoning effort">
@@ -102,10 +104,10 @@ export function ModelsPage({
                 if (value) onPatch({ defaultThinkingLevel: value as ThinkingLevel })
               }}
             >
-              <SelectTrigger className="w-36">
+              <SelectTrigger variant="ghost" size="sm" className="gap-1.5 px-2 text-xs font-normal">
                 <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
               </SelectTrigger>
-              <SelectContent align="end">
+              <SelectContent align="end" className="w-auto min-w-36 text-xs">
                 {defaultModelLevels.map((level) => (
                   <SelectItem key={level} value={level}>
                     {THINKING_LEVEL_LABELS[level]}
@@ -128,7 +130,7 @@ export function ModelsPage({
             overridesList.map(([key, level]) => {
               const [provider, ...rest] = key.split('/')
               const id = rest.join('/')
-              const modelInfo = available.find((m) => m.provider === provider && m.id === id)
+              const modelInfo = options.find((m) => m.provider === provider && m.id === id)
               const supportedLevels = modelInfo?.thinkingLevels ?? THINKING_LEVELS
 
               return (
@@ -156,10 +158,14 @@ export function ModelsPage({
                         })
                       }}
                     >
-                      <SelectTrigger className="w-32">
+                      <SelectTrigger
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 px-2 text-xs font-normal"
+                      >
                         <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
                       </SelectTrigger>
-                      <SelectContent align="end">
+                      <SelectContent align="end" className="w-auto min-w-36 text-xs">
                         {supportedLevels.map((item) => (
                           <SelectItem key={item} value={item}>
                             {THINKING_LEVEL_LABELS[item]}
@@ -201,54 +207,6 @@ export function ModelsPage({
   )
 }
 
-function ModelCombobox({
-  models,
-  value,
-  onChange,
-  placeholder = 'Select model…',
-  className,
-}: {
-  models: ModelInfo[]
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  className?: string
-}) {
-  const selected = models.find((item) => modelKey(item) === value)
-  return (
-    <Combobox
-      items={models}
-      value={selected ?? null}
-      onValueChange={(item) => item && onChange(modelKey(item))}
-      itemToStringLabel={(item) => item.name}
-      isItemEqualToValue={(left, right) => modelKey(left) === modelKey(right)}
-    >
-      <ComboboxInput className={cn('w-full text-xs', className)} placeholder={placeholder} />
-      <ComboboxContent align="start">
-        <ComboboxEmpty className="py-4 text-xs">No models available</ComboboxEmpty>
-        <ComboboxList>
-          {(item: ModelInfo) => (
-            <ComboboxItem
-              key={modelKey(item)}
-              value={item}
-              className="flex items-center justify-between px-2.5 py-1.5 text-xs"
-            >
-              <div className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left">
-                <span className="truncate font-medium text-foreground">{item.name}</span>
-                {item.provider ? (
-                  <span className="truncate text-[11px] text-muted-foreground">
-                    {item.provider}
-                  </span>
-                ) : null}
-              </div>
-            </ComboboxItem>
-          )}
-        </ComboboxList>
-      </ComboboxContent>
-    </Combobox>
-  )
-}
-
 function AddThinkingOverride({
   models,
   existing,
@@ -271,24 +229,23 @@ function AddThinkingOverride({
 
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="w-64">
-        <ModelCombobox
-          models={unused}
-          value={key}
-          onChange={setKey}
-          placeholder={unused.length === 0 ? 'All models configured' : 'Select model…'}
-        />
-      </div>
+      <ModelPickerDropdown
+        models={unused}
+        value={key}
+        onChange={(newKey) => setKey(newKey)}
+        placeholder={unused.length === 0 ? 'All models configured' : 'Select model…'}
+        disabled={unused.length === 0}
+      />
       <div className="flex shrink-0 items-center gap-2">
         <Select
           value={resolvedLevel}
           disabled={!key}
           onValueChange={(value) => value && setLevel(value as ThinkingLevel)}
         >
-          <SelectTrigger className="w-28">
+          <SelectTrigger variant="ghost" size="sm" className="gap-1.5 px-2 text-xs font-normal">
             <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
           </SelectTrigger>
-          <SelectContent align="end">
+          <SelectContent align="end" className="w-auto min-w-36 text-xs">
             {availableLevels.map((item) => (
               <SelectItem key={item} value={item}>
                 {THINKING_LEVEL_LABELS[item]}

@@ -1,12 +1,5 @@
-import { useMemo, useState } from 'react'
 import { ChevronDownIcon } from 'lucide-react'
-import {
-  isThinkingLevel,
-  THINKING_LEVEL_LABELS,
-  type ModelInfo,
-  type ThinkingLevel,
-} from '@shared/protocol'
-import { buttonVariants } from '@/components/ui/button'
+import { isThinkingLevel, THINKING_LEVEL_LABELS, type ThinkingLevel } from '@shared/protocol'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,14 +11,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
-import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
-
-function modelKey(model: ModelInfo): string {
-  return `${model.provider}::${model.id}`
-}
+import { ModelPickerContent, modelKey } from './ModelPicker'
 
 const itemType = "text-xs leading-4 [&_svg:not([class*='size-'])]:size-3"
 const subTrigger = cn(itemType, 'gap-2 px-2 py-1')
@@ -41,31 +29,14 @@ export function ModelSelect() {
   const setThinkingLevel = useSession((state) => state.setThinkingLevel)
   const disabled = connection !== 'ready' || models.length === 0
 
-  const [query, setQuery] = useState('')
-
-  const filteredModels = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return models
-    return models.filter((item) =>
-      `${item.provider} ${item.name} ${item.id}`.toLowerCase().includes(needle),
-    )
-  }, [models, query])
-
   return (
-    <DropdownMenu
-      disabled={disabled}
-      onOpenChange={(open) => {
-        if (!open) setQuery('')
-      }}
-    >
+    <DropdownMenu disabled={disabled}>
       <DropdownMenuTrigger
+        variant="ghost"
+        size="sm"
         aria-label="Select model and thinking level"
         disabled={disabled}
-        className={cn(
-          buttonVariants({ variant: 'ghost', size: 'sm' }),
-          'h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150',
-          'disabled:opacity-40',
-        )}
+        className="h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150 disabled:opacity-40"
       >
         <span className="min-w-0 truncate text-muted-foreground capitalize">
           {model?.name ?? 'Select model'}
@@ -101,11 +72,7 @@ export function ModelSelect() {
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator className="my-0.5" />
-        <DropdownMenuSub
-          onOpenChange={(open) => {
-            if (!open) setQuery('')
-          }}
-        >
+        <DropdownMenuSub>
           <DropdownMenuSubTrigger className={subTrigger}>
             <span className="shrink-0">Model</span>
             <span className="min-w-0 flex-1 truncate text-right text-muted-foreground">
@@ -113,51 +80,11 @@ export function ModelSelect() {
             </span>
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-64 overflow-hidden p-0 text-xs">
-            <div className="p-1 pb-0">
-              <Input
-                value={query}
-                aria-label="Search models"
-                placeholder="Search models..."
-                className="h-6 px-2 text-xs md:text-xs"
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'Enter')
-                    return
-                  event.stopPropagation()
-                }}
-              />
-            </div>
-            <ScrollArea>
-              <ScrollAreaViewport className="h-auto max-h-[min(calc(20rem-1.75rem),calc(var(--available-height)-1.75rem))] scroll-fade overscroll-contain py-1 pr-2.5 pl-1">
-                {filteredModels.length === 0 ? (
-                  <div className="px-2 py-2 text-center text-xs text-muted-foreground">
-                    No matching models
-                  </div>
-                ) : (
-                  <DropdownMenuRadioGroup
-                    value={model ? modelKey(model) : ''}
-                    onValueChange={(value) => {
-                      const next = models.find((item) => modelKey(item) === value)
-                      if (next) void setModel(next.provider, next.id)
-                    }}
-                  >
-                    {filteredModels.map((item) => (
-                      <DropdownMenuRadioItem
-                        key={modelKey(item)}
-                        value={modelKey(item)}
-                        className={radioItem}
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col leading-4">
-                          <span className="truncate">{item.name}</span>
-                          <span className="truncate text-muted-foreground">{item.provider}</span>
-                        </div>
-                      </DropdownMenuRadioItem>
-                    ))}
-                  </DropdownMenuRadioGroup>
-                )}
-              </ScrollAreaViewport>
-              <ScrollAreaScrollbar className="my-1" />
-            </ScrollArea>
+            <ModelPickerContent
+              models={models}
+              value={model ? modelKey(model) : ''}
+              onSelect={(next) => void setModel(next.provider, next.id)}
+            />
           </DropdownMenuSubContent>
         </DropdownMenuSub>
       </DropdownMenuContent>

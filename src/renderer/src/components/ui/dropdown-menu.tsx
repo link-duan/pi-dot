@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Menu as MenuPrimitive } from '@base-ui/react/menu'
+import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from 'cn'
 import { ChevronRightIcon, CheckIcon } from 'lucide-react'
 
@@ -11,8 +12,43 @@ function DropdownMenuPortal({ ...props }: MenuPrimitive.Portal.Props) {
   return <MenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
 }
 
-function DropdownMenuTrigger({ ...props }: MenuPrimitive.Trigger.Props) {
-  return <MenuPrimitive.Trigger data-slot="dropdown-menu-trigger" {...props} />
+const dropdownMenuTriggerVariants = cva(
+  'flex w-fit items-center justify-between gap-1.5 rounded-lg py-2 pr-2 pl-2.5 text-sm whitespace-nowrap transition-colors outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-placeholder:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0',
+  {
+    variants: {
+      variant: {
+        default:
+          'border border-input bg-transparent dark:bg-input/30 dark:hover:bg-input/50 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40',
+        ghost:
+          'border border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground',
+        outline:
+          'border border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+      },
+      size: {
+        default: 'h-8 data-[size=default]:h-8 [&_svg:not([class*="size-"])]:size-4',
+        sm: 'h-7 rounded-[min(var(--radius-md),10px)] text-xs data-[size=sm]:h-7 [&_svg:not([class*="size-"])]:size-3.5',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
+  },
+)
+
+export interface DropdownMenuTriggerProps
+  extends MenuPrimitive.Trigger.Props, VariantProps<typeof dropdownMenuTriggerVariants> {}
+
+function DropdownMenuTrigger({ className, variant, size, ...props }: DropdownMenuTriggerProps) {
+  return (
+    <MenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      data-variant={variant}
+      data-size={size}
+      className={cn(dropdownMenuTriggerVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
 }
 
 function DropdownMenuContent({
@@ -252,4 +288,5 @@ export {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  dropdownMenuTriggerVariants,
 }
