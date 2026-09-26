@@ -165,49 +165,58 @@ export function ProjectLauncher() {
                         const rel = displayPath(path, null, window.pi.homedir)
 
                         return (
-                          <button
-                            key={path}
-                            ref={(el) => {
-                              itemRefs.current[index] = el
-                            }}
-                            type="button"
-                            disabled={busy}
-                            onClick={() => void enter(() => openCwd(path))}
-                            onMouseEnter={() => setSelectedIndex(index)}
-                            onMouseLeave={() => setSelectedIndex(-1)}
-                            className={cn(
-                              'group flex h-8 w-full items-center gap-2.5 px-3 text-left transition-colors outline-none',
-                              'first:rounded-t-[7px] last:rounded-b-[7px]',
-                              isSelected
-                                ? 'bg-accent text-accent-foreground'
-                                : 'hover:bg-accent/60',
-                            )}
-                          >
-                            <Folder className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-
-                            <span className="shrink-0 text-xs font-medium text-foreground">
-                              {name}
-                            </span>
-
-                            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
-                              {rel}
-                            </span>
-
-                            <div className="flex shrink-0 items-center pl-1">
-                              {busy && isSelected ? (
-                                <Spinner className="size-3" />
-                              ) : (
-                                <button
-                                  type="button"
-                                  aria-label="Remove from recent"
-                                  onClick={(e) => void removeProject(e, path)}
-                                  className="flex size-4 items-center justify-center rounded text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground"
-                                >
-                                  <X className="size-3" />
-                                </button>
+                          <div key={path} className="group relative flex items-center">
+                            <button
+                              ref={(el) => {
+                                itemRefs.current[index] = el
+                              }}
+                              type="button"
+                              disabled={busy}
+                              onKeyDown={(event) => {
+                                if (event.key !== 'Enter' && event.key !== ' ') return
+                                event.preventDefault()
+                                event.stopPropagation()
+                                if (!busy) void enter(() => openCwd(path))
+                              }}
+                              onClick={() => {
+                                if (!busy) void enter(() => openCwd(path))
+                              }}
+                              onMouseEnter={() => setSelectedIndex(index)}
+                              onMouseLeave={() => setSelectedIndex(-1)}
+                              className={cn(
+                                'flex h-8 w-full cursor-pointer items-center gap-2.5 px-3 pr-8 text-left transition-colors outline-none',
+                                'first:rounded-t-[7px] last:rounded-b-[7px]',
+                                isSelected
+                                  ? 'bg-accent text-accent-foreground'
+                                  : 'hover:bg-accent/60',
+                                busy && 'pointer-events-none opacity-60',
                               )}
-                            </div>
-                          </button>
+                            >
+                              <Folder className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+
+                              <span className="shrink-0 text-xs font-medium text-foreground">
+                                {name}
+                              </span>
+
+                              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+                                {rel}
+                              </span>
+
+                              {busy && isSelected ? <Spinner className="size-3" /> : null}
+                            </button>
+                            {!busy ? (
+                              <button
+                                type="button"
+                                aria-label="Remove from recent"
+                                disabled={busy}
+                                onKeyDown={(e) => e.stopPropagation()}
+                                onClick={(e) => void removeProject(e, path)}
+                                className="absolute right-2 flex size-4 items-center justify-center rounded text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"
+                              >
+                                <X className="size-3" />
+                              </button>
+                            ) : null}
+                          </div>
                         )
                       })}
                     </ScrollAreaViewport>
