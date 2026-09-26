@@ -83,8 +83,8 @@ function resolveFd(): string | null {
         fdBin = cmd
         return cmd
       }
-    } catch {
-      // try the next name
+    } catch (error) {
+      console.debug('Failed to probe file search command', cmd, error)
     }
   }
   fdBin = null
@@ -166,7 +166,8 @@ function walkFallback(cwd: string, query: string): FileHit[] {
     let entries
     try {
       entries = readdirSync(join(cwd, rel), { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      console.warn('Failed to read search directory', join(cwd, rel), error)
       return
     }
     for (const entry of entries) {
@@ -194,7 +195,8 @@ function walkFallback(cwd: string, query: string): FileHit[] {
 function isDir(abs: string): boolean {
   try {
     return statSync(abs).isDirectory()
-  } catch {
+  } catch (error) {
+    console.debug('Failed to inspect search path', abs, error)
     return false
   }
 }

@@ -17,7 +17,8 @@ export function loginShellPath(): string {
       timeout: 8000,
     })
     return lastPathLine(out) || process.env.PATH || ''
-  } catch {
+  } catch (error) {
+    console.error('Failed to resolve login shell PATH', error)
     return process.env.PATH || ''
   }
 }

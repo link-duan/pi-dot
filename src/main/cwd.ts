@@ -8,7 +8,8 @@ export async function projectCwd(cwd: string): Promise<string> {
   const resolved = resolve(cwd)
   try {
     return await realpath(resolved)
-  } catch {
+  } catch (error) {
+    console.error('Failed to resolve project cwd', error)
     return resolved
   }
 }

@@ -22,7 +22,9 @@ export function ComposerPastePlugin({ cwd }: { cwd: string | null }) {
         const image = paths.length === 0 ? clipboardImage(clipboard) : null
         if (paths.length > 0 || image) {
           event.preventDefault()
-          void pasteChips(editor, cwd, paths, image).catch(() => {})
+          void pasteChips(editor, cwd, paths, image).catch((error: unknown) => {
+            console.error('Failed to paste file chips', error)
+          })
           return true
         }
         const text = clipboard.getData('text/plain')
@@ -64,7 +66,8 @@ export function fileUrlToPath(url: string): string | null {
     let path = decodeURIComponent(parsed.pathname)
     if (/^\/[a-zA-Z]:\//.test(path)) path = path.slice(1)
     return path
-  } catch {
+  } catch (error) {
+    console.debug('Failed to parse clipboard file URL', url, error)
     return null
   }
 }

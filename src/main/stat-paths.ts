@@ -9,8 +9,8 @@ export async function statPaths(
     try {
       const info = await stat(path)
       out.push({ path, isDirectory: info.isDirectory() })
-    } catch {
-      // skip missing paths
+    } catch (error) {
+      console.debug('Failed to stat path', path, error)
     }
   }
   return out

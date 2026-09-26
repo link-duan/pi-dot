@@ -69,7 +69,8 @@ function parseEdits(record: Record<string, unknown>): Array<{ oldText: string; n
   if (typeof list === 'string' && list.trim()) {
     try {
       list = JSON.parse(list)
-    } catch {
+    } catch (error) {
+      console.warn('Failed to parse tool edits', error)
       list = null
     }
   }

@@ -24,7 +24,8 @@ export function asText(value: unknown): string {
   }
   try {
     return JSON.stringify(value, null, 2)
-  } catch {
+  } catch (error) {
+    console.debug('Failed to format value as text', error)
     return String(value)
   }
 }
@@ -33,7 +34,8 @@ export function prettyJson(value: unknown): string {
   if (value === undefined) return ''
   try {
     return JSON.stringify(value, null, 2) ?? ''
-  } catch {
+  } catch (error) {
+    console.debug('Failed to format value as JSON', error)
     return String(value)
   }
 }

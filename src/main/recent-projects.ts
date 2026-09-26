@@ -27,8 +27,10 @@ export function readRecentProjects(): string[] {
           : []
       return list.filter((item): item is string => typeof item === 'string' && existsSync(item))
     }
-  } catch {
-    // fall through
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      console.warn('Failed to read recent projects', error)
+    }
   }
 
   try {
@@ -39,8 +41,10 @@ export function readRecentProjects(): string[] {
         return [raw.cwd]
       }
     }
-  } catch {
-    // ignore
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+      console.warn('Failed to read legacy recent project', error)
+    }
   }
 
   return []

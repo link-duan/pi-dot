@@ -17,7 +17,8 @@ export function ToolImage({ preview }: { preview: ToolImageItem }) {
       await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch {
+    } catch (error) {
+      console.warn('Failed to copy image preview', error)
       if (preview.path) {
         await navigator.clipboard.writeText(preview.path)
         setCopied(true)
