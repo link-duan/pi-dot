@@ -1,5 +1,8 @@
 import { useState } from 'react'
+import type { ModelInfo } from '@shared/protocol'
 import type { AppSettings, DeliveryMode, ProjectTrust, TransportSetting } from '@shared/settings'
+import { ModelPickerDropdown } from '@/components/ModelPicker'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { SettingCard, SettingRow, SettingSection } from './components/SettingCard'
@@ -25,9 +28,11 @@ const TRUST: Array<{ value: ProjectTrust; label: string }> = [
 
 export function GeneralPage({
   settings,
+  available,
   onPatch,
 }: {
   settings: AppSettings
+  available: ModelInfo[]
   onPatch: (patch: Partial<AppSettings>) => void
 }) {
   return (
@@ -52,6 +57,42 @@ export function GeneralPage({
             checked={settings.enableSkillCommands}
             onChange={(enableSkillCommands) => onPatch({ enableSkillCommands })}
           />
+        </SettingCard>
+      </SettingSection>
+
+      <SettingSection title="Session title">
+        <SettingCard>
+          <ToggleRow
+            label="Auto-generate session titles"
+            description="Name new sessions from the first message"
+            checked={settings.autoGenerateSessionTitleEnabled}
+            onChange={(autoGenerateSessionTitleEnabled) =>
+              onPatch({ autoGenerateSessionTitleEnabled })
+            }
+          />
+          {settings.autoGenerateSessionTitleEnabled ? (
+            <SettingRow title="Title model">
+              <div className="flex items-center gap-1">
+                {settings.autoGenerateSessionTitleModel ? (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    className="text-muted-foreground"
+                    onClick={() => onPatch({ autoGenerateSessionTitleModel: '' })}
+                  >
+                    Reset
+                  </Button>
+                ) : null}
+                <ModelPickerDropdown
+                  models={available}
+                  value={settings.autoGenerateSessionTitleModel}
+                  placeholder="Same as session model"
+                  onChange={(key) => onPatch({ autoGenerateSessionTitleModel: key })}
+                />
+              </div>
+            </SettingRow>
+          ) : null}
         </SettingCard>
       </SettingSection>
 

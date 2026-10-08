@@ -32,6 +32,7 @@ import type {
   SettingsPatch,
 } from '@shared/settings'
 import { readAppSettings, writeAppSettings } from './app-settings'
+import { readConfig, writeConfig } from './config'
 import { IPC } from '@shared/ipc'
 import { getWindows } from './window'
 
@@ -89,7 +90,16 @@ async function runtime(): Promise<ModelRuntime> {
 }
 
 export async function getSettings(cwd?: string | null): Promise<AppSettings> {
-  return readAppSettings(globalManager(), hasProjectSettings(cwd))
+  return readSettings(globalManager(), cwd)
+}
+
+function readSettings(manager: SettingsManager, cwd?: string | null): AppSettings {
+  const { enabled, model } = readConfig().autoGenerateSessionTitle
+  return {
+    ...readAppSettings(manager, hasProjectSettings(cwd)),
+    autoGenerateSessionTitleEnabled: enabled,
+    autoGenerateSessionTitleModel: model,
+  }
 }
 
 export async function patchSettings(
@@ -99,8 +109,12 @@ export async function patchSettings(
   const settings = globalManager()
   writeAppSettings(settings, patch)
   await settings.flush()
+  const { autoGenerateSessionTitleEnabled: enabled, autoGenerateSessionTitleModel: model } = patch
+  if (enabled !== undefined || model !== undefined) {
+    writeConfig({ autoGenerateSessionTitle: { enabled, model } })
+  }
   await reloadLiveSettings()
-  return readAppSettings(settings, hasProjectSettings(cwd))
+  return readSettings(settings, cwd)
 }
 
 export async function readModelsFileText(): Promise<ModelsFileResult> {

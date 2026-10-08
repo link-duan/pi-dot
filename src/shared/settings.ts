@@ -25,6 +25,8 @@ export interface AppSettings {
   defaultModel: string
   defaultThinkingLevel: ThinkingLevel | ''
   modelThinkingLevels: Record<string, ThinkingLevel>
+  autoGenerateSessionTitleEnabled: boolean
+  autoGenerateSessionTitleModel: string
   hasProjectSettings: boolean
 }
 

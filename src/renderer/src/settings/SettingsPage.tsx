@@ -154,7 +154,11 @@ export function SettingsPage() {
                   </div>
 
                   {settings && section === 'general' ? (
-                    <GeneralPage settings={settings} onPatch={(item) => void patch(item)} />
+                    <GeneralPage
+                      settings={settings}
+                      available={available}
+                      onPatch={(item) => void patch(item)}
+                    />
                   ) : null}
 
                   {settings && section === 'models' ? (

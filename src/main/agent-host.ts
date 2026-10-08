@@ -12,7 +12,12 @@ import {
   SessionManager,
   SettingsManager,
 } from '@earendil-works/pi-coding-agent'
-import { getSupportedThinkingLevels, type Api, type Model } from '@earendil-works/pi-ai'
+import {
+  getSupportedThinkingLevels,
+  type Api,
+  type Model,
+  type UserMessage,
+} from '@earendil-works/pi-ai'
 import {
   asThinkingLevel,
   isAgentMessage,
@@ -29,6 +34,8 @@ import {
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
+import { readConfig } from './config'
+import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
 
 const MODEL_REFRESH_MS = 15_000
@@ -44,6 +51,7 @@ export function isProjectTrusted(cwd: string, agentDir: string): boolean {
 class LiveSession {
   unsubscribe: (() => void) | null = null
   promptRun: Promise<unknown> | null = null
+  titled = false
 
   constructor(readonly runtime: AgentSessionRuntime) {}
 
@@ -540,10 +548,30 @@ export class AgentHost {
     live.unsubscribe = session.subscribe((event) => {
       const mapped = toSessionEvent(event, live.sessionFile)
       if (mapped) this.emit(mapped)
+      if (event.type === 'message_end' && event.message.role === 'user') {
+        this.autoGenerateTitle(live, event.message.content)
+      }
       if (event.type === 'agent_end' || event.type === 'compaction_end') {
         this.emitContextUsage(live)
       }
     })
+  }
+
+  private autoGenerateTitle(live: LiveSession, content: UserMessage['content']): void {
+    const session = live.session
+    if (live.titled || session.sessionName) return
+    live.titled = true
+    const { enabled, model } = readConfig().autoGenerateSessionTitle
+    if (!enabled) return
+    const text = messageText(content)
+    if (!text) return
+    void generateSessionTitle(session, text, model)
+      .then((title) => {
+        if (title && !session.sessionName) session.setSessionName(title)
+      })
+      .catch((error: unknown) => {
+        console.error('Failed to generate session title', error)
+      })
   }
 
   private emitContextUsage(live: LiveSession): void {
@@ -553,6 +581,14 @@ export class AgentHost {
       usage: toContextUsage(live.session.getContextUsage()),
     })
   }
+}
+
+function messageText(content: UserMessage['content']): string {
+  if (typeof content === 'string') return content.trim()
+  return content
+    .map((block) => (block.type === 'text' ? block.text : ''))
+    .join('\n')
+    .trim()
 }
 
 function toContextUsage(

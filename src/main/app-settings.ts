@@ -7,7 +7,7 @@ const TRANSPORTS: TransportSetting[] = ['sse', 'websocket', 'websocket-cached', 
 export function readAppSettings(
   manager: SettingsManager,
   hasProjectSettings: boolean,
-): AppSettings {
+): Omit<AppSettings, 'autoGenerateSessionTitleEnabled' | 'autoGenerateSessionTitleModel'> {
   const transport = manager.getTransport()
   const thinking = manager.getDefaultThinkingLevel()
   return {
