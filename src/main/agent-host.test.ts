@@ -34,12 +34,29 @@ describe('AgentHost SDK compatibility', () => {
     await rm(directory, { recursive: true, force: true })
   })
 
-  it('registers codemode and tool search without activating them by default', () => {
+  it('activates codemode by default but leaves tool search inactive', () => {
     expect(session.getAllTools().map((tool) => tool.name)).toEqual(
       expect.arrayContaining(['codemode', 'tool_search']),
     )
-    expect(session.getActiveToolNames()).not.toContain('codemode')
+    expect(session.getActiveToolNames()).toEqual(
+      expect.arrayContaining(['read', 'bash', 'edit', 'write', 'codemode']),
+    )
     expect(session.getActiveToolNames()).not.toContain('tool_search')
+  })
+
+  it.each([
+    ['an explicit defaultTools setting', { defaultTools: ['read', 'bash'] }],
+    ['a disabled codemode extension', { extensions: ['-builtin:codemode'] }],
+  ])('does not force codemode over %s', async (_, settings) => {
+    await writeFile(join(directory, 'agent/settings.json'), JSON.stringify(settings))
+    const other = new AgentHost(host.cwd)
+    await other.start()
+    try {
+      const otherSession = (other as unknown as { session: AgentSession }).session
+      expect(otherSession.getActiveToolNames()).not.toContain('codemode')
+    } finally {
+      await other.stop()
+    }
   })
 
   async function executeCodemode(code: string, signal = new AbortController().signal) {

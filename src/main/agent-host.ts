@@ -122,6 +122,9 @@ export class AgentHost {
             services,
             sessionManager,
             sessionStartEvent,
+            // Pi Dot enables codemode by default; an explicit `defaultTools` setting still wins.
+            tools:
+              services.settingsManager.getDefaultTools() === undefined ? ['+codemode'] : undefined,
           })),
           services,
           diagnostics: services.diagnostics,
