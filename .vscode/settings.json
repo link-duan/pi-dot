@@ -10,5 +10,6 @@
     "model": "sm-grok/grok-4.6",
     "thinking": "low"
   },
-  "pendant.chat.promptSuggestionLanguage": ""
+  "pendant.chat.promptSuggestionLanguage": "",
+  "pendant.autoGenerateSessionNames": true
 }
