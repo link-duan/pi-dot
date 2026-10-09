@@ -10,6 +10,7 @@ import { patchChat } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import {
   catalogModel,
+  codemodeModel,
   emptyModel,
   playgroundContextUsage,
   playgroundModel,
@@ -26,6 +27,7 @@ import {
 const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
   { title: 'Empty', model: emptyModel },
   { title: 'Catalog', model: catalogModel },
+  { title: 'Codemode', model: codemodeModel, agoMs: 6_000 },
   { title: 'Thinking', model: thinkingModel, agoMs: 4_200 },
   { title: 'Running tool', model: runningToolModel, agoMs: 2_800 },
   { title: 'Waiting', model: waitingModel, agoMs: 1_500 },

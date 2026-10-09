@@ -1,6 +1,7 @@
 import type { ToolLiveState } from '@/chat/state'
 import { asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
 import type { LucideIcon } from 'lucide-react'
+import { codemodeSummary, resolveCodemodeBody, type CodemodeBodyModel } from './codemode'
 import { toolDiffStats, toolEditDiff, toolWriteDiff, type DiffLine, type DiffStats } from './diff'
 import { extractToolImages, resolveToolImageText, type ToolImageItem } from './images'
 import {
@@ -15,6 +16,7 @@ import {
 } from './kind'
 
 export type ToolBodyModel =
+  | CodemodeBodyModel
   | { kind: 'diff'; path: string; lines: DiffLine[]; stats: DiffStats }
   | {
       kind: 'images'
@@ -62,13 +64,20 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
   const running = live?.status === 'running' || Boolean(pending && live?.status !== 'done')
   const payload = live?.args ?? args
   const resolved = live?.result ?? live?.partialResult ?? result
-  const rawError = Boolean(live?.isError) || isToolError(result)
+  const rawError = Boolean(live?.isError) || isToolError(resolved)
   const collapsedAttempt = isCollapsedToolAttempt(name, rawError)
-  const summary = collapsedAttempt ? '' : toolSummary(name, payload, cwd, homedir)
+  let summary = collapsedAttempt ? '' : toolSummary(name, payload, cwd, homedir)
 
   let body: ToolBodyModel | null = null
+  const codemode = name.toLowerCase() === 'codemode'
 
-  if (!collapsedAttempt) {
+  if (codemode) {
+    const codemodeBody = resolveCodemodeBody(payload, resolved, rawError)
+    summary = codemodeSummary(codemodeBody.calls)
+    // Arguments may still be empty while streaming; an empty body would leave an empty panel.
+    const { code, calls, output, error } = codemodeBody
+    if (code || calls.length || output.length || error) body = codemodeBody
+  } else if (!collapsedAttempt) {
     const fileDiff = isEditTool(name)
       ? toolEditDiff(payload, resolved)
       : isWriteTool(name)
@@ -131,7 +140,9 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
   const icon = getToolIcon(name, summary, hasImages)
   const label = collapsedAttempt ? `${toolLabel(name)} attempted` : toolLabel(name)
   const stats = collapsedAttempt ? null : toolDiffStats(name, payload, resolved)
-  const hasError = rawError && !collapsedAttempt && !isShellTool(name) && !isReadTool(name)
+  // Codemode surfaces failures on its nested calls and output, not on the card itself.
+  const hasError =
+    rawError && !collapsedAttempt && !isShellTool(name) && !isReadTool(name) && !codemode
   const hideMetaWhenOpen = Boolean(
     body && (body.kind === 'diff' || body.kind === 'code' || body.kind === 'images'),
   )

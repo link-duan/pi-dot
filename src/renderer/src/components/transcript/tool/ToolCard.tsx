@@ -4,6 +4,7 @@ import { useSession } from '@/session/store'
 import { ScrollFade } from '@/components/ui/scroll-area'
 import { ActivityRow } from '../ActivityRow'
 import { MarkdownBody } from '../MarkdownBody'
+import { CodemodeBody } from './CodemodeBody'
 import { EditDiff } from './EditDiff'
 import { resolveToolViewModel, type ToolBodyModel } from './model'
 import { ReadFile } from './ReadFile'
@@ -39,11 +40,16 @@ export function ToolCard({
     homedir: window.pi.homedir,
   })
 
+  const codemode = name.toLowerCase() === 'codemode'
+  const streaming = Boolean(pending && !live)
+  // Codemode's scroll area is the script, which only grows while its arguments stream.
+  const follow = codemode ? streaming : model.running
+
   useEffect(() => {
-    if (!model.running) return
+    if (!follow) return
     const node = scrollRef.current
     if (node) node.scrollTop = node.scrollHeight
-  }, [model.running, model.body])
+  }, [follow, model.body])
 
   return (
     <ActivityRow
@@ -51,26 +57,35 @@ export function ToolCard({
       label={model.label}
       summary={model.summary}
       stats={model.stats}
-      running={model.running}
+      running={model.running && !codemode}
       error={model.hasError}
+      defaultOpen={codemode}
       hideMetaWhenOpen={model.hideMetaWhenOpen}
       animateIn={animateIn}
     >
-      {model.body ? <ToolBody body={model.body} scrollRef={scrollRef} /> : null}
+      {model.body ? (
+        // Codemode highlights the script once it starts; only streaming arguments stay plain.
+        <ToolBody body={model.body} streaming={streaming} scrollRef={scrollRef} />
+      ) : null}
     </ActivityRow>
   )
 }
 
 function ToolBody({
   body,
+  streaming,
   scrollRef,
 }: {
   body: ToolBodyModel | null
+  streaming: boolean
   scrollRef: React.RefObject<HTMLDivElement | null>
 }) {
   if (!body) return null
 
   switch (body.kind) {
+    case 'codemode':
+      return <CodemodeBody body={body} streaming={streaming} scrollRef={scrollRef} />
+
     case 'diff':
       return <EditDiff path={body.path} stats={body.stats} lines={body.lines} />
 
@@ -91,7 +106,7 @@ function ToolBody({
           ) : null}
           {body.images.map((image, i) => (
             <ToolImage
-              key={i}
+              key={image.src}
               preview={{
                 ...image,
                 notice: i === body.images.length - 1 ? body.notice : undefined,

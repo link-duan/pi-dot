@@ -32,6 +32,7 @@ import type {
   SettingsPatch,
 } from '@shared/settings'
 import { readAppSettings, writeAppSettings } from './app-settings'
+import { builtinExtensions } from './agent-extensions'
 import { readConfig, writeConfig } from './config'
 import { IPC } from '@shared/ipc'
 import { getWindows } from './window'
@@ -71,6 +72,7 @@ async function runtime(): Promise<ModelRuntime> {
           agentDir: agentDir(),
           settingsManager: globalManager(),
           modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
+          resourceLoaderOptions: { extensionFactories: builtinExtensions },
         })
         return services.modelRuntime
       } catch (error) {

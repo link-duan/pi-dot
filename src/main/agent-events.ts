@@ -13,6 +13,7 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
       if (!isAgentMessage(event.message)) return null
       return { type: event.type, message: event.message, sessionFile }
     case 'tool_execution_start':
+      if (event.parentToolCallId) return null
       return {
         type: 'tool_execution_start',
         sessionFile,
@@ -21,6 +22,7 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
         args: event.args,
       }
     case 'tool_execution_update':
+      if (event.parentToolCallId) return null
       return {
         type: 'tool_execution_update',
         sessionFile,
@@ -30,6 +32,7 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
         partialResult: event.partialResult,
       }
     case 'tool_execution_end':
+      if (event.parentToolCallId) return null
       return {
         type: 'tool_execution_end',
         sessionFile,

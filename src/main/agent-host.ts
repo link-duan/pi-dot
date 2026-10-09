@@ -34,6 +34,7 @@ import {
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
+import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
 import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
@@ -114,6 +115,7 @@ export class AgentHost {
           agentDir: nextAgentDir,
           settingsManager: SettingsManager.create(cwd, nextAgentDir, { projectTrusted: trusted }),
           modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
+          resourceLoaderOptions: { extensionFactories: builtinExtensions },
         })
         return {
           ...(await createAgentSessionFromServices({
@@ -162,19 +164,16 @@ export class AgentHost {
       }
       const run = session.prompt(message, {
         source: 'rpc',
-        preflightResult: (ok) => {
-          if (ok) succeed()
-          else fail(new Error('Prompt rejected'))
-        },
+        preflightResult: succeed,
       })
       live.promptRun = run
-      void run.finally(() => {
+      // The SDK can resolve without a preflight (a prompt deferred until the agent settles).
+      void run.then(succeed, fail).finally(() => {
         if (live.promptRun === run) live.promptRun = null
         void this.ops.enqueue(async () => {
           await this.discardIfUnused(live)
         })
       })
-      void run.catch(fail)
     })
   }
 

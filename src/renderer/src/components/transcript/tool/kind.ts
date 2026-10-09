@@ -6,6 +6,7 @@ import {
   FolderSearch,
   ImageIcon,
   Search,
+  SquareCode,
   Terminal,
   Wrench,
   type LucideIcon,
@@ -36,6 +37,7 @@ export function isShellTool(name: string): boolean {
 
 const TOOL_LABELS: Record<string, string> = {
   bash: 'Bash',
+  codemode: 'Codemode',
   grep: 'Grep',
   edit: 'Edit',
   read: 'Read',
@@ -57,6 +59,7 @@ export function isCollapsedToolAttempt(name: string, error: boolean): boolean {
 export function getToolIcon(name: string, path?: string | null, hasImage = false): LucideIcon {
   if (hasImage) return ImageIcon
   const lower = name.toLowerCase()
+  if (lower === 'codemode') return SquareCode
   if (isShellTool(name)) return Terminal
   if (lower === 'grep') return Search
   if (lower === 'find') return FolderSearch

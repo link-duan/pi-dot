@@ -116,6 +116,24 @@ describe('toSessionEvent', () => {
     ).toEqual({ type: 'auto_retry_end', sessionFile })
   })
 
+  it('drops nested tool execution events without a transcript tool call', () => {
+    const call = {
+      toolCallId: 'nested_1',
+      parentToolCallId: 'call_1',
+      toolName: 'read',
+      args: { path: 'package.json' },
+    }
+    const result = { content: [{ type: 'text' as const, text: '{}' }] }
+    const events: AgentSessionEvent[] = [
+      { type: 'tool_execution_start', ...call },
+      { type: 'tool_execution_update', ...call, partialResult: result },
+      { type: 'tool_execution_end', ...call, result, isError: false },
+    ]
+    for (const event of events) {
+      expect(toSessionEvent(event, sessionFile)).toBeNull()
+    }
+  })
+
   it('forwards tool execution by toolCallId', () => {
     expect(
       toSessionEvent(
