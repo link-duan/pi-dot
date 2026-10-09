@@ -254,6 +254,10 @@ export class AgentHost {
     })
   }
 
+  async compact(sessionFile?: string): Promise<void> {
+    await this.requireActive(sessionFile).session.compact()
+  }
+
   private async replaceSteeringQueue(session: AgentSession, messages: string[]): Promise<void> {
     const previous = [...session.getSteeringMessages()]
     const target = session as unknown as {
@@ -344,7 +348,7 @@ export class AgentHost {
   }
 
   private getContextUsage(): ContextUsage | null {
-    return toContextUsage(this.session.getContextUsage())
+    return toContextUsage(this.session)
   }
 
   snapshot(): SessionSnapshot {
@@ -553,7 +557,11 @@ export class AgentHost {
       if (event.type === 'message_end' && event.message.role === 'user') {
         this.autoGenerateTitle(live, event.message.content)
       }
-      if (event.type === 'agent_end' || event.type === 'compaction_end') {
+      if (
+        event.type === 'agent_end' ||
+        event.type === 'compaction_start' ||
+        event.type === 'compaction_end'
+      ) {
         this.emitContextUsage(live)
       }
     })
@@ -580,7 +588,7 @@ export class AgentHost {
     this.emit({
       type: 'context_usage',
       sessionFile: live.sessionFile,
-      usage: toContextUsage(live.session.getContextUsage()),
+      usage: toContextUsage(live.session),
     })
   }
 }
@@ -593,14 +601,22 @@ function messageText(content: UserMessage['content']): string {
     .trim()
 }
 
-function toContextUsage(
-  usage: { tokens: number | null; contextWindow: number; percent: number | null } | undefined,
-): ContextUsage | null {
+function toContextUsage(session: AgentSession): ContextUsage | null {
+  const usage = session.getContextUsage()
   if (!usage) return null
+  const { tokens, cost } = session.getSessionStats()
   return {
     tokens: usage.tokens,
     contextWindow: usage.contextWindow,
     percent: usage.percent,
+    session: {
+      input: tokens.input,
+      output: tokens.output,
+      cacheRead: tokens.cacheRead,
+      cacheWrite: tokens.cacheWrite,
+      cost,
+    },
+    compacting: session.isCompacting,
   }
 }
 

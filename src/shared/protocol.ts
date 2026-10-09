@@ -44,6 +44,8 @@ export interface ContextUsage {
   tokens: number | null
   contextWindow: number
   percent: number | null
+  session: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number }
+  compacting: boolean
 }
 
 export interface FileHit {

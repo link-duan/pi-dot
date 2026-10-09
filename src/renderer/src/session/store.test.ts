@@ -25,7 +25,13 @@ const snapshot: SessionSnapshot = {
   thinkingLevels: ['off', 'high'],
   runningSessionFiles: ['/tmp/project/session.jsonl', '/tmp/project/other.jsonl'],
   skills: [{ name: 'tdd', description: 'Test-driven development' }],
-  contextUsage: { tokens: 42_500, contextWindow: 256_000, percent: 17 },
+  contextUsage: {
+    tokens: 42_500,
+    contextWindow: 256_000,
+    percent: 17,
+    session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+    compacting: false,
+  },
 }
 
 afterEach(() => {
@@ -48,6 +54,8 @@ describe('applyLiveSnapshot', () => {
       tokens: 42_500,
       contextWindow: 256_000,
       percent: 17,
+      session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+      compacting: false,
     })
     const chat = activeChat(session)
     expect(chat.messages).toHaveLength(1)

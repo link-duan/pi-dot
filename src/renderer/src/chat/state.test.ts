@@ -202,7 +202,13 @@ describe('applySessionEvent', () => {
     expect(
       applySessionEvent(state, {
         type: 'context_usage',
-        usage: { tokens: 1000, contextWindow: 128_000, percent: 1 },
+        usage: {
+          tokens: 1000,
+          contextWindow: 128_000,
+          percent: 1,
+          session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+          compacting: false,
+        },
       }),
     ).toBe(state)
   })

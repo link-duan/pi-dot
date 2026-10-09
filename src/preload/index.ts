@@ -48,6 +48,7 @@ const api: PiApi = {
   clearSteeringQueue: (sessionFile: string) =>
     ipcRenderer.invoke(IPC.clearSteeringQueue, sessionFile) as Promise<void>,
   abort: (sessionFile: string) => ipcRenderer.invoke(IPC.abort, sessionFile) as Promise<void>,
+  compact: (sessionFile: string) => ipcRenderer.invoke(IPC.compact, sessionFile) as Promise<void>,
   setModel: (provider: string, modelId: string) =>
     ipcRenderer.invoke(IPC.setModel, provider, modelId),
   setThinkingLevel: (level: ThinkingLevel) => ipcRenderer.invoke(IPC.setThinkingLevel, level),

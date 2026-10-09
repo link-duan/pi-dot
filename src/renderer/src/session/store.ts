@@ -34,6 +34,7 @@ interface SessionStore extends WindowState {
   clearQueue: () => Promise<void>
   clearSteeringQueue: () => Promise<void>
   abort: () => Promise<void>
+  compact: () => Promise<void>
   setModel: (provider: string, modelId: string) => Promise<void>
   setThinkingLevel: (level: ThinkingLevel) => Promise<void>
   listSessions: () => Promise<SessionListItem[]>
@@ -359,6 +360,16 @@ export const useSession = create<SessionStore>((set, get) => ({
     try {
       const selection = await window.pi.setModel(provider, modelId)
       set({ ...selectionPatch(selection), error: null })
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+
+  compact: async () => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.compact(file)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }

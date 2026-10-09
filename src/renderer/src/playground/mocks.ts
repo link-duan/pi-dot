@@ -123,6 +123,8 @@ export const playgroundContextUsage: ContextUsage = {
   tokens: 42_500,
   contextWindow: 256_000,
   percent: 17,
+  session: { input: 120_300, output: 12_100, cacheRead: 300_000, cacheWrite: 20_000, cost: 0.42 },
+  compacting: false,
 }
 
 export const emptyModel = chat([])

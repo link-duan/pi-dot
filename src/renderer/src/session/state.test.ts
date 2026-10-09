@@ -99,7 +99,13 @@ describe('applyEvent', () => {
   })
 
   it('updates context usage only for the active session', () => {
-    const usage = { tokens: 42_500, contextWindow: 256_000, percent: 17 }
+    const usage = {
+      tokens: 42_500,
+      contextWindow: 256_000,
+      percent: 17,
+      session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+      compacting: false,
+    }
     let state = windowWith({
       sessionFile: fileA,
       contextUsage: usage,
@@ -108,15 +114,33 @@ describe('applyEvent', () => {
     state = applyEvent(state, {
       type: 'context_usage',
       sessionFile: fileB,
-      usage: { tokens: 1, contextWindow: 128_000, percent: 1 },
+      usage: {
+        tokens: 1,
+        contextWindow: 128_000,
+        percent: 1,
+        session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+        compacting: false,
+      },
     })
     expect(state.contextUsage).toEqual(usage)
     state = applyEvent(state, {
       type: 'context_usage',
       sessionFile: fileA,
-      usage: { tokens: null, contextWindow: 256_000, percent: null },
+      usage: {
+        tokens: null,
+        contextWindow: 256_000,
+        percent: null,
+        session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+        compacting: false,
+      },
     })
-    expect(state.contextUsage).toEqual({ tokens: null, contextWindow: 256_000, percent: null })
+    expect(state.contextUsage).toEqual({
+      tokens: null,
+      contextWindow: 256_000,
+      percent: null,
+      session: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0 },
+      compacting: false,
+    })
   })
 })
 

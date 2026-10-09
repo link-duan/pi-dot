@@ -14,6 +14,7 @@ export const IPC = {
   clearQueue: 'pi:clearQueue',
   clearSteeringQueue: 'pi:clearSteeringQueue',
   abort: 'pi:abort',
+  compact: 'pi:compact',
   setModel: 'pi:setModel',
   setThinkingLevel: 'pi:setThinkingLevel',
   listSessions: 'pi:listSessions',

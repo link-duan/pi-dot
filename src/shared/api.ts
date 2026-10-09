@@ -33,6 +33,7 @@ export interface PiApi {
   clearQueue(sessionFile: string): Promise<{ steering: string[]; followUp: string[] }>
   clearSteeringQueue(sessionFile: string): Promise<void>
   abort(sessionFile: string): Promise<void>
+  compact(sessionFile: string): Promise<void>
   setModel(provider: string, modelId: string): Promise<ModelSelection>
   setThinkingLevel(level: ThinkingLevel): Promise<ModelSelection>
   listSessions(cwd: string): Promise<SessionListItem[]>

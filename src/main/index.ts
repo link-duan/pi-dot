@@ -230,6 +230,7 @@ function registerIpc(): void {
   ipcMain.handle(IPC.abort, async (event, sessionFile: string) => {
     await from(event.sender)?.host?.abort(sessionFile)
   })
+  handleHost(IPC.compact, (host, sessionFile: string) => host.compact(sessionFile))
 
   handleHost(IPC.setModel, (host, provider: string, modelId: string) =>
     host.setModel(provider, modelId),
