@@ -210,7 +210,9 @@ function registerIpc(): void {
   handleHost(IPC.prompt, (host, text: string, sessionFile: string, planMode: boolean) =>
     host.prompt(text, sessionFile, planMode === true),
   )
-  handleHost(IPC.approvePlan, (host, sessionFile: string) => host.approvePlan(sessionFile))
+  handleHost(IPC.approvePlan, (host, sessionFile: string, message: string) =>
+    host.approvePlan(sessionFile, message),
+  )
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>
     host.removeSteering(index, sessionFile),

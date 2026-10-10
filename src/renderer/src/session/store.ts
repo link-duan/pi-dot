@@ -1,11 +1,12 @@
 import type { ChatState } from '@/chat/state'
-import {
-  PLAN_APPROVED_PROMPT,
-  type AgentMessage,
-  type ModelSelection,
-  type SessionListItem,
-  type SessionSnapshot,
-  type ThinkingLevel,
+import { formatApproval, formatPlanFeedback, reanchor, type PlanComment } from '@/lib/plan-feedback'
+import { parsePlan } from '@shared/plan-file'
+import type {
+  AgentMessage,
+  ModelSelection,
+  SessionListItem,
+  SessionSnapshot,
+  ThinkingLevel,
 } from '@shared/protocol'
 import { SerialQueue } from '@shared/queue'
 import { create } from 'zustand'
@@ -14,8 +15,10 @@ import {
   applySnapshot,
   createWindowState,
   parkActive,
+  noPlanReview,
   patchChat,
   resetFolder,
+  reviewComments,
   type WindowState,
 } from './state'
 
@@ -47,6 +50,12 @@ interface SessionStore extends WindowState {
   approvePlan: () => Promise<void>
   /** Re-reads the Plan File while the Plan Mode toggle is on; `open` shows it if it has content. */
   refreshPlan: (open?: boolean) => Promise<void>
+  setPlanDraft: (draft: PlanComment | null) => void
+  /** Saves the draft as a comment. */
+  commitPlanDraft: () => void
+  removePlanComment: (id: string) => void
+  /** Sends the inline comments and `note` as one message, then clears them. */
+  sendPlanFeedback: (note: string) => Promise<void>
   openPlanViewer: () => void
   closePlanViewer: () => void
 }
@@ -390,19 +399,22 @@ export const useSession = create<SessionStore>((set, get) => ({
   setPlanMode: (on: boolean) => {
     const file = get().sessionFile
     if (!file) return
-    set((state) => patchChat(state, file, { planMode: on }))
+    // Leaving Plan Mode drops the review; Build leaves it through approvePlan instead.
+    set((state) => ({ ...patchChat(state, file, { planMode: on }), ...(on ? null : noPlanReview) }))
   },
 
   approvePlan: async () => {
     const file = get().sessionFile
     if (!file) return
+    const message = formatApproval(reviewComments(get()), get().planText)
     set((state) => patchChat(state, file, { planMode: false }))
     try {
-      await submitPrompt(file, PLAN_APPROVED_PROMPT, () => window.pi.approvePlan(file))
+      await submitPrompt(file, message, () => window.pi.approvePlan(file, message))
     } catch (error) {
       set((state) => patchChat(state, file, { planMode: true }))
       throw error
     }
+    set(noPlanReview)
   },
 
   refreshPlan: async (open = false) => {
@@ -413,7 +425,29 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
     const text = await window.pi.readPlan(planPath)
     if (get().sessionFile !== sessionFile) return
-    set((state) => ({ planText: text, planViewer: state.planViewer || (open && text !== '') }))
+    set((state) => {
+      const body = parsePlan(text).body
+      return {
+        planText: text,
+        planViewer: state.planViewer || (open && text !== ''),
+        planComments: reanchor(state.planComments, body),
+        planDraft: state.planDraft && reanchor([state.planDraft], body)[0]!,
+      }
+    })
+  },
+
+  setPlanDraft: (draft: PlanComment | null) => set({ planDraft: draft }),
+  commitPlanDraft: () => set((state) => ({ planComments: reviewComments(state), planDraft: null })),
+  removePlanComment: (id: string) =>
+    set((state) => ({ planComments: state.planComments.filter((item) => item.id !== id) })),
+
+  sendPlanFeedback: async (note: string) => {
+    const message = formatPlanFeedback(reviewComments(get()), note, get().planText)
+    if (!message) return
+    if (get().connection !== 'ready') throw new Error('Not connected')
+    // Close and clear only once sent, so a failure keeps the comments and the typed note.
+    await get().send(message)
+    set({ ...noPlanReview, planViewer: false })
   },
 
   openPlanViewer: () => set({ planViewer: true }),

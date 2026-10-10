@@ -51,6 +51,8 @@ export function PlanReview() {
     // Capture phase, so the Composer's own Enter handling never sees it.
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Enter' || !event.metaKey || event.isComposing) return
+      // Typing a comment on the plan is not a Build.
+      if ((event.target as Element | null)?.closest?.('[data-plan-comment]')) return
       event.preventDefault()
       event.stopPropagation()
       buildPlan()
@@ -62,17 +64,28 @@ export function PlanReview() {
   if (!shown) return null
 
   return (
-    <div className="mb-2 w-full rounded-xl border border-plan/40 bg-card/90 p-3 shadow-sm backdrop-blur-md dark:bg-card/90">
-      <div className="text-xs text-muted-foreground">Review Plan</div>
-      <div className="mt-0.5 truncate text-sm font-medium text-foreground">{name}</div>
-      {overview ? (
-        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{overview}</p>
-      ) : null}
-      <div className="mt-2 flex justify-end gap-2">
-        <Button type="button" variant="ghost" size="sm" onClick={openPlanViewer}>
+    // Mirrors the Composer's box: text lines up with its input, buttons with its send button.
+    <div className="mb-2 w-full rounded-2xl border border-plan/40 bg-card/90 px-1.5 pt-1 pb-1 shadow-sm backdrop-blur-md dark:bg-card/90">
+      <div className="px-1.5 pt-1.5">
+        <div className="text-xs text-muted-foreground">Review Plan</div>
+        <div className="mt-0.5 truncate text-sm font-medium text-foreground">{name}</div>
+        {overview ? (
+          <p className="mt-0.5 line-clamp-2 text-justify text-xs text-muted-foreground">
+            {overview}
+          </p>
+        ) : null}
+      </div>
+      <div className="mt-1 flex justify-end gap-1 px-0.5">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="rounded-[calc(var(--radius-2xl)-5px)]"
+          onClick={openPlanViewer}
+        >
           View Plan
         </Button>
-        <BuildButton />
+        <BuildButton className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)]" />
       </div>
     </div>
   )

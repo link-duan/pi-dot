@@ -30,8 +30,8 @@ const api: PiApi = {
   stop: () => ipcRenderer.invoke(IPC.stop) as Promise<{ cancelled: boolean }>,
   prompt: (text: string, sessionFile: string, planMode: boolean) =>
     ipcRenderer.invoke(IPC.prompt, text, sessionFile, planMode) as Promise<void>,
-  approvePlan: (sessionFile: string) =>
-    ipcRenderer.invoke(IPC.approvePlan, sessionFile) as Promise<void>,
+  approvePlan: (sessionFile: string, message: string) =>
+    ipcRenderer.invoke(IPC.approvePlan, sessionFile, message) as Promise<void>,
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>

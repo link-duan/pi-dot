@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { useSession } from '@/session/store'
-import { MarkdownBody } from './transcript/MarkdownBody'
+import { PlanDocument } from './PlanComments'
+import { PlanFeedbackButton } from './PlanFeedback'
 import { BuildButton, usePlan } from './PlanReview'
 
 /** Closing the viewer hands back to the Composer, where feedback on the plan goes. */
@@ -36,7 +37,7 @@ export function PlanViewer() {
                 </DialogDescription>
               ) : null}
               <div className="my-8 border-t border-border" />
-              <MarkdownBody text={body} />
+              <PlanDocument body={body} />
             </article>
           </ScrollAreaViewport>
           <ScrollAreaScrollbar />
@@ -53,6 +54,7 @@ export function PlanViewer() {
           >
             <X />
           </Button>
+          <PlanFeedbackButton />
           <Button
             type="button"
             variant="ghost"

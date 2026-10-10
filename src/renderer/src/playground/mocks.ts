@@ -1,4 +1,5 @@
 import { createChatState, type ChatState } from '@/chat/state'
+import type { PlanComment } from '@/lib/plan-feedback'
 import type {
   AgentMessage,
   AssistantMessage,
@@ -510,6 +511,22 @@ Typing \`@src/comp\` fires 8 searches; on a 200k-file repo each takes ~300 ms an
 1. \`bun run test\`
 2. Type quickly in the @ picker on a large repo; only the last query's results show.
 `
+
+/** A comment on the sample plan, anchored like the viewer would. */
+export function playgroundPlanComments(body: string): PlanComment[] {
+  const quote = 'debounce the query by 120 ms'
+  const start = body.indexOf(quote)
+  if (start < 0) return []
+  return [
+    {
+      id: 'playground-comment',
+      text: 'Is 120 ms enough on slow disks? Make it configurable.',
+      start,
+      end: start + quote.length,
+      quote,
+    },
+  ]
+}
 
 export const planModel = chat(
   [

@@ -22,7 +22,6 @@ import {
   asThinkingLevel,
   isAgentMessage,
   parseThinkingLevels,
-  PLAN_APPROVED_PROMPT,
   type AgentMessage,
   type ContextUsage,
   type ModelInfo,
@@ -160,8 +159,9 @@ export class AgentHost {
     })
   }
 
-  async approvePlan(sessionFile?: string): Promise<void> {
-    await this.prompt(PLAN_APPROVED_PROMPT, sessionFile, false, true)
+  /** `message` is the user's approval, which may carry comments on the plan. */
+  async approvePlan(sessionFile: string | undefined, message: string): Promise<void> {
+    await this.prompt(message, sessionFile, false, true)
   }
 
   async prompt(

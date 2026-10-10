@@ -7,6 +7,7 @@ import { Transcript, type TranscriptHandle } from '@/components/transcript/Trans
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PATH } from '@/router'
+import { parsePlan } from '@shared/plan-file'
 import { patchChat } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import {
@@ -16,6 +17,7 @@ import {
   playgroundContextUsage,
   planModel,
   playgroundModel,
+  playgroundPlanComments,
   playgroundPlanPath,
   playgroundPlanText,
   playgroundModels,
@@ -190,6 +192,7 @@ function usePlaygroundSession(model: ChatState, plan = '') {
       },
       planText: plan,
       planViewer: false,
+      planComments: plan ? playgroundPlanComments(parsePlan(plan).body) : [],
     }))
   }, [model, plan])
 }

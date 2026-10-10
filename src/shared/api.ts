@@ -25,7 +25,7 @@ export interface PiApi {
   start(cwd: string): Promise<StartResult>
   stop(): Promise<{ cancelled: boolean }>
   prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
-  approvePlan(sessionFile: string): Promise<void>
+  approvePlan(sessionFile: string, message: string): Promise<void>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>
   followUp(text: string, sessionFile: string): Promise<void>

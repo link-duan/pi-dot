@@ -1,4 +1,5 @@
 import { applySessionEvent, createChatState, hydrateMessages, type ChatState } from '@/chat/state'
+import type { PlanComment } from '@/lib/plan-feedback'
 import type {
   ConnectionStatus,
   ContextUsage,
@@ -27,6 +28,10 @@ export type WindowState = {
   planPath: string
   planText: string
   planViewer: boolean
+  /** Draft inline comments on the active session's plan, sent with feedback or Build. */
+  planComments: PlanComment[]
+  /** The inline comment being written; Build and feedback send it too if it has text. */
+  planDraft: PlanComment | null
   running: string[]
   chats: Record<string, ChatState>
 }
@@ -51,9 +56,20 @@ export function createWindowState(): WindowState {
     planPath: '',
     planText: '',
     planViewer: false,
+    planComments: [],
+    planDraft: null,
     running: [],
     chats: {},
   }
+}
+
+export const noPlanReview = { planComments: [], planDraft: null } satisfies Partial<WindowState>
+
+/** Saved comments plus the draft, if it has text: what Build and feedback send. */
+export function reviewComments(state: WindowState): PlanComment[] {
+  return state.planDraft?.text.trim()
+    ? [...state.planComments, state.planDraft]
+    : state.planComments
 }
 
 export function activeChat(state: WindowState): ChatState {
@@ -80,7 +96,6 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     skills: snapshot.skills,
     contextUsage: snapshot.contextUsage ?? null,
     planPath: snapshot.state.planPath,
-    planViewer: false,
   }
 }
 
@@ -111,6 +126,8 @@ export function applySnapshot<T extends WindowState>(
   return {
     ...state,
     ...snapshotMeta(snapshot),
+    // A reload of the same session (e.g. after a provider login) keeps the plan review open.
+    ...(sessionFile !== state.sessionFile ? { planViewer: false, ...noPlanReview } : null),
     chats,
   }
 }

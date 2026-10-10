@@ -182,3 +182,57 @@ describe('applyLiveSnapshot', () => {
     expect(useSession.getState().chats[file]?.followUpQueue).toEqual(['second'])
   })
 })
+
+describe('plan review', () => {
+  const file = '/tmp/project/session.jsonl'
+  const comment = { id: 'c1', text: 'why?', start: 0, end: 5, quote: 'Hello' }
+  const draft = { id: 'd1', text: 'typed, not saved', start: 6, end: 11, quote: 'world' }
+
+  function setup(pi: Record<string, unknown>) {
+    ;(globalThis as unknown as { window: { pi: unknown } }).window = { pi }
+    applyLiveSnapshot({ ...snapshot, state: { ...snapshot.state, isStreaming: false } })
+    useSession.setState((state) => ({
+      planText: 'Hello world',
+      planComments: [comment],
+      planDraft: draft,
+      chats: { ...state.chats, [file]: { ...activeChat(state), planMode: true } },
+    }))
+  }
+
+  it('sends the unsaved draft with Build and keeps the review if approval fails', async () => {
+    const sent: string[] = []
+    setup({
+      approvePlan: async (_file: string, message: string) => {
+        sent.push(message)
+        throw new Error('offline')
+      },
+    })
+    await expect(useSession.getState().approvePlan()).rejects.toThrow('offline')
+    expect(sent[0]).toContain('typed, not saved')
+    expect(useSession.getState().planComments).toEqual([comment])
+    expect(useSession.getState().planDraft).toEqual(draft)
+    expect(activeChat(useSession.getState()).planMode).toBe(true)
+  })
+
+  it('clears the review only once feedback is sent', async () => {
+    setup({
+      prompt: async () => {
+        throw new Error('offline')
+      },
+    })
+    await expect(useSession.getState().sendPlanFeedback('note')).rejects.toThrow('offline')
+    expect(useSession.getState().planComments).toEqual([comment])
+
+    useSession.setState({ send: async () => {} })
+    await useSession.getState().sendPlanFeedback('note')
+    expect(useSession.getState().planComments).toEqual([])
+    expect(useSession.getState().planDraft).toBeNull()
+  })
+
+  it('drops the review when Plan Mode is turned off', () => {
+    setup({})
+    useSession.getState().setPlanMode(false)
+    expect(useSession.getState().planComments).toEqual([])
+    expect(useSession.getState().planDraft).toBeNull()
+  })
+})

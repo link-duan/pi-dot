@@ -14,17 +14,19 @@ export function SkillPicker({
   skills,
   query,
   index,
+  withCommands = true,
   onHover,
   onSelect,
 }: {
   skills: SkillInfo[]
   query: string
   index: number
+  withCommands?: boolean
   onHover: (index: number) => void
   onSelect: (item: SlashItem) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const filtered = filterSlashItems(skills, query)
+  const filtered = filterSlashItems(skills, query, withCommands)
   const selected = filtered[index] ? itemValue(filtered[index]) : ''
   const groups = [
     { heading: 'Commands', kind: 'command' },
@@ -49,7 +51,9 @@ export function SkillPicker({
           <Command shouldFilter={false} value={selected} className="overflow-visible">
             <CommandList className="overflow-visible p-0">
               {filtered.length === 0 ? (
-                <CommandEmpty className="py-4 text-xs">No matching commands or skills</CommandEmpty>
+                <CommandEmpty className="py-4 text-xs">
+                  {withCommands ? 'No matching commands or skills' : 'No matching skills'}
+                </CommandEmpty>
               ) : (
                 groups.map(({ heading, kind }) => {
                   const items = filtered.flatMap((item, itemIndex) =>

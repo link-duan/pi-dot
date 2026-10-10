@@ -54,6 +54,10 @@ describe('filterSlashItems', () => {
       item.kind === 'command' ? `/${item.name}` : item.skill.name,
     )
 
+  it('lists skills only when commands are off', () => {
+    expect(filterSlashItems(skills, 'pl', false).map((item) => item.kind)).toEqual(['skill'])
+  })
+
   it('lists commands before skills', () => {
     expect(names('')).toEqual(['/plan', 'planner', 'tdd'])
     expect(names('pl')).toEqual(['/plan', 'planner'])

@@ -17,12 +17,13 @@ export function SlashSkillPlugin({
   skills: SkillInfo[]
   picker: SkillPickerState | null
   setPicker: Dispatch<SetStateAction<SkillPickerState | null>>
-  onCommand: (name: string) => void
+  /** Without it, the picker offers skills only. */
+  onCommand?: (name: string) => void
 }) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const filtered = picker ? filterSlashItems(skills, picker.query) : []
+    const filtered = picker ? filterSlashItems(skills, picker.query, !!onCommand) : []
 
     function insert(index: number): boolean {
       const item = filtered[index]
@@ -31,7 +32,7 @@ export function SlashSkillPlugin({
         $applySlashItem(item)
       })
       setPicker(null)
-      if (item.kind === 'command') onCommand(item.name)
+      if (item.kind === 'command') onCommand?.(item.name)
       editor.focus()
       return true
     }

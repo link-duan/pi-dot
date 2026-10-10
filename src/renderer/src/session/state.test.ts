@@ -233,6 +233,27 @@ describe('plan mode', () => {
     expect(activeChat(state).planActive).toBe(false)
   })
 
+  it('drops draft plan comments when switching sessions', () => {
+    const comment = { id: 'c', text: 'why?', start: 0, end: 1, quote: 'x' }
+    const state = {
+      ...applySnapshot(createWindowState(), snapshot(fileA)),
+      planComments: [comment],
+    }
+    expect(applySnapshot(state, snapshot(fileB)).planComments).toEqual([])
+  })
+
+  it('keeps the plan review when the same session is reloaded', () => {
+    const comment = { id: 'c', text: 'why?', start: 0, end: 1, quote: 'x' }
+    const state = {
+      ...applySnapshot(createWindowState(), snapshot(fileA)),
+      planComments: [comment],
+      planViewer: true,
+    }
+    const reloaded = applySnapshot(state, snapshot(fileA))
+    expect(reloaded.planComments).toEqual([comment])
+    expect(reloaded.planViewer).toBe(true)
+  })
+
   it('closes the plan viewer when switching sessions', () => {
     const state = { ...applySnapshot(createWindowState(), snapshot(fileA)), planViewer: true }
     expect(applySnapshot(state, snapshot(fileB)).planViewer).toBe(false)

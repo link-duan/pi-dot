@@ -17,12 +17,17 @@ export const SLASH_COMMANDS: SlashCommand[] = [
 
 export type SlashItem = ({ kind: 'command' } & SlashCommand) | { kind: 'skill'; skill: SkillInfo }
 
-/** Commands first, then skills; a `skill:` query lists skills only. */
-export function filterSlashItems(skills: SkillInfo[], query: string): SlashItem[] {
+/** Commands first, then skills; a `skill:` query, or `withCommands: false`, lists skills only. */
+export function filterSlashItems(
+  skills: SkillInfo[],
+  query: string,
+  withCommands = true,
+): SlashItem[] {
   const needle = query.trim().toLowerCase()
-  const commands = needle.startsWith('skill:')
-    ? []
-    : SLASH_COMMANDS.filter((command) => command.name.includes(needle))
+  const commands =
+    !withCommands || needle.startsWith('skill:')
+      ? []
+      : SLASH_COMMANDS.filter((command) => command.name.includes(needle))
   return [
     ...commands.map((command): SlashItem => ({ kind: 'command', ...command })),
     ...filterSkills(skills, query).map((skill): SlashItem => ({ kind: 'skill', skill })),

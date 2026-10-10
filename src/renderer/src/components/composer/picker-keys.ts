@@ -68,6 +68,8 @@ export function registerPickerKeys(
       (event) => {
         if (!picker) return false
         event?.preventDefault()
+        // Don't let it also close an enclosing dialog or popover.
+        event?.stopPropagation()
         setPicker(null)
         return true
       },

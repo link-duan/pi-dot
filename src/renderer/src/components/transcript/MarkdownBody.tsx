@@ -1,6 +1,6 @@
 import { isValidElement, type ComponentProps, type ReactNode } from 'react'
 import { createMathPlugin } from '@streamdown/math'
-import { Streamdown, useIsCodeFenceIncomplete } from 'streamdown'
+import { Streamdown, useIsCodeFenceIncomplete, type StreamdownProps } from 'streamdown'
 import { citationLabel, languageFromPath, parseCodeCitation } from '@/lib/code-citation'
 import { cn } from '@/lib/utils'
 import { FileCard, HighlightedCode } from './FileCard'
@@ -74,11 +74,12 @@ export function MarkdownBody({
   text,
   streaming = false,
   className,
+  ...blocks
 }: {
   text: string
   streaming?: boolean
   className?: string
-}) {
+} & Pick<StreamdownProps, 'BlockComponent' | 'parseMarkdownIntoBlocksFn'>) {
   return (
     <Streamdown
       className={cn('leading-relaxed select-text', className)}
@@ -89,6 +90,9 @@ export function MarkdownBody({
       linkSafety={linkSafety}
       plugins={plugins}
       components={components}
+      // Custom blocks must be exact slices of the source, so skip the streaming repairs then.
+      parseIncompleteMarkdown={streaming || !blocks.parseMarkdownIntoBlocksFn}
+      {...blocks}
     >
       {text}
     </Streamdown>

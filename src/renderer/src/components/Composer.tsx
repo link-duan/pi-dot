@@ -11,43 +11,20 @@ import {
 } from 'lexical'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { ContentEditable } from '@lexical/react/LexicalContentEditable'
-import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
-import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
-import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import type { FileHit } from '@shared/protocol'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { displayPath } from '@/lib/path'
-import type { SlashItem } from '@/lib/slash-query'
 import { cn } from '@/lib/utils'
 import { useChat, useSession } from '@/session/store'
-import { FilePicker } from './FilePicker'
 import { FollowUpQueue } from './FollowUpQueue'
 import { PlanReview } from './PlanReview'
-import { SkillPicker } from './SkillPicker'
-import { AtFilePlugin, type FilePickerState } from './composer/AtFilePlugin'
-import { ComposerPastePlugin } from './composer/ComposerPastePlugin'
-import { FileNode } from './composer/FileNode'
-import { $replaceAtQueryWithFile } from './composer/insert-file'
-import { $applySlashItem } from './composer/insert-skill'
-import { SkillNode } from './composer/SkillNode'
-import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
+import { $clearEditor, PromptEditorField, promptEditorConfig } from './composer/PromptEditor'
 import { serializeEditorState } from './composer/serialize'
 import { ContextUsageRing } from './ContextUsageRing'
 import { ModelSelect } from './ModelSelect'
 
-const initialConfig = {
-  namespace: 'pi-composer',
-  onError(error: Error) {
-    console.error(error)
-  },
-  nodes: [SkillNode, FileNode],
-  theme: {
-    paragraph: 'm-0',
-  },
-}
+const initialConfig = promptEditorConfig('pi-composer')
 
 export function Composer({ onSend }: { onSend?: () => void } = {}) {
   return (
@@ -60,18 +37,11 @@ export function Composer({ onSend }: { onSend?: () => void } = {}) {
 function ComposerForm({ onSend }: { onSend?: () => void }) {
   const [editor] = useLexicalComposerContext()
   const [draft, setDraft] = useState(() => draftText(useSession.getState().sessionFile))
-  const [picker, setPicker] = useState<SkillPickerState | null>(null)
-  const [filePicker, setFilePicker] = useState<FilePickerState | null>(null)
-  const [fileResults, setFileResults] = useState<{ query: string; hits: FileHit[] }>({
-    query: '',
-    hits: [],
-  })
   const sessionRef = useRef<string | null | undefined>(undefined)
   const focusNonce = useSession((state) => state.focusNonce)
   const focusAtMount = useRef(focusNonce)
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
-  const skills = useSession((state) => state.skills)
   const send = useSession((state) => state.send)
   const steer = useSession((state) => state.steer)
   const followUp = useSession((state) => state.followUp)
@@ -115,16 +85,8 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         console.error('Failed to submit prompt', error)
         return
       }
-      editor.update(
-        () => {
-          $getRoot().clear()
-          $getRoot().append($createParagraphNode())
-        },
-        { discrete: true },
-      )
+      editor.update($clearEditor, { discrete: true })
       setDraft('')
-      setPicker(null)
-      setFilePicker(null)
       onSend?.()
     },
     [connection, editor, followUp, isStreaming, onSend, send, steer],
@@ -147,58 +109,12 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
       sessionRef.current = state.sessionFile
       unbind = activateSession(editor, from, state.sessionFile)
       setDraft(serializeEditorState(editor.getEditorState()))
-      setPicker(null)
-      setFilePicker(null)
     })
     return () => {
       stop()
       unbind()
     }
   }, [editor])
-
-  const fileQuery = filePicker?.query
-  const fileHits = fileQuery == null ? [] : fileResults.hits
-  useEffect(() => {
-    if (fileQuery == null || !cwd) return
-    let cancelled = false
-    const timer = setTimeout(() => {
-      void window.pi.searchFiles(cwd, fileQuery).then(
-        (hits) => {
-          if (!cancelled) setFileResults({ query: fileQuery, hits })
-        },
-        () => {
-          if (!cancelled) setFileResults({ query: fileQuery, hits: [] })
-        },
-      )
-    }, 50)
-    return () => {
-      cancelled = true
-      clearTimeout(timer)
-    }
-  }, [cwd, fileQuery])
-
-  const insertPicked = useCallback(
-    (item: SlashItem) => {
-      editor.update(() => {
-        $applySlashItem(item)
-      })
-      setPicker(null)
-      if (item.kind === 'command') runCommand(item.name)
-      editor.focus()
-    },
-    [editor, runCommand],
-  )
-
-  const insertPickedFile = useCallback(
-    (hit: FileHit) => {
-      editor.update(() => {
-        $replaceAtQueryWithFile(hit)
-      })
-      setFilePicker(null)
-      editor.focus()
-    },
-    [editor],
-  )
 
   const handleEditFollowUp = useCallback(
     (text: string) => {
@@ -240,62 +156,24 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
           submit(isStreaming ? 'steer' : undefined)
         }}
       >
-        {filePicker ? (
-          <FilePicker
-            hits={fileHits}
-            index={filePicker.index}
-            onHover={(index) => setFilePicker((prev) => (prev ? { ...prev, index } : prev))}
-            onSelect={insertPickedFile}
-          />
-        ) : picker ? (
-          <SkillPicker
-            skills={skills}
-            query={picker.query}
-            index={picker.index}
-            onHover={(index) => setPicker((prev) => (prev ? { ...prev, index } : prev))}
-            onSelect={insertPicked}
-          />
-        ) : null}
-
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>
-        <div className="relative">
-          <RichTextPlugin
-            contentEditable={
-              <ContentEditable
-                id="prompt-input"
-                aria-placeholder={placeholder}
-                placeholder={
-                  <div className="pointer-events-none absolute top-1.5 left-1.5 text-muted-foreground/60 select-none">
-                    {placeholder}
-                  </div>
-                }
-                className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
-              />
-            }
-            ErrorBoundary={LexicalErrorBoundary}
-          />
-        </div>
-        <OnChangePlugin
-          onChange={(state) => {
-            setDraft(serializeEditorState(state))
+        <PromptEditorField
+          id="prompt-input"
+          placeholder={placeholder}
+          className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
+          onChange={(text, state) => {
+            setDraft(text)
             rememberDraft(sessionRef.current ?? null, state)
           }}
-        />
-        <SlashSkillPlugin
-          skills={skills}
-          picker={picker}
-          setPicker={setPicker}
           onCommand={runCommand}
         />
-        <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
         <ComposerKeyPlugin
           isStreaming={isStreaming}
           onSubmit={submit}
           onTogglePlanMode={togglePlanMode}
         />
-        <ComposerPastePlugin cwd={cwd} />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-1">
