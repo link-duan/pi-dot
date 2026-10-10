@@ -41,11 +41,11 @@ export function PlanViewer() {
           </ScrollAreaViewport>
           <ScrollAreaScrollbar />
         </ScrollArea>
-        <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/90 p-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50">
+        <div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-border bg-card/90 p-0.5 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50">
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             className="rounded-full text-muted-foreground"
             aria-label="Back to chat"
             title="Back to chat (Esc)"
@@ -56,7 +56,7 @@ export function PlanViewer() {
           <Button
             type="button"
             variant="ghost"
-            size="icon-sm"
+            size="icon"
             className="rounded-full text-muted-foreground"
             aria-label="Open in editor"
             title="Open in editor"
@@ -68,7 +68,7 @@ export function PlanViewer() {
           >
             <ExternalLink />
           </Button>
-          <BuildButton className="rounded-full" />
+          <BuildButton size="default" className="rounded-full" />
         </div>
       </DialogContent>
     </Dialog>

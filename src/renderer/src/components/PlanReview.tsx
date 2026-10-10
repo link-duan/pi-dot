@@ -18,11 +18,17 @@ export function buildPlan(): void {
   })
 }
 
-export function BuildButton({ className }: { className?: string }) {
+export function BuildButton({
+  className,
+  size = 'sm',
+}: {
+  className?: string
+  size?: 'sm' | 'default'
+}) {
   return (
     <Button
       type="button"
-      size="sm"
+      size={size}
       className={cn('bg-plan text-background hover:bg-plan/90', className)}
       onClick={buildPlan}
     >
