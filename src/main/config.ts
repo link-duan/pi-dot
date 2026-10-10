@@ -13,8 +13,12 @@ export type PiDotConfigPatch = {
 
 type Table = Record<string, unknown>
 
+export function piDotDir(): string {
+  return join(homedir(), '.pi-dot')
+}
+
 export function configPath(): string {
-  return join(homedir(), '.pi-dot', 'config.toml')
+  return join(piDotDir(), 'config.toml')
 }
 
 function readRaw(path: string): Table {

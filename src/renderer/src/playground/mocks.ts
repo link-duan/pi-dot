@@ -488,3 +488,39 @@ export const codemodeModel = chat(
     },
   },
 )
+
+export const playgroundPlanPath = '/Users/demo/.pi-dot/plans/demo.md'
+
+export const playgroundPlanText = `---
+name: Debounce file search
+overview: Every keystroke in the @ picker spawns a ripgrep walk, so large repos stall the Composer. Debounce queries in the renderer and cancel stale walks in main.
+---
+
+## Context
+Typing \`@src/comp\` fires 8 searches; on a 200k-file repo each takes ~300 ms and results arrive out of order.
+
+## Files to change
+- \`src/renderer/src/components/composer/AtFilePlugin.tsx\`: debounce the query by 120 ms.
+- \`src/main/search-files.ts\`: abort the previous walk when a new query arrives.
+
+## Existing code to reuse
+- \`SerialQueue\` in \`src/shared/queue.ts\` for ordering.
+
+## Verification
+1. \`bun run test\`
+2. Type quickly in the @ picker on a large repo; only the last query's results show.
+`
+
+export const planModel = chat(
+  [
+    user('Plan how to make @ file search fast on huge repos.'),
+    assistant([
+      tool('plan-read', 'read', { path: 'src/main/search-files.ts' }),
+      tool('plan-write', 'write', { path: playgroundPlanPath, content: playgroundPlanText }),
+    ]),
+    result('plan-read', 'read', 'export async function searchProjectFiles(...)'),
+    result('plan-write', 'write', `Successfully wrote to ${playgroundPlanPath}`),
+    assistant([{ type: 'text', text: 'The plan is ready for review.' }]),
+  ],
+  { planMode: true, planActive: true },
+)

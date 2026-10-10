@@ -24,7 +24,8 @@ export interface PiApi {
   getSnapshot(): Promise<SessionSnapshot | null>
   start(cwd: string): Promise<StartResult>
   stop(): Promise<{ cancelled: boolean }>
-  prompt(text: string, sessionFile: string): Promise<void>
+  prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
+  approvePlan(sessionFile: string): Promise<void>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>
   followUp(text: string, sessionFile: string): Promise<void>
@@ -40,6 +41,8 @@ export interface PiApi {
   switchSession(sessionPath: string): Promise<SessionSnapshot>
   newSession(): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
+  openPath(path: string): Promise<void>
+  readPlan(path: string): Promise<string>
   searchFiles(cwd: string, query: string): Promise<FileHit[]>
   statPaths(paths: string[]): Promise<Array<{ path: string; isDirectory: boolean }>>
   saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>

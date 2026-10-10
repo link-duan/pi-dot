@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterSkills, slashQuery } from './slash-query'
+import { filterSkills, filterSlashItems, slashQuery } from './slash-query'
 
 describe('slashQuery', () => {
   it('reads a slash token at the start', () => {
@@ -44,5 +44,23 @@ describe('filterSkills', () => {
 
   it('strips a skill: prefix from the query', () => {
     expect(filterSkills(skills, 'skill:tdd').map((skill) => skill.name)).toEqual(['tdd'])
+  })
+})
+
+describe('filterSlashItems', () => {
+  const skills = [{ name: 'planner', description: 'Writes plans' }, { name: 'tdd' }]
+  const names = (query: string) =>
+    filterSlashItems(skills, query).map((item) =>
+      item.kind === 'command' ? `/${item.name}` : item.skill.name,
+    )
+
+  it('lists commands before skills', () => {
+    expect(names('')).toEqual(['/plan', 'planner', 'tdd'])
+    expect(names('pl')).toEqual(['/plan', 'planner'])
+    expect(names('td')).toEqual(['tdd'])
+  })
+
+  it('lists only skills for a skill: query', () => {
+    expect(names('skill:pl')).toEqual(['planner'])
   })
 })

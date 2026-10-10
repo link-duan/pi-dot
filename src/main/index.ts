@@ -7,6 +7,7 @@ import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
+import { isInPlansDir, readPlan } from './plan-mode'
 import { readRecentProjects, removeRecentProject } from './recent-projects'
 import { searchProjectFiles } from './search-files'
 import { listProjectSessions, withRunning } from './sessions'
@@ -206,9 +207,10 @@ function registerIpc(): void {
 
   ipcMain.handle(IPC.stop, async (event) => requireWindow(event).leave())
 
-  handleHost(IPC.prompt, (host, text: string, sessionFile: string) =>
-    host.prompt(text, sessionFile),
+  handleHost(IPC.prompt, (host, text: string, sessionFile: string, planMode: boolean) =>
+    host.prompt(text, sessionFile, planMode === true),
   )
+  handleHost(IPC.approvePlan, (host, sessionFile: string) => host.approvePlan(sessionFile))
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>
     host.removeSteering(index, sessionFile),
@@ -252,6 +254,16 @@ function registerIpc(): void {
     if (!/^https?:\/\//.test(url)) return
     await shell.openExternal(url)
   })
+
+  ipcMain.handle(IPC.openPath, async (_event, path: string) => {
+    if (typeof path !== 'string' || !isInPlansDir(path)) return
+    const error = await shell.openPath(path)
+    if (error) throw new Error(error)
+  })
+
+  ipcMain.handle(IPC.readPlan, (_event, path: string) =>
+    typeof path === 'string' && isInPlansDir(path) ? readPlan(path) : '',
+  )
 
   ipcMain.handle(IPC.searchFiles, async (_event, cwd: string, query: string) => {
     if (typeof cwd !== 'string' || !cwd) return []

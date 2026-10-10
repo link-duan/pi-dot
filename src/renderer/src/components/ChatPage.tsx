@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Composer } from './Composer'
+import { PlanViewer } from './PlanViewer'
 import { SessionSwitcher } from './SessionSwitcher'
 import { Transcript, type TranscriptHandle } from './transcript/Transcript'
 
@@ -94,6 +95,7 @@ export function ChatPage() {
 
       <Transcript ref={transcriptRef} scrollerRef={scrollerRef} model={chat} />
       <Composer onSend={() => transcriptRef.current?.scrollToBottom()} />
+      <PlanViewer />
     </div>
   )
 }

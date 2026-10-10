@@ -1,10 +1,11 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { AgentSession, AgentSessionEvent } from '@earendil-works/pi-coding-agent'
 import type { SessionEvent } from '@shared/protocol'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AgentHost } from './agent-host'
+import type { PlanMode } from './plan-mode'
 
 describe('AgentHost SDK compatibility', () => {
   let directory: string
@@ -83,6 +84,29 @@ describe('AgentHost SDK compatibility', () => {
     session.refreshContext()
     return tool.execute('codemode-test', { code }, signal)
   }
+
+  it('gates edits made through codemode once plan mode is on, and reports the change', async () => {
+    expect(host.snapshot().state.planMode).toBe(false)
+
+    const planMode = (host as unknown as { planModes: WeakMap<object, PlanMode> }).planModes.get(
+      session.sessionManager,
+    )
+    planMode?.setNext(true)
+    const result = await session.extensionRunner.emitBeforeAgentStart('plan it', undefined, {
+      cwd: host.cwd,
+    } as never)
+    expect(result.messages[0]?.content).toContain('Plan mode is active.')
+    expect(host.snapshot().state.planMode).toBe(true)
+    expect(host.snapshot().state.planPath).toMatch(/plans\/.+\.md$/)
+    expect(events).toContainEqual(expect.objectContaining({ type: 'plan_mode', active: true }))
+
+    await writeFile(join(host.cwd, 'README.md'), 'original')
+    const blocked = await executeCodemode(
+      'await tools.edit({path:"README.md", edits:[{oldText:"original", newText:"changed"}]})',
+    )
+    expect(JSON.stringify(blocked.content)).toContain('Rejected: plan mode')
+    expect(await readFile(join(host.cwd, 'README.md'), 'utf8')).toBe('original')
+  })
 
   it('activates codemode from defaultTools on reload and honors disabling the extension', async () => {
     const defaultTools = ['+codemode', '+tool_search']

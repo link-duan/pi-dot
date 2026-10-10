@@ -68,7 +68,13 @@ export interface SessionState {
   messageCount: number
   steeringQueue?: string[]
   followUpQueue?: string[]
+  /** Plan mode in effect for the current (or last) run. */
+  planMode: boolean
+  planPath: string
 }
+
+/** The user message that approves a plan; the approved Plan File itself reaches the model hidden. */
+export const PLAN_APPROVED_PROMPT = 'I approved the plan. Implement it.'
 
 export interface TextContent {
   type: 'text'
@@ -155,6 +161,7 @@ export type SessionEventBody =
       isError?: boolean
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
+  | { type: 'plan_mode'; active: boolean }
   | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
   | { type: 'auto_retry_end' }

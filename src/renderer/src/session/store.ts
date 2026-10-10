@@ -1,10 +1,11 @@
 import type { ChatState } from '@/chat/state'
-import type {
-  AgentMessage,
-  ModelSelection,
-  SessionListItem,
-  SessionSnapshot,
-  ThinkingLevel,
+import {
+  PLAN_APPROVED_PROMPT,
+  type AgentMessage,
+  type ModelSelection,
+  type SessionListItem,
+  type SessionSnapshot,
+  type ThinkingLevel,
 } from '@shared/protocol'
 import { SerialQueue } from '@shared/queue'
 import { create } from 'zustand'
@@ -41,6 +42,13 @@ interface SessionStore extends WindowState {
   switchSession: (sessionPath: string) => Promise<void>
   newSession: () => Promise<void>
   requestComposerFocus: () => void
+  setPlanMode: (on: boolean) => void
+  /** Leaves Plan Mode and asks the agent to implement the approved Plan File. */
+  approvePlan: () => Promise<void>
+  /** Re-reads the Plan File while the Plan Mode toggle is on; `open` shows it if it has content. */
+  refreshPlan: (open?: boolean) => Promise<void>
+  openPlanViewer: () => void
+  closePlanViewer: () => void
 }
 
 function selectionPatch(selection: ModelSelection) {
@@ -111,40 +119,8 @@ export const useSession = create<SessionStore>((set, get) => ({
   send: async (text: string) => {
     const file = get().sessionFile
     if (!file) return
-    const optimisticMessage: AgentMessage = {
-      role: 'user',
-      content: [{ type: 'text', text }],
-      timestamp: Date.now(),
-    }
-    set((state) => {
-      const running =
-        file && !state.running.includes(file) ? [...state.running, file] : state.running
-      const currentChat = file ? state.chats[file] : undefined
-      const next = file
-        ? patchChat(state, file, {
-            isStreaming: true,
-            turnActive: false,
-            turnStartedAt: Date.now(),
-            turnEndedAt: null,
-            messages: [...(currentChat?.messages ?? []), optimisticMessage],
-          })
-        : state
-      return { ...next, error: null, running }
-    })
-    try {
-      await window.pi.prompt(text, file)
-    } catch (error) {
-      set((state) => {
-        let next = {
-          ...state,
-          error: error instanceof Error ? error.message : String(error),
-          running: file ? state.running.filter((item) => item !== file) : state.running,
-        }
-        if (file) next = patchChat(next, file, { isStreaming: false, turnEndedAt: Date.now() })
-        return next
-      })
-      throw error
-    }
+    const planMode = get().chats[file]?.planMode ?? false
+    await submitPrompt(file, text, () => window.pi.prompt(text, file, planMode))
   },
 
   steer: async (text: string) => {
@@ -410,12 +386,79 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
 
   requestComposerFocus: () => set((state) => ({ focusNonce: state.focusNonce + 1 })),
+
+  setPlanMode: (on: boolean) => {
+    const file = get().sessionFile
+    if (!file) return
+    set((state) => patchChat(state, file, { planMode: on }))
+  },
+
+  approvePlan: async () => {
+    const file = get().sessionFile
+    if (!file) return
+    set((state) => patchChat(state, file, { planMode: false }))
+    try {
+      await submitPrompt(file, PLAN_APPROVED_PROMPT, () => window.pi.approvePlan(file))
+    } catch (error) {
+      set((state) => patchChat(state, file, { planMode: true }))
+      throw error
+    }
+  },
+
+  refreshPlan: async (open = false) => {
+    const { sessionFile, planPath } = get()
+    if (!activeChat(get()).planMode) {
+      set({ planText: '', planViewer: false })
+      return
+    }
+    const text = await window.pi.readPlan(planPath)
+    if (get().sessionFile !== sessionFile) return
+    set((state) => ({ planText: text, planViewer: state.planViewer || (open && text !== '') }))
+  },
+
+  openPlanViewer: () => set({ planViewer: true }),
+  closePlanViewer: () => set({ planViewer: false }),
 }))
 
 export function useChat(): ChatState
 export function useChat<T>(selector: (chat: ChatState) => T): T
 export function useChat<T>(selector?: (chat: ChatState) => T): ChatState | T {
   return useSession((state) => (selector ? selector(activeChat(state)) : activeChat(state)))
+}
+
+async function submitPrompt(file: string, text: string, dispatch: () => Promise<void>) {
+  const optimisticMessage: AgentMessage = {
+    role: 'user',
+    content: [{ type: 'text', text }],
+    timestamp: Date.now(),
+  }
+  useSession.setState((state) => {
+    const running = state.running.includes(file) ? state.running : [...state.running, file]
+    const next = patchChat(state, file, {
+      isStreaming: true,
+      turnActive: false,
+      turnStartedAt: Date.now(),
+      turnEndedAt: null,
+      messages: [...(state.chats[file]?.messages ?? []), optimisticMessage],
+    })
+    return { ...next, error: null, running }
+  })
+  try {
+    await dispatch()
+  } catch (error) {
+    useSession.setState((state) =>
+      patchChat(
+        {
+          ...state,
+          error: error instanceof Error ? error.message : String(error),
+          running: state.running.filter((item) => item !== file),
+        },
+        file,
+        { isStreaming: false, turnEndedAt: Date.now() },
+      ),
+    )
+    throw error
+  }
 }
 
 const activating = new SerialQueue()

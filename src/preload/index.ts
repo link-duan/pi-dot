@@ -28,8 +28,10 @@ const api: PiApi = {
   getSnapshot: () => ipcRenderer.invoke(IPC.getSnapshot) as Promise<SessionSnapshot | null>,
   start: (cwd: string) => ipcRenderer.invoke(IPC.start, cwd) as Promise<StartResult>,
   stop: () => ipcRenderer.invoke(IPC.stop) as Promise<{ cancelled: boolean }>,
-  prompt: (text: string, sessionFile: string) =>
-    ipcRenderer.invoke(IPC.prompt, text, sessionFile) as Promise<void>,
+  prompt: (text: string, sessionFile: string, planMode: boolean) =>
+    ipcRenderer.invoke(IPC.prompt, text, sessionFile, planMode) as Promise<void>,
+  approvePlan: (sessionFile: string) =>
+    ipcRenderer.invoke(IPC.approvePlan, sessionFile) as Promise<void>,
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>
@@ -58,6 +60,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
   newSession: () => ipcRenderer.invoke(IPC.newSession) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
+  openPath: (path: string) => ipcRenderer.invoke(IPC.openPath, path) as Promise<void>,
+  readPlan: (path: string) => ipcRenderer.invoke(IPC.readPlan, path) as Promise<string>,
   searchFiles: (cwd: string, query: string) =>
     ipcRenderer.invoke(IPC.searchFiles, cwd, query) as Promise<FileHit[]>,
   statPaths: (paths: string[]) =>

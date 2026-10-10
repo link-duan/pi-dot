@@ -98,6 +98,15 @@ function onLiveEvent(event: SessionEvent): void {
   }
   flushPending(event.sessionFile)
   dispatch(event)
+  const session = useSession.getState()
+  if (
+    event.type === 'agent_end' &&
+    !event.willRetry &&
+    event.sessionFile === session.sessionFile &&
+    activeChat(session).planActive
+  ) {
+    void session.refreshPlan(true)
+  }
 }
 
 function deliverQueued(item: Queued): void {
@@ -124,6 +133,17 @@ export function bindIpc(): void {
       if (item.kind === 'event') onLiveEvent(item.event)
     })
   })
+
+  // Keep the Plan File in sync as the toggle flips, sessions switch, or it is edited outside.
+  useSession.subscribe((state, prev) => {
+    if (
+      state.sessionFile !== prev.sessionFile ||
+      activeChat(state).planMode !== activeChat(prev).planMode
+    ) {
+      void state.refreshPlan()
+    }
+  })
+  window.addEventListener('focus', () => void useSession.getState().refreshPlan())
 
   window.pi.onStatus((status, error) => {
     buffer.push({ kind: 'status', status, error }, (item) => {

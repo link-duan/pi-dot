@@ -40,6 +40,8 @@ function snapshot(file: string, extra: Partial<SessionSnapshot> = {}): SessionSn
       sessionFile: file,
       sessionId: 'sess',
       messageCount: 0,
+      planMode: false,
+      planPath: '/plans/sess.md',
     },
     messages: [],
     models: [{ id: 'm', name: 'Model', provider: 'p' }],
@@ -206,5 +208,33 @@ describe('applySnapshot', () => {
     const state = applySnapshot(createWindowState(), snap)
     expect(state.chats[fileA]?.steeringQueue).toEqual(['s1'])
     expect(state.chats[fileA]?.followUpQueue).toEqual(['f1', 'f2'])
+  })
+})
+
+describe('plan mode', () => {
+  it('starts the toggle from the snapshot and keeps a cached local toggle', () => {
+    const on = snapshot(fileA)
+    on.state.planMode = true
+    expect(activeChat(applySnapshot(createWindowState(), on)).planMode).toBe(true)
+
+    const cached = { ...createChatState(), planMode: false }
+    expect(activeChat(applySnapshot(createWindowState(), on, cached)).planMode).toBe(false)
+  })
+
+  it('takes the mode in effect from the snapshot and plan_mode events', () => {
+    const on = snapshot(fileA)
+    on.state.planMode = true
+    const cached = { ...createChatState(), planActive: false }
+    let state = applySnapshot(createWindowState(), on, cached)
+    expect(activeChat(state).planActive).toBe(true)
+    expect(state.planPath).toBe('/plans/sess.md')
+
+    state = applyEvent(state, { type: 'plan_mode', sessionFile: fileA, active: false })
+    expect(activeChat(state).planActive).toBe(false)
+  })
+
+  it('closes the plan viewer when switching sessions', () => {
+    const state = { ...applySnapshot(createWindowState(), snapshot(fileA)), planViewer: true }
+    expect(applySnapshot(state, snapshot(fileB)).planViewer).toBe(false)
   })
 })

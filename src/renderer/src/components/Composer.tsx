@@ -1,4 +1,4 @@
-import { ArrowUp, Folder, Square } from 'lucide-react'
+import { ArrowUp, Folder, ListChecks, Square, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   $createParagraphNode,
@@ -7,6 +7,7 @@ import {
   COMMAND_PRIORITY_NORMAL,
   INSERT_LINE_BREAK_COMMAND,
   KEY_ENTER_COMMAND,
+  KEY_TAB_COMMAND,
 } from 'lexical'
 import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
@@ -14,19 +15,22 @@ import { ContentEditable } from '@lexical/react/LexicalContentEditable'
 import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
-import type { FileHit, SkillInfo } from '@shared/protocol'
+import type { FileHit } from '@shared/protocol'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { displayPath } from '@/lib/path'
+import type { SlashItem } from '@/lib/slash-query'
+import { cn } from '@/lib/utils'
 import { useChat, useSession } from '@/session/store'
 import { FilePicker } from './FilePicker'
 import { FollowUpQueue } from './FollowUpQueue'
+import { PlanReview } from './PlanReview'
 import { SkillPicker } from './SkillPicker'
 import { AtFilePlugin, type FilePickerState } from './composer/AtFilePlugin'
 import { ComposerPastePlugin } from './composer/ComposerPastePlugin'
 import { FileNode } from './composer/FileNode'
 import { $replaceAtQueryWithFile } from './composer/insert-file'
-import { $replaceSlashQueryWithSkill } from './composer/insert-skill'
+import { $applySlashItem } from './composer/insert-skill'
 import { SkillNode } from './composer/SkillNode'
 import { SlashSkillPlugin, type SkillPickerState } from './composer/SlashSkillPlugin'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
@@ -74,7 +78,17 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const abort = useSession((state) => state.abort)
   const openFolder = useSession((state) => state.openFolder)
   const isStreaming = useChat((state) => state.isStreaming)
+  const planMode = useChat((state) => state.planMode)
+  const setPlanMode = useSession((state) => state.setPlanMode)
+  const togglePlanMode = useCallback(() => setPlanMode(!planMode), [planMode, setPlanMode])
+  const runCommand = useCallback(
+    (name: string) => {
+      if (name === 'plan') setPlanMode(true)
+    },
+    [setPlanMode],
+  )
   const hasDraft = draft.trim().length > 0
+  const placeholder = planMode ? 'Describe what to plan...' : 'Message...'
   const canSend = connection === 'ready' && hasDraft
 
   const submit = useCallback(
@@ -164,14 +178,15 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   }, [cwd, fileQuery])
 
   const insertPicked = useCallback(
-    (skill: SkillInfo) => {
+    (item: SlashItem) => {
       editor.update(() => {
-        $replaceSlashQueryWithSkill(skill)
+        $applySlashItem(item)
       })
       setPicker(null)
+      if (item.kind === 'command') runCommand(item.name)
       editor.focus()
     },
-    [editor],
+    [editor, runCommand],
   )
 
   const insertPickedFile = useCallback(
@@ -212,10 +227,14 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
     <div className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3">
       <div className="pointer-events-auto mx-auto max-w-3xl">
         <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
+        <PlanReview />
       </div>
 
       <form
-        className="pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border border-border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50"
+        className={cn(
+          'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50',
+          planMode ? 'border-plan/50' : 'border-border',
+        )}
         onSubmit={(event) => {
           event.preventDefault()
           submit(isStreaming ? 'steer' : undefined)
@@ -246,13 +265,13 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
             contentEditable={
               <ContentEditable
                 id="prompt-input"
-                aria-placeholder="Message..."
+                aria-placeholder={placeholder}
                 placeholder={
-                  <div className="pointer-events-none absolute top-1.5 left-2.5 text-muted-foreground/60 select-none">
-                    Message...
+                  <div className="pointer-events-none absolute top-1.5 left-1.5 text-muted-foreground/60 select-none">
+                    {placeholder}
                   </div>
                 }
-                className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-2.5 py-1.5 leading-relaxed text-foreground outline-none"
+                className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
               />
             }
             ErrorBoundary={LexicalErrorBoundary}
@@ -264,13 +283,39 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
             rememberDraft(sessionRef.current ?? null, state)
           }}
         />
-        <SlashSkillPlugin skills={skills} picker={picker} setPicker={setPicker} />
+        <SlashSkillPlugin
+          skills={skills}
+          picker={picker}
+          setPicker={setPicker}
+          onCommand={runCommand}
+        />
         <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
-        <ComposerKeyPlugin isStreaming={isStreaming} onSubmit={submit} />
+        <ComposerKeyPlugin
+          isStreaming={isStreaming}
+          onSubmit={submit}
+          onTogglePlanMode={togglePlanMode}
+        />
         <ComposerPastePlugin cwd={cwd} />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1">
+            {planMode ? (
+              <span
+                className="-ml-0.5 inline-flex h-6 shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-7px)] bg-plan/10 pr-0.5 pl-1.5 text-xs font-medium text-plan"
+                title={`Plan mode · Shift+Tab to exit${isStreaming ? ' · applies to the next message' : ''}`}
+              >
+                <ListChecks className="size-3" />
+                Plan
+                <button
+                  type="button"
+                  aria-label="Exit plan mode"
+                  onClick={() => setPlanMode(false)}
+                  className="flex size-4 cursor-pointer items-center justify-center rounded-sm hover:bg-plan/15"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ) : null}
             {cwd ? (
               <Tooltip>
                 <TooltipTrigger
@@ -292,7 +337,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
             ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-0.5">
             <ContextUsageRing />
             <ModelSelect />
 
@@ -303,7 +348,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                     <Button
                       type="button"
                       size="icon-sm"
-                      className="rounded-full shadow-xs"
+                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] shadow-xs"
                       aria-label="Stop"
                       onClick={() =>
                         void abort().catch((error: unknown) => {
@@ -324,7 +369,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                     <Button
                       type="submit"
                       size="icon-sm"
-                      className="rounded-full shadow-xs transition-opacity"
+                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] shadow-xs transition-opacity"
                       disabled={!canSend}
                       aria-label={isStreaming ? 'Steer' : 'Send'}
                     />
@@ -347,11 +392,26 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
 function ComposerKeyPlugin({
   isStreaming,
   onSubmit,
+  onTogglePlanMode,
 }: {
   isStreaming: boolean
   onSubmit: (mode?: 'steer' | 'followUp') => void
+  onTogglePlanMode: () => void
 }) {
   const [editor] = useLexicalComposerContext()
+
+  useEffect(() => {
+    return editor.registerCommand(
+      KEY_TAB_COMMAND,
+      (event) => {
+        if (!event?.shiftKey) return false
+        event.preventDefault()
+        onTogglePlanMode()
+        return true
+      },
+      COMMAND_PRIORITY_NORMAL,
+    )
+  }, [editor, onTogglePlanMode])
 
   useEffect(() => {
     return editor.registerCommand(

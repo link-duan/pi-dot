@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { createChatState, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
+import { PlanViewer } from '@/components/PlanViewer'
 import { Transcript, type TranscriptHandle } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -13,7 +14,10 @@ import {
   codemodeModel,
   emptyModel,
   playgroundContextUsage,
+  planModel,
   playgroundModel,
+  playgroundPlanPath,
+  playgroundPlanText,
   playgroundModels,
   playgroundSkills,
   playgroundThinkingLevels,
@@ -24,7 +28,7 @@ import {
   queuedModel,
 } from './mocks'
 
-const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
+const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: string }> = [
   { title: 'Empty', model: emptyModel },
   { title: 'Catalog', model: catalogModel },
   { title: 'Codemode', model: codemodeModel, agoMs: 6_000 },
@@ -33,11 +37,12 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number }> = [
   { title: 'Waiting', model: waitingModel, agoMs: 1_500 },
   { title: 'Working', model: workingModel, agoMs: 3_600 },
   { title: 'Queued', model: queuedModel, agoMs: 3_600 },
+  { title: 'Plan', model: planModel, plan: playgroundPlanText },
 ]
 
 const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
 
-function usePlaygroundSession(model: ChatState) {
+function usePlaygroundSession(model: ChatState, plan = '') {
   useEffect(() => {
     const prev = useSession.getState()
     useSession.setState({
@@ -163,6 +168,13 @@ function usePlaygroundSession(model: ChatState) {
       setThinkingLevel: async (level) => {
         useSession.setState({ thinkingLevel: level })
       },
+      planPath: playgroundPlanPath,
+      refreshPlan: async () => {},
+      approvePlan: async () => {
+        useSession.setState((state) =>
+          patchChat(state, PLAYGROUND_FILE, { planMode: false, planActive: false }),
+        )
+      },
     })
     return () => {
       useSession.setState(prev)
@@ -176,8 +188,10 @@ function usePlaygroundSession(model: ChatState) {
         ...state.chats,
         [PLAYGROUND_FILE]: model,
       },
+      planText: plan,
+      planViewer: false,
     }))
-  }, [model])
+  }, [model, plan])
 }
 
 export function Playground() {
@@ -192,7 +206,7 @@ export function Playground() {
       pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs },
     [pane, startedAt],
   )
-  usePlaygroundSession(model)
+  usePlaygroundSession(model, pane.plan)
   const chat = useChat()
   const activeModel = chat.messages.length > 0 || chat.steeringQueue.length > 0 ? chat : model
 
@@ -250,6 +264,7 @@ export function Playground() {
         follow={false}
       />
       <Composer onSend={() => transcriptRef.current?.scrollToBottom()} />
+      <PlanViewer />
     </div>
   )
 }

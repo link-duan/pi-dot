@@ -8,7 +8,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
-import { filterSkills } from '@/lib/slash-query'
+import { filterSlashItems, type SlashItem } from '@/lib/slash-query'
 
 export function SkillPicker({
   skills,
@@ -21,11 +21,15 @@ export function SkillPicker({
   query: string
   index: number
   onHover: (index: number) => void
-  onSelect: (skill: SkillInfo) => void
+  onSelect: (item: SlashItem) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const filtered = filterSkills(skills, query)
-  const selected = filtered[index]?.name ?? ''
+  const filtered = filterSlashItems(skills, query)
+  const selected = filtered[index] ? itemValue(filtered[index]) : ''
+  const groups = [
+    { heading: 'Commands', kind: 'command' },
+    { heading: 'Skills', kind: 'skill' },
+  ] as const
 
   useEffect(() => {
     const item = listRef.current?.querySelector(`[data-skill-index="${index}"]`)
@@ -45,27 +49,40 @@ export function SkillPicker({
           <Command shouldFilter={false} value={selected} className="overflow-visible">
             <CommandList className="overflow-visible p-0">
               {filtered.length === 0 ? (
-                <CommandEmpty className="py-4 text-xs">No matching skills</CommandEmpty>
+                <CommandEmpty className="py-4 text-xs">No matching commands or skills</CommandEmpty>
               ) : (
-                <CommandGroup heading="Skills">
-                  {filtered.map((skill, itemIndex) => (
-                    <CommandItem
-                      key={skill.name}
-                      value={skill.name}
-                      data-skill-index={itemIndex}
-                      className="gap-2 px-2 py-1 text-xs"
-                      onMouseEnter={() => onHover(itemIndex)}
-                      onSelect={() => onSelect(skill)}
-                    >
-                      <span className="shrink-0">{skill.name}</span>
-                      {skill.description ? (
-                        <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                          {skill.description}
-                        </span>
-                      ) : null}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
+                groups.map(({ heading, kind }) => {
+                  const items = filtered.flatMap((item, itemIndex) =>
+                    item.kind === kind ? [{ item, itemIndex }] : [],
+                  )
+                  if (items.length === 0) return null
+                  return (
+                    <CommandGroup key={kind} heading={heading}>
+                      {items.map(({ item, itemIndex }) => {
+                        const name = item.kind === 'command' ? `/${item.name}` : item.skill.name
+                        const description =
+                          item.kind === 'command' ? item.description : item.skill.description
+                        return (
+                          <CommandItem
+                            key={itemValue(item)}
+                            value={itemValue(item)}
+                            data-skill-index={itemIndex}
+                            className="gap-2 px-2 py-1 text-xs"
+                            onMouseEnter={() => onHover(itemIndex)}
+                            onSelect={() => onSelect(item)}
+                          >
+                            <span className="shrink-0">{name}</span>
+                            {description ? (
+                              <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                                {description}
+                              </span>
+                            ) : null}
+                          </CommandItem>
+                        )
+                      })}
+                    </CommandGroup>
+                  )
+                })
               )}
             </CommandList>
           </Command>
@@ -74,4 +91,8 @@ export function SkillPicker({
       </ScrollArea>
     </div>
   )
+}
+
+function itemValue(item: SlashItem): string {
+  return item.kind === 'command' ? `command:${item.name}` : `skill:${item.skill.name}`
 }

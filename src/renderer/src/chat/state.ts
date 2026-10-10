@@ -33,6 +33,10 @@ export interface ChatState {
   retry: RetryState | null
   steeringQueue: string[]
   followUpQueue: string[]
+  /** The Plan Mode toggle; sent with the next prompt. */
+  planMode: boolean
+  /** Plan Mode in effect in main; a run that ends in it shows the plan full-window. */
+  planActive: boolean
 }
 
 export function createChatState(): ChatState {
@@ -48,6 +52,8 @@ export function createChatState(): ChatState {
     retry: null,
     steeringQueue: [],
     followUpQueue: [],
+    planMode: false,
+    planActive: false,
   }
 }
 
@@ -58,6 +64,7 @@ export function hydrateMessages(
     persistedAt?: number[]
     steeringQueue?: string[]
     followUpQueue?: string[]
+    planMode?: boolean
   },
 ): ChatState {
   const next = messages.filter(isAgentMessage)
@@ -78,6 +85,8 @@ export function hydrateMessages(
     retry: null,
     steeringQueue: options?.steeringQueue ? [...options.steeringQueue] : [],
     followUpQueue: options?.followUpQueue ? [...options.followUpQueue] : [],
+    planMode: Boolean(options?.planMode),
+    planActive: Boolean(options?.planMode),
   }
 }
 
@@ -157,6 +166,9 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
         turnEndedAt: Date.now(),
         retry: null,
       }
+
+    case 'plan_mode':
+      return { ...state, planActive: event.active }
 
     case 'message_start': {
       if (!event.message?.role) return state

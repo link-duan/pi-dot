@@ -36,7 +36,7 @@ export function ModelSelect() {
         size="sm"
         aria-label="Select model and thinking level"
         disabled={disabled}
-        className="h-7 max-w-64 gap-2 px-2 text-xs text-muted-foreground transition-colors duration-150 disabled:opacity-40"
+        className="h-7 max-w-64 gap-2 pr-1 pl-1.5 text-xs text-muted-foreground transition-colors duration-150 disabled:opacity-40"
       >
         <span className="min-w-0 truncate text-muted-foreground capitalize">
           {model?.name ?? 'Select model'}

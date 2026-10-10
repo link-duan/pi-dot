@@ -76,7 +76,8 @@ export function registerPickerKeys(
     editor.registerCommand(
       KEY_TAB_COMMAND,
       (event) => {
-        if (!picker) return false
+        // Shift+Tab toggles plan mode rather than picking.
+        if (!picker || event?.shiftKey) return false
         event?.preventDefault()
         insert(picker.index)
         return true

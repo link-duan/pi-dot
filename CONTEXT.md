@@ -43,3 +43,11 @@ _Avoid_: Preferences, options, config panel
 **Provider**:
 A model backend: a built-in catalog entry authenticated with credentials, or a custom endpoint in the model catalog.
 _Avoid_: API, vendor, service
+
+**Plan Mode**:
+A per-Session toggle under which the agent explores read-only and writes a plan for approval instead of changing the project. The toggle is sent with the next prompt and takes effect at that run, then stays on until the user clicks Build: each run ends with the Plan File shown full-window, and a Review Plan card above the Composer reopens it or builds it. Build turns Plan Mode off and asks the agent to implement the plan.
+_Avoid_: Planning mode, read-only mode, ask mode
+
+**Plan File**:
+The Markdown file a Session's plan is written to, `~/.pi-dot/plans/<sessionId>.md`, starting with `name` / `overview` frontmatter. It is the only file the agent may edit in Plan Mode, and the user may edit it before approving.
+_Avoid_: Plan document, todo list

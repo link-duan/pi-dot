@@ -23,6 +23,10 @@ export type WindowState = {
   sessionId: string | null
   sessionFile: string | null
   focusNonce: number
+  /** The active session's Plan File and its last read content. */
+  planPath: string
+  planText: string
+  planViewer: boolean
   running: string[]
   chats: Record<string, ChatState>
 }
@@ -44,6 +48,9 @@ export function createWindowState(): WindowState {
     sessionId: null,
     sessionFile: null,
     focusNonce: 0,
+    planPath: '',
+    planText: '',
+    planViewer: false,
     running: [],
     chats: {},
   }
@@ -72,6 +79,8 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     running: snapshot.runningSessionFiles,
     skills: snapshot.skills,
     contextUsage: snapshot.contextUsage ?? null,
+    planPath: snapshot.state.planPath,
+    planViewer: false,
   }
 }
 
@@ -86,6 +95,7 @@ export function applySnapshot<T extends WindowState>(
   const chat = cached
     ? {
         ...cached,
+        planActive: snapshot.state.planMode,
         steeringQueue: [...steeringQueue],
         followUpQueue: [...followUpQueue],
       }
@@ -94,6 +104,7 @@ export function applySnapshot<T extends WindowState>(
         persistedAt: snapshot.messagePersistedAt,
         steeringQueue,
         followUpQueue,
+        planMode: snapshot.state.planMode,
       })
   const chats = { ...state.chats }
   if (sessionFile) chats[sessionFile] = chat

@@ -2,8 +2,8 @@ import { useEffect, type Dispatch, type SetStateAction } from 'react'
 import { mergeRegister } from 'lexical'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import type { SkillInfo } from '@shared/protocol'
-import { filterSkills } from '@/lib/slash-query'
-import { $replaceSlashQueryWithSkill, $slashQueryAtCaret } from './insert-skill'
+import { filterSlashItems } from '@/lib/slash-query'
+import { $applySlashItem, $slashQueryAtCaret } from './insert-skill'
 import { applyPickerQuery, registerPickerKeys, type PickerState } from './picker-keys'
 
 export type SkillPickerState = PickerState
@@ -12,23 +12,26 @@ export function SlashSkillPlugin({
   skills,
   picker,
   setPicker,
+  onCommand,
 }: {
   skills: SkillInfo[]
   picker: SkillPickerState | null
   setPicker: Dispatch<SetStateAction<SkillPickerState | null>>
+  onCommand: (name: string) => void
 }) {
   const [editor] = useLexicalComposerContext()
 
   useEffect(() => {
-    const filtered = picker ? filterSkills(skills, picker.query) : []
+    const filtered = picker ? filterSlashItems(skills, picker.query) : []
 
     function insert(index: number): boolean {
-      const skill = filtered[index]
-      if (!skill) return false
+      const item = filtered[index]
+      if (!item) return false
       editor.update(() => {
-        $replaceSlashQueryWithSkill(skill)
+        $applySlashItem(item)
       })
       setPicker(null)
+      if (item.kind === 'command') onCommand(item.name)
       editor.focus()
       return true
     }
@@ -39,7 +42,7 @@ export function SlashSkillPlugin({
       }),
       registerPickerKeys(editor, { picker, count: filtered.length, setPicker, insert }),
     )
-  }, [editor, picker, setPicker, skills])
+  }, [editor, onCommand, picker, setPicker, skills])
 
   return null
 }

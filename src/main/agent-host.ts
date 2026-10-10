@@ -22,6 +22,7 @@ import {
   asThinkingLevel,
   isAgentMessage,
   parseThinkingLevels,
+  PLAN_APPROVED_PROMPT,
   type AgentMessage,
   type ContextUsage,
   type ModelInfo,
@@ -36,6 +37,7 @@ import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
+import { createPlanMode, type PlanMode } from './plan-mode'
 import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
 
@@ -72,6 +74,7 @@ export class AgentHost {
   private agentDir: string | null = null
   private createRuntime: CreateAgentSessionRuntimeFactory | null = null
   private ops = new SerialQueue()
+  private planModes = new WeakMap<SessionManager, PlanMode>()
 
   constructor(readonly cwd: string) {}
 
@@ -110,12 +113,19 @@ export class AgentHost {
         sessionStartEvent,
       }) => {
         const trusted = isProjectTrusted(cwd, nextAgentDir)
+        const planMode = createPlanMode()
+        this.planModes.set(sessionManager, planMode)
         const services = await createAgentSessionServices({
           cwd,
           agentDir: nextAgentDir,
           settingsManager: SettingsManager.create(cwd, nextAgentDir, { projectTrusted: trusted }),
           modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
-          resourceLoaderOptions: { extensionFactories: builtinExtensions },
+          resourceLoaderOptions: {
+            extensionFactories: [
+              ...builtinExtensions,
+              { name: 'plan-mode', factory: planMode.extension, builtin: true },
+            ],
+          },
         })
         return {
           ...(await createAgentSessionFromServices({
@@ -150,9 +160,19 @@ export class AgentHost {
     })
   }
 
-  async prompt(message: string, sessionFile?: string): Promise<void> {
+  async approvePlan(sessionFile?: string): Promise<void> {
+    await this.prompt(PLAN_APPROVED_PROMPT, sessionFile, false, true)
+  }
+
+  async prompt(
+    message: string,
+    sessionFile?: string,
+    planMode = false,
+    approved = false,
+  ): Promise<void> {
     const live = this.requireActive(sessionFile)
     const session = live.session
+    this.planModes.get(session.sessionManager)?.setNext(planMode, approved)
     await new Promise<void>((resolve, reject) => {
       let settled = false
       const succeed = () => {
@@ -308,6 +328,7 @@ export class AgentHost {
 
   private getState(): SessionState {
     const session = this.session
+    const planMode = this.planModes.get(session.sessionManager)
     return {
       model: session.model ? toModelInfo(session.model) : null,
       thinkingLevel: asThinkingLevel(session.thinkingLevel) ?? 'off',
@@ -317,6 +338,8 @@ export class AgentHost {
       messageCount: session.messages.length,
       steeringQueue: [...session.getSteeringMessages()],
       followUpQueue: [...session.getFollowUpMessages()],
+      planMode: planMode?.active ?? false,
+      planPath: planMode?.planPath ?? '',
     }
   }
 
@@ -551,7 +574,11 @@ export class AgentHost {
         reload: () => session.reload(),
       },
     })
-    live.unsubscribe = session.subscribe((event) => {
+    const planMode = this.planModes.get(session.sessionManager)
+    const unsubscribePlan = planMode?.onChange((active) => {
+      this.emit({ type: 'plan_mode', sessionFile: live.sessionFile, active })
+    })
+    const unsubscribeSession = session.subscribe((event) => {
       const mapped = toSessionEvent(event, live.sessionFile)
       if (mapped) this.emit(mapped)
       if (event.type === 'message_end' && event.message.role === 'user') {
@@ -565,6 +592,10 @@ export class AgentHost {
         this.emitContextUsage(live)
       }
     })
+    live.unsubscribe = () => {
+      unsubscribeSession()
+      unsubscribePlan?.()
+    }
   }
 
   private autoGenerateTitle(live: LiveSession, content: UserMessage['content']): void {
