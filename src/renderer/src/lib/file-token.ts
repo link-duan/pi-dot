@@ -45,11 +45,24 @@ export function matchFileTokens(
   return out
 }
 
+// Temp files written for pasted screenshots; their uuid names mean nothing to the user.
+const CLIPBOARD_IMAGE = /(?:^|\/)pi-ui-clipboard-[\w-]+\.\w+$/
+
+export function isClipboardImage(path: string): boolean {
+  return CLIPBOARD_IMAGE.test(path)
+}
+const MAX_NAME = 28
+
 export function fileChipLabel(path: string, range?: FileRange): string {
   const dir = path.endsWith('/')
   const trimmed = dir ? path.replace(/\/+$/, '') : path
   const base = trimmed.split('/').filter(Boolean).at(-1) ?? trimmed
-  const name = dir ? `${base}/` : base
+  const short = isClipboardImage(base)
+    ? 'Image'
+    : base.length > MAX_NAME
+      ? `${base.slice(0, 16)}…${base.slice(-10)}`
+      : base
+  const name = dir ? `${short}/` : short
   if (!range) return name
   if (range.end == null) return `${name}:${range.start}`
   return `${name}:${range.start}-${range.end}`

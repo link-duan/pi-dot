@@ -16,6 +16,12 @@ import type {
   SettingsPatch,
 } from './settings'
 
+export interface ImagePreview {
+  src: string
+  width: number
+  height: number
+}
+
 export interface PiApi {
   homedir: string
   chooseFolder(): Promise<string | null>
@@ -46,6 +52,8 @@ export interface PiApi {
   searchFiles(cwd: string, query: string): Promise<FileHit[]>
   statPaths(paths: string[]): Promise<Array<{ path: string; isDirectory: boolean }>>
   saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>
+  /** Downscaled data URL and original size of an image file-chip path, or null when unreadable. */
+  imagePreview(path: string): Promise<ImagePreview | null>
   getSettings(): Promise<AppSettings>
   patchSettings(patch: SettingsPatch): Promise<AppSettings>
   getModelsFile(): Promise<ModelsFileResult>

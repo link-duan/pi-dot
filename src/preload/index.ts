@@ -1,6 +1,6 @@
 import { homedir } from 'node:os'
 import { contextBridge, ipcRenderer } from 'electron'
-import type { PiApi } from '@shared/api'
+import type { ImagePreview, PiApi } from '@shared/api'
 import { IPC } from '@shared/ipc'
 import type {
   ConnectionStatus,
@@ -70,6 +70,8 @@ const api: PiApi = {
     >,
   saveClipboardImage: (data: Uint8Array, mimeType: string) =>
     ipcRenderer.invoke(IPC.saveClipboardImage, data, mimeType) as Promise<string>,
+  imagePreview: (path: string) =>
+    ipcRenderer.invoke(IPC.imagePreview, path) as Promise<ImagePreview | null>,
   getSettings: () => ipcRenderer.invoke(IPC.getSettings) as Promise<AppSettings>,
   patchSettings: (patch: SettingsPatch) =>
     ipcRenderer.invoke(IPC.patchSettings, patch) as Promise<AppSettings>,

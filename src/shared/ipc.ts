@@ -27,6 +27,7 @@ export const IPC = {
   searchFiles: 'pi:searchFiles',
   statPaths: 'pi:statPaths',
   saveClipboardImage: 'pi:saveClipboardImage',
+  imagePreview: 'pi:imagePreview',
   getSettings: 'pi:getSettings',
   patchSettings: 'pi:patchSettings',
   getModelsFile: 'pi:getModelsFile',

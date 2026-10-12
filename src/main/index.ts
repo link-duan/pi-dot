@@ -1,5 +1,16 @@
+import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, shell } from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  nativeImage,
+  nativeTheme,
+  screen,
+  shell,
+} from 'electron'
 import { IPC } from '@shared/ipc'
 import type { StartResult, ThinkingLevel } from '@shared/protocol'
 import type { SettingsPatch } from '@shared/settings'
@@ -7,6 +18,7 @@ import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
+import { resolveImagePath } from './image-preview'
 import { isInPlansDir, readPlan } from './plan-mode'
 import { readRecentProjects, removeRecentProject } from './recent-projects'
 import { searchProjectFiles } from './search-files'
@@ -280,6 +292,16 @@ function registerIpc(): void {
   ipcMain.handle(IPC.saveClipboardImage, async (_event, data: Uint8Array, mimeType: string) => {
     if (!data || typeof mimeType !== 'string') throw new Error('Invalid image')
     return saveClipboardImage(data, mimeType)
+  })
+
+  ipcMain.handle(IPC.imagePreview, (event, path: string) => {
+    if (typeof path !== 'string') return null
+    const abs = resolveImagePath(path, from(event.sender)?.host?.cwd, homedir())
+    const image = abs ? nativeImage.createFromPath(abs) : null
+    if (!image || image.isEmpty()) return null
+    const { width, height } = image.getSize()
+    const src = (height > 480 ? image.resize({ height: 480, quality: 'good' }) : image).toDataURL()
+    return { src, width, height }
   })
 
   ipcMain.handle(IPC.getSettings, (event) => getSettings(from(event.sender)?.host?.cwd))

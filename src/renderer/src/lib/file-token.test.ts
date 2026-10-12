@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { fileChipLabel, formatFileToken, matchFileTokens, peelRange } from './file-token'
+import {
+  fileChipLabel,
+  isClipboardImage,
+  formatFileToken,
+  matchFileTokens,
+  peelRange,
+} from './file-token'
 
 describe('formatFileToken', () => {
   it('serializes a relative file', () => {
@@ -91,5 +97,22 @@ describe('fileChipLabel', () => {
   it('keeps a trailing slash on directories', () => {
     expect(fileChipLabel('src/components/')).toBe('components/')
     expect(fileChipLabel('~/Desktop/a.png')).toBe('a.png')
+  })
+
+  it('recognizes pasted screenshot paths', () => {
+    expect(isClipboardImage('/var/folders/T/pi-ui-clipboard-4213-a4a5.png')).toBe(true)
+    expect(isClipboardImage('docs/pi-ui-clipboard.png')).toBe(false)
+  })
+
+  it('names pasted screenshots and shortens long names in the middle', () => {
+    expect(fileChipLabel('/tmp/pi-ui-clipboard-970b019c-ed1c-42d1-8f48-10c918d546cd.png')).toBe(
+      'Image',
+    )
+    expect(fileChipLabel('docs/very-long-file-name-for-the-logo.png')).toBe(
+      'very-long-file-n…e-logo.png',
+    )
+    expect(fileChipLabel('src/a-really-long-component-name.tsx', { start: 3 })).toBe(
+      'a-really-long-co…t-name.tsx:3',
+    )
   })
 })
