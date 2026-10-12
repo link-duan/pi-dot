@@ -11,6 +11,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
+import { CREATE_PLAN_TOOL } from '@shared/protocol'
 import { isImageFile } from '@/lib/path'
 
 export function isEditTool(name: string): boolean {
@@ -44,6 +45,7 @@ const TOOL_LABELS: Record<string, string> = {
   write: 'Write',
   find: 'Find',
   ls: 'Ls',
+  [CREATE_PLAN_TOOL]: 'Create Plan',
 }
 
 export function toolLabel(name: string): string {

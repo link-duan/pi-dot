@@ -97,8 +97,11 @@ describe('AgentHost SDK compatibility', () => {
     } as never)
     expect(result.messages[0]?.content).toContain('Plan mode is active.')
     expect(host.snapshot().state.planMode).toBe(true)
-    expect(host.snapshot().state.planPath).toMatch(/plans\/.+\.md$/)
-    expect(events).toContainEqual(expect.objectContaining({ type: 'plan_mode', active: true }))
+    expect(host.snapshot().state.plan).toBeNull()
+    expect(session.getActiveToolNames()).toContain('create_plan')
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'plan_mode', active: true, plan: null }),
+    )
 
     await writeFile(join(host.cwd, 'README.md'), 'original')
     const blocked = await executeCodemode(

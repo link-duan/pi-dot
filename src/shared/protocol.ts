@@ -70,11 +70,17 @@ export interface SessionState {
   followUpQueue?: string[]
   /** Plan mode in effect for the current (or last) run. */
   planMode: boolean
-  planPath: string
+  plan: PlanRef
 }
+
+/** A session's current Plan File; once built it is read-only and the next plan is a new file. */
+export type PlanRef = { path: string; built: boolean } | null
 
 /** The user message that approves a plan; the approved Plan File itself reaches the model hidden. */
 export const PLAN_APPROVED_PROMPT = 'I approved the plan. Implement it.'
+
+/** The tool the agent writes a new Plan File with. */
+export const CREATE_PLAN_TOOL = 'create_plan'
 
 export interface TextContent {
   type: 'text'
@@ -161,7 +167,7 @@ export type SessionEventBody =
       isError?: boolean
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
-  | { type: 'plan_mode'; active: boolean }
+  | { type: 'plan_mode'; active: boolean; plan: PlanRef }
   | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
   | { type: 'auto_retry_end' }

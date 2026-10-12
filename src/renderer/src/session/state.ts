@@ -24,9 +24,10 @@ export type WindowState = {
   sessionId: string | null
   sessionFile: string | null
   focusNonce: number
-  /** The active session's Plan File and its last read content. */
-  planPath: string
+  /** The active session's Plan File content, as last read. */
   planText: string
+  /** The Plan File `planText` was read from; comments belong to it. */
+  planSource: string
   planViewer: boolean
   /** Draft inline comments on the active session's plan, sent with feedback or Build. */
   planComments: PlanComment[]
@@ -53,8 +54,8 @@ export function createWindowState(): WindowState {
     sessionId: null,
     sessionFile: null,
     focusNonce: 0,
-    planPath: '',
     planText: '',
+    planSource: '',
     planViewer: false,
     planComments: [],
     planDraft: null,
@@ -63,13 +64,30 @@ export function createWindowState(): WindowState {
   }
 }
 
-export const noPlanReview = { planComments: [], planDraft: null } satisfies Partial<WindowState>
+export const noPlanReview = {
+  planComments: [],
+  planDraft: null,
+  planSource: '',
+} satisfies Partial<WindowState>
 
 /** Saved comments plus the draft, if it has text: what Build and feedback send. */
 export function reviewComments(state: WindowState): PlanComment[] {
   return state.planDraft?.text.trim()
     ? [...state.planComments, state.planDraft]
     : state.planComments
+}
+
+/**
+ * Which Plan surface to show: the full review card, or the read-only pill for a built plan or
+ * one being revised (feedback sent, the run still going); or none.
+ */
+export function planCard(state: WindowState): 'review' | 'view' | null {
+  const chat = activeChat(state)
+  // Text read for another plan (still loading the current one) is never shown under its name.
+  if (!state.planText || !chat.plan || state.planSource !== chat.plan.path) return null
+  if (chat.plan.built) return 'view'
+  if (!chat.planMode) return null
+  return chat.isStreaming ? 'view' : 'review'
 }
 
 export function activeChat(state: WindowState): ChatState {
@@ -95,7 +113,6 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     running: snapshot.runningSessionFiles,
     skills: snapshot.skills,
     contextUsage: snapshot.contextUsage ?? null,
-    planPath: snapshot.state.planPath,
   }
 }
 
@@ -111,6 +128,7 @@ export function applySnapshot<T extends WindowState>(
     ? {
         ...cached,
         planActive: snapshot.state.planMode,
+        plan: snapshot.state.plan,
         steeringQueue: [...steeringQueue],
         followUpQueue: [...followUpQueue],
       }
@@ -120,6 +138,7 @@ export function applySnapshot<T extends WindowState>(
         steeringQueue,
         followUpQueue,
         planMode: snapshot.state.planMode,
+        plan: snapshot.state.plan,
       })
   const chats = { ...state.chats }
   if (sessionFile) chats[sessionFile] = chat

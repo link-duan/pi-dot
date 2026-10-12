@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createChatState } from '@/chat/state'
+import { createChatState, type ChatState } from '@/chat/state'
 import type { AssistantMessage, SessionEvent, SessionSnapshot } from '@shared/protocol'
 import {
   activeChat,
@@ -7,6 +7,8 @@ import {
   applySnapshot,
   createWindowState,
   parkActive,
+  patchChat,
+  planCard,
   type WindowState,
 } from './state'
 
@@ -41,7 +43,7 @@ function snapshot(file: string, extra: Partial<SessionSnapshot> = {}): SessionSn
       sessionId: 'sess',
       messageCount: 0,
       planMode: false,
-      planPath: '/plans/sess.md',
+      plan: { path: '/plans/a_1.plan.md', built: false },
     },
     messages: [],
     models: [{ id: 'm', name: 'Model', provider: 'p' }],
@@ -227,10 +229,28 @@ describe('plan mode', () => {
     const cached = { ...createChatState(), planActive: false }
     let state = applySnapshot(createWindowState(), on, cached)
     expect(activeChat(state).planActive).toBe(true)
-    expect(state.planPath).toBe('/plans/sess.md')
+    expect(activeChat(state).plan).toEqual({ path: '/plans/a_1.plan.md', built: false })
 
-    state = applyEvent(state, { type: 'plan_mode', sessionFile: fileA, active: false })
+    const built = { path: '/plans/a_1.plan.md', built: true }
+    state = applyEvent(state, { type: 'plan_mode', sessionFile: fileA, active: false, plan: built })
     expect(activeChat(state).planActive).toBe(false)
+    expect(activeChat(state).plan).toEqual(built)
+  })
+
+  it('shows the review card for a plan under review, and the read-only pill once built or while revising', () => {
+    const base = applySnapshot(createWindowState(), snapshot(fileA))
+    const with_ = (planText: string, chat: Partial<ChatState>, planSource = '/plans/a_1.plan.md') =>
+      planCard(patchChat({ ...base, planText, planSource }, fileA, chat))
+    const plan = { path: '/plans/a_1.plan.md', built: false }
+    expect(with_('', { plan, planMode: true })).toBeNull()
+    expect(with_('# x', { plan: null, planMode: true })).toBeNull()
+    expect(with_('# x', { plan, planMode: true })).toBe('review')
+    expect(with_('# x', { plan, planMode: false })).toBeNull()
+    expect(with_('# x', { plan, planMode: true, isStreaming: true })).toBe('view')
+    expect(with_('# x', { plan: { ...plan, built: true }, planMode: true })).toBe('view')
+    expect(with_('# x', { plan: { ...plan, built: true }, planMode: false })).toBe('view')
+    // Text still from the previous plan file: nothing until the current one is read.
+    expect(with_('# x', { plan, planMode: true }, '/plans/old_2.plan.md')).toBeNull()
   })
 
   it('drops draft plan comments when switching sessions', () => {

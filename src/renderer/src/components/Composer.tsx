@@ -17,6 +17,7 @@ import { displayPath } from '@/lib/path'
 import { cn } from '@/lib/utils'
 import { useChat, useSession } from '@/session/store'
 import { FollowUpQueue } from './FollowUpQueue'
+import { ComposerActions } from './ComposerActions'
 import { PlanReview } from './PlanReview'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
 import { $clearEditor, PromptEditorField, promptEditorConfig } from './composer/PromptEditor'
@@ -144,11 +145,12 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
       <div className="pointer-events-auto mx-auto max-w-3xl">
         <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
         <PlanReview />
+        <ComposerActions />
       </div>
 
       <form
         className={cn(
-          'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 shadow-xl shadow-black/5 backdrop-blur-md dark:bg-card/95 dark:shadow-black/50',
+          'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 backdrop-blur-md dark:bg-card/95',
           planMode ? 'border-plan/50' : 'border-border',
         )}
         onSubmit={(event) => {
@@ -226,7 +228,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                     <Button
                       type="button"
                       size="icon-sm"
-                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] shadow-xs"
+                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)]"
                       aria-label="Stop"
                       onClick={() =>
                         void abort().catch((error: unknown) => {
@@ -247,7 +249,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                     <Button
                       type="submit"
                       size="icon-sm"
-                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] shadow-xs transition-opacity"
+                      className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] transition-opacity"
                       disabled={!canSend}
                       aria-label={isStreaming ? 'Steer' : 'Send'}
                     />

@@ -2,7 +2,8 @@ import { ExternalLink, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
-import { useSession } from '@/session/store'
+import { planCard } from '@/session/state'
+import { useChat, useSession } from '@/session/store'
 import { PlanDocument } from './PlanComments'
 import { PlanFeedbackButton } from './PlanFeedback'
 import { BuildButton, usePlan } from './PlanReview'
@@ -17,7 +18,8 @@ function backToChat(): void {
 /** Full-window Plan File view; opens on its own when a Plan Mode run ends. */
 export function PlanViewer() {
   const open = useSession((state) => state.planViewer)
-  const planPath = useSession((state) => state.planPath)
+  const planPath = useChat((chat) => chat.plan?.path ?? '')
+  const readOnly = useSession(planCard) !== 'review'
   const { name, overview, body } = usePlan()
 
   return (
@@ -37,7 +39,7 @@ export function PlanViewer() {
                 </DialogDescription>
               ) : null}
               <div className="my-8 border-t border-border" />
-              <PlanDocument body={body} />
+              <PlanDocument body={body} readOnly={readOnly} />
             </article>
           </ScrollAreaViewport>
           <ScrollAreaScrollbar />
@@ -54,7 +56,7 @@ export function PlanViewer() {
           >
             <X />
           </Button>
-          <PlanFeedbackButton />
+          {readOnly ? null : <PlanFeedbackButton />}
           <Button
             type="button"
             variant="ghost"
@@ -70,7 +72,7 @@ export function PlanViewer() {
           >
             <ExternalLink />
           </Button>
-          <BuildButton size="default" className="rounded-full" />
+          {readOnly ? null : <BuildButton size="default" className="rounded-full" />}
         </div>
       </DialogContent>
     </Dialog>

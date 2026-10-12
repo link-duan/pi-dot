@@ -41,7 +41,7 @@ function ownerOf(blocks: PlanBlock[], end: number): number {
 }
 
 /** Plan body with GitHub-style inline comments: select text to comment, threads sit after the block. */
-export function PlanDocument({ body }: { body: string }) {
+export function PlanDocument({ body, readOnly = false }: { body: string; readOnly?: boolean }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const comments = useSession((state) => state.planComments)
   const draft = useSession((state) => state.planDraft)
@@ -83,6 +83,7 @@ export function PlanDocument({ body }: { body: string }) {
   }, [blocks, comments, draft])
 
   const onMouseUp = () => {
+    if (readOnly) return
     const root = rootRef.current
     const selection = window.getSelection()
     if (!root || !selection || selection.isCollapsed || selection.rangeCount === 0) return

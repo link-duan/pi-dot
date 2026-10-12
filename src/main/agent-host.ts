@@ -339,7 +339,7 @@ export class AgentHost {
       steeringQueue: [...session.getSteeringMessages()],
       followUpQueue: [...session.getFollowUpMessages()],
       planMode: planMode?.active ?? false,
-      planPath: planMode?.planPath ?? '',
+      plan: planMode?.plan ?? null,
     }
   }
 
@@ -575,8 +575,8 @@ export class AgentHost {
       },
     })
     const planMode = this.planModes.get(session.sessionManager)
-    const unsubscribePlan = planMode?.onChange((active) => {
-      this.emit({ type: 'plan_mode', sessionFile: live.sessionFile, active })
+    const unsubscribePlan = planMode?.onChange(({ active, plan }) => {
+      this.emit({ type: 'plan_mode', sessionFile: live.sessionFile, active, plan })
     })
     const unsubscribeSession = session.subscribe((event) => {
       const mapped = toSessionEvent(event, live.sessionFile)

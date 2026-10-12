@@ -236,3 +236,50 @@ describe('plan review', () => {
     expect(useSession.getState().planDraft).toBeNull()
   })
 })
+
+describe('refreshPlan', () => {
+  const file = '/tmp/project/session.jsonl'
+  const comment = { id: 'c1', text: 'why?', start: 0, end: 5, quote: 'Hello' }
+
+  function setup(readPlan: (path: string) => Promise<string>, path: string) {
+    ;(globalThis as unknown as { window: { pi: unknown } }).window = { pi: { readPlan } }
+    applyLiveSnapshot(snapshot)
+    useSession.setState((state) => ({
+      planComments: [comment],
+      chats: { ...state.chats, [file]: { ...activeChat(state), plan: { path, built: false } } },
+    }))
+  }
+
+  const pointAt = (path: string) =>
+    useSession.setState((state) => ({
+      chats: { ...state.chats, [file]: { ...activeChat(state), plan: { path, built: false } } },
+    }))
+
+  it('keeps comments on the same plan file and drops them for a new one', async () => {
+    setup(async () => 'xx Hello', '/plans/a_1.plan.md')
+    useSession.setState({ planSource: '/plans/a_1.plan.md' })
+    await useSession.getState().refreshPlan()
+    expect(useSession.getState().planComments).toEqual([
+      { ...comment, start: 3, end: 8, outdated: false },
+    ])
+
+    pointAt('/plans/b_2.plan.md')
+    await useSession.getState().refreshPlan()
+    expect(useSession.getState().planComments).toEqual([])
+    expect(useSession.getState().planSource).toBe('/plans/b_2.plan.md')
+  })
+
+  it('ignores a slow read of a plan that is no longer current', async () => {
+    const pending: Record<string, (text: string) => void> = {}
+    setup((path) => new Promise((resolve) => (pending[path] = resolve)), '/plans/a_1.plan.md')
+    const first = useSession.getState().refreshPlan()
+    pointAt('/plans/b_2.plan.md')
+    const second = useSession.getState().refreshPlan()
+    pending['/plans/b_2.plan.md']!('plan B')
+    await second
+    pending['/plans/a_1.plan.md']!('plan A')
+    await first
+    expect(useSession.getState().planText).toBe('plan B')
+    expect(useSession.getState().planSource).toBe('/plans/b_2.plan.md')
+  })
+})

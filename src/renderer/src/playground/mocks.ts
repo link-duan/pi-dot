@@ -490,7 +490,7 @@ export const codemodeModel = chat(
   },
 )
 
-export const playgroundPlanPath = '/Users/demo/.pi-dot/plans/demo.md'
+export const playgroundPlanPath = '/Users/demo/.pi-dot/plans/debounce_file_search_d9262367.plan.md'
 
 export const playgroundPlanText = `---
 name: Debounce file search
@@ -528,16 +528,32 @@ export function playgroundPlanComments(body: string): PlanComment[] {
   ]
 }
 
-export const planModel = chat(
+const planMessages = [
+  user('Plan how to make @ file search fast on huge repos.'),
+  assistant([
+    tool('plan-read', 'read', { path: 'src/main/search-files.ts' }),
+    tool('plan-create', 'create_plan', {
+      name: 'Debounce file search',
+      overview: 'Debounce queries in the renderer and cancel stale walks in main.',
+      plan: '## Context\n…',
+    }),
+  ]),
+  result('plan-read', 'read', 'export async function searchProjectFiles(...)'),
+  result('plan-create', 'create_plan', `Created the plan at ${playgroundPlanPath}.`),
+  assistant([{ type: 'text', text: 'The plan is ready for review.' }]),
+]
+
+export const planModel = chat(planMessages, {
+  planMode: true,
+  planActive: true,
+  plan: { path: playgroundPlanPath, built: false },
+})
+
+export const planBuiltModel = chat(
   [
-    user('Plan how to make @ file search fast on huge repos.'),
-    assistant([
-      tool('plan-read', 'read', { path: 'src/main/search-files.ts' }),
-      tool('plan-write', 'write', { path: playgroundPlanPath, content: playgroundPlanText }),
-    ]),
-    result('plan-read', 'read', 'export async function searchProjectFiles(...)'),
-    result('plan-write', 'write', `Successfully wrote to ${playgroundPlanPath}`),
-    assistant([{ type: 'text', text: 'The plan is ready for review.' }]),
+    ...planMessages,
+    user('I approved the plan. Implement it.'),
+    assistant([{ type: 'text', text: 'Debounced the @ picker and aborted stale walks.' }]),
   ],
-  { planMode: true, planActive: true },
+  { plan: { path: playgroundPlanPath, built: true } },
 )

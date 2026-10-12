@@ -1,6 +1,7 @@
 import {
   isAgentMessage,
   type AgentMessage,
+  type PlanRef,
   type SessionEventBody,
   type TextContent,
 } from '@shared/protocol'
@@ -37,6 +38,8 @@ export interface ChatState {
   planMode: boolean
   /** Plan Mode in effect in main; a run that ends in it shows the plan full-window. */
   planActive: boolean
+  /** The session's current Plan File, as main replayed it from the transcript. */
+  plan: PlanRef
 }
 
 export function createChatState(): ChatState {
@@ -54,6 +57,7 @@ export function createChatState(): ChatState {
     followUpQueue: [],
     planMode: false,
     planActive: false,
+    plan: null,
   }
 }
 
@@ -65,6 +69,7 @@ export function hydrateMessages(
     steeringQueue?: string[]
     followUpQueue?: string[]
     planMode?: boolean
+    plan?: PlanRef
   },
 ): ChatState {
   const next = messages.filter(isAgentMessage)
@@ -87,6 +92,7 @@ export function hydrateMessages(
     followUpQueue: options?.followUpQueue ? [...options.followUpQueue] : [],
     planMode: Boolean(options?.planMode),
     planActive: Boolean(options?.planMode),
+    plan: options?.plan ?? null,
   }
 }
 
@@ -168,7 +174,7 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
       }
 
     case 'plan_mode':
-      return { ...state, planActive: event.active }
+      return { ...state, planActive: event.active, plan: event.plan }
 
     case 'message_start': {
       if (!event.message?.role) return state

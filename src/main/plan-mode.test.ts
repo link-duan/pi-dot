@@ -1,9 +1,18 @@
-import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
+import { readFile, rm, mkdtemp, symlink, unlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import { basename, dirname, join } from 'node:path'
+import type { ExtensionAPI, SessionEntry } from '@earendil-works/pi-coding-agent'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createPlanMode, isInPlansDir, isPlanFileWrite, planFilePath, planStep } from './plan-mode'
+import {
+  createPlanMode,
+  isInPlansDir,
+  isPlanFileWrite,
+  planSlug,
+  planStep,
+  replayPlan,
+  writePlanFile,
+  type PlanEntry,
+} from './plan-mode'
 
 describe('isPlanFileWrite', () => {
   const plan = '/home/me/.pi-dot/plans/abc.md'
@@ -56,25 +65,96 @@ describe('planStep', () => {
   })
 })
 
-type Handler = (event: unknown, ctx: unknown) => unknown
+describe('planSlug', () => {
+  it('keeps letters and digits in any script and joins the rest with _', () => {
+    expect(planSlug('Stream Event Redesign')).toBe('stream_event_redesign')
+    expect(planSlug('审批模块：架构设计')).toBe('审批模块_架构设计')
+    expect(planSlug('Fix ../etc/passwd: v2!')).toBe('fix_etc_passwd_v2')
+    expect(planSlug('Ｆｕｌｌ　Ｗｉｄｔｈ')).toBe('full_width')
+  })
 
-function fakePi(entries: unknown[] = []) {
+  it('caps the length by characters and falls back to "plan"', () => {
+    expect([...planSlug('长'.repeat(80))]).toHaveLength(50)
+    expect(planSlug('a '.repeat(40))).not.toMatch(/_$/)
+    expect(planSlug('!!!')).toBe('plan')
+  })
+})
+
+const entry = (data: PlanEntry | Record<string, unknown>, customType = 'pi-dot-plan') =>
+  ({ type: 'custom', customType, data }) as unknown as SessionEntry
+
+describe('replayPlan', () => {
+  it('replays mode, the latest plan, and whether that plan was built', () => {
+    expect(replayPlan([])).toEqual({ active: false, plan: null })
+    expect(
+      replayPlan([
+        entry({ kind: 'mode', active: true }),
+        entry({ kind: 'created', path: '/p/a.plan.md' }),
+        entry({ kind: 'mode', active: false }),
+        entry({ kind: 'built', path: '/p/a.plan.md' }),
+      ]),
+    ).toEqual({ active: false, plan: { path: '/p/a.plan.md', built: true } })
+  })
+
+  it('starts a new plan unbuilt, and only counts builds of the current plan', () => {
+    expect(
+      replayPlan([
+        entry({ kind: 'created', path: '/p/a.plan.md' }),
+        entry({ kind: 'built', path: '/p/a.plan.md' }),
+        entry({ kind: 'mode', active: true }),
+        entry({ kind: 'created', path: '/p/b.plan.md' }),
+        entry({ kind: 'built', path: '/p/a.plan.md' }),
+      ]).plan,
+    ).toEqual({ path: '/p/b.plan.md', built: false })
+  })
+
+  it('ignores the old pi-dot-plan-mode entries', () => {
+    expect(replayPlan([entry({ enabled: true }, 'pi-dot-plan-mode')])).toEqual({
+      active: false,
+      plan: null,
+    })
+  })
+})
+
+type Handler = (event: unknown, ctx: unknown) => unknown
+type Tool = { name: string; execute: (id: string, params: unknown) => Promise<unknown> }
+
+function fakePi(entries: SessionEntry[] = [], sessionId = 'sess-1') {
   const handlers: Record<string, Handler> = {}
-  const appended: unknown[] = []
+  const appended: PlanEntry[] = []
+  let tool: Tool | undefined
+  let active = ['read', 'edit', 'write']
   const pi = {
     on: (name: string, handler: Handler) => {
       handlers[name] = handler
     },
-    appendEntry: (customType: string, data: unknown) => appended.push({ customType, data }),
+    registerTool: (definition: Tool) => {
+      tool = definition
+    },
+    getActiveTools: () => active,
+    setActiveTools: (names: string[]) => {
+      active = names
+    },
+    // Appended entries land on the branch, as in a real session.
+    appendEntry: (customType: string, data: PlanEntry) => {
+      appended.push(data)
+      entries.push(entry(data, customType))
+    },
   }
   const ctx = {
     cwd: '/work',
-    sessionManager: { getSessionId: () => 'abc', getBranch: () => entries },
+    sessionManager: { getBranch: () => entries, getSessionId: () => sessionId },
   }
   return {
     pi: pi as unknown as ExtensionAPI,
     appended,
+    activeTools: () => active,
+    createPlan: (params: { name: string; overview: string; plan: string }) =>
+      tool!.execute('call', params) as Promise<{ details: { path: string } }>,
     emit: (name: string, event: unknown = {}) => handlers[name]?.(event, ctx),
+    reminder: () =>
+      (handlers.before_agent_start?.({}, ctx) as { message: { content: string } } | undefined)
+        ?.message.content,
   }
 }
 
@@ -91,156 +171,144 @@ describe('createPlanMode', () => {
     await rm(home, { recursive: true, force: true })
   })
 
-  const editReadme = { toolName: 'edit', input: { path: 'README.md' } }
+  const write = (path: string) => ({ toolName: 'write', input: { path } })
+  const editReadme = write('README.md')
+  const draft = { name: 'Debounce search', overview: 'Why: slow.', plan: '## Context\nSlow.' }
 
-  it('teaches the plan file format in the full rules and stays tool-free', async () => {
+  async function started(entries: SessionEntry[] = [], sessionId = 'sess-1') {
     const plan = createPlanMode()
-    const fake = fakePi()
+    const fake = fakePi(entries, sessionId)
     await plan.extension(fake.pi)
     fake.emit('session_start')
-    expect(plan.planPath).toBe(planFilePath('abc'))
+    return { plan, fake }
+  }
 
-    plan.setNext(true)
-    const full = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(full.message.content).toContain('name: <short title>')
-    expect(full.message.content).toContain('overview:')
-    const sparse = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(sparse.message.content).toContain('only when the user clicks Build')
-    for (const text of [full.message.content, sparse.message.content]) {
-      expect(text).not.toContain('exit_plan_mode')
-    }
+  it('keeps create_plan declared and rejects it outside plan mode', async () => {
+    const { fake } = await started()
+    expect(fake.activeTools()).toContain('create_plan')
+    await expect(fake.createPlan(draft)).rejects.toThrow('Plan mode is not active.')
   })
 
-  it('reports the mode in effect, not the pending one, and notifies on changes', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi()
-    const changes: boolean[] = []
-    plan.onChange((active) => changes.push(active))
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
+  it('asks for create_plan, then lets the model edit only the plan it created', async () => {
+    const { plan, fake } = await started()
+    plan.setNext(true)
+    const full = fake.reminder()
+    expect(full).toContain('Call create_plan')
+    expect(full).toContain("in the user's language")
+    expect(fake.emit('tool_call', editReadme)).toMatchObject({
+      reason: expect.stringContaining('create_plan first'),
+    })
+
+    const { details } = await fake.createPlan(draft)
+    expect(basename(details.path)).toMatch(/^debounce_search_[0-9a-f]{8}\.plan\.md$/)
+    expect(await readFile(details.path, 'utf8')).toBe(
+      '---\nname: Debounce search\noverview: "Why: slow."\n---\n\n## Context\nSlow.\n',
+    )
+    expect(plan.plan).toEqual({ path: details.path, built: false })
+    expect(fake.emit('tool_call', write(details.path))).toBeUndefined()
+    expect(fake.emit('tool_call', editReadme)).toMatchObject({ block: true })
+    expect(fake.reminder()).toContain(`revise ${details.path}`)
+  })
+
+  it('builds the plan for good: read-only after approval, and the next round needs a new one', async () => {
+    const { plan, fake } = await started()
+    const changes: unknown[] = []
+    plan.onChange((state) => changes.push(state))
+    plan.setNext(true)
+    fake.reminder()
+    const { details } = await fake.createPlan(draft)
+    await writeFile(details.path, '---\nname: X\n---\n\nEdited by the user.\n')
+
+    plan.setNext(false, true)
+    const approved = fake.reminder()
+    expect(approved).toContain('The user approved the plan in')
+    expect(approved).toContain('Edited by the user.')
+    expect(plan.plan).toEqual({ path: details.path, built: true })
+    expect(changes.at(-1)).toEqual({ active: false, plan: { path: details.path, built: true } })
+    expect(fake.appended).toEqual([
+      { kind: 'mode', active: true },
+      { kind: 'created', path: details.path },
+      { kind: 'mode', active: false },
+      { kind: 'built', path: details.path },
+    ])
 
     plan.setNext(true)
-    expect(plan.active).toBe(false)
-    fake.emit('before_agent_start')
-    expect(plan.active).toBe(true)
-    fake.emit('before_agent_start')
+    expect(fake.reminder()).toContain('Call create_plan')
+    expect(fake.emit('tool_call', write(details.path))).toMatchObject({ block: true })
+  })
+
+  it('comes back to an unbuilt plan on re-entry', async () => {
+    const { plan, fake } = await started()
+    plan.setNext(true)
+    fake.reminder()
+    const { details } = await fake.createPlan(draft)
     plan.setNext(false)
-    fake.emit('before_agent_start')
+    expect(fake.reminder()).toContain('Plan mode ended')
+    plan.setNext(true)
+    const reentry = fake.reminder()
+    expect(reentry).toContain(`Under review: ${details.path}`)
+    expect(reentry).toContain("in the user's language")
+  })
+
+  it('restores mode and plan from the transcript, following the branch', async () => {
+    const path = writePlanFile('Saved', 'o', 'p')
+    const entries = [entry({ kind: 'mode', active: true }), entry({ kind: 'created', path })]
+    const { plan, fake } = await started(entries)
+    expect(plan.active).toBe(true)
+    expect(plan.plan).toEqual({ path, built: false })
+    expect(fake.emit('tool_call', write(path))).toBeUndefined()
+    expect(fake.reminder()).toContain('Plan mode is active.')
+
+    entries.push(entry({ kind: 'built', path }))
+    fake.emit('session_tree')
+    expect(plan.plan).toEqual({ path, built: true })
+  })
+
+  it('treats approval without a plan as a plain exit', async () => {
+    const { plan, fake } = await started([entry({ kind: 'mode', active: true })])
+    plan.setNext(false, true)
+    expect(fake.reminder()).toContain('Plan mode ended')
+    expect(fake.appended).toEqual([{ kind: 'mode', active: false }])
+  })
+
+  it('notifies only when the mode or the plan changes', async () => {
+    const { plan, fake } = await started()
+    const changes: unknown[] = []
+    plan.onChange((state) => changes.push(state))
+    plan.setNext(true)
+    fake.reminder()
+    fake.reminder()
+    plan.setNext(false)
+    fake.reminder()
+    fake.reminder()
+    expect(changes).toEqual([
+      { active: true, plan: null },
+      { active: false, plan: null },
+    ])
+  })
+
+  it('drops a plan whose file was deleted', async () => {
+    const path = writePlanFile('Gone', 'o', 'p')
+    await unlink(path)
+    const { plan } = await started([entry({ kind: 'created', path })])
+    expect(plan.plan).toBeNull()
+  })
+
+  it('reports the mode in effect, not the pending one', async () => {
+    const { plan, fake } = await started()
+    plan.setNext(true)
     expect(plan.active).toBe(false)
-    expect(changes).toEqual([false, true, false])
+    fake.reminder()
+    expect(plan.active).toBe(true)
   })
 
   it('only opens real files inside the plans dir', async () => {
-    const path = planFilePath('abc')
-    await mkdir(dirname(path), { recursive: true })
-    await writeFile(path, '# Plan\n')
+    const path = writePlanFile('Real', 'o', 'p')
     expect(isInPlansDir(path)).toBe(true)
     const outside = join(home, 'evil.md')
     await writeFile(outside, 'x')
     await symlink(outside, join(dirname(path), 'link.md'))
     expect(isInPlansDir(join(dirname(path), 'link.md'))).toBe(false)
     expect(isInPlansDir(join(dirname(path), '../config.toml'))).toBe(false)
-  })
-
-  it('switches only at the next run boundary', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi()
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-
-    plan.setNext(true)
-    expect(fake.emit('tool_call', editReadme)).toBeUndefined()
-
-    const started = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(started.message.content).toContain('Plan mode is active.')
-    expect(fake.emit('tool_call', editReadme)).toMatchObject({ block: true })
-    expect(
-      fake.emit('tool_call', { toolName: 'write', input: { path: planFilePath('abc') } }),
-    ).toBeUndefined()
-
-    plan.setNext(false)
-    expect(fake.emit('tool_call', editReadme)).toMatchObject({ block: true })
-    const ended = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(ended.message.content).toContain('Plan mode has ended.')
-    expect(fake.emit('tool_call', editReadme)).toBeUndefined()
-    expect(fake.appended).toEqual([
-      { customType: 'pi-dot-plan-mode', data: { enabled: true } },
-      { customType: 'pi-dot-plan-mode', data: { enabled: false } },
-    ])
-  })
-
-  it('hands the current plan file to the model on approval', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi()
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-    plan.setNext(true)
-    fake.emit('before_agent_start')
-
-    const path = planFilePath('abc')
-    await mkdir(dirname(path), { recursive: true })
-    await writeFile(path, '# Plan\n\nEdited by the user.\n')
-    plan.setNext(false, true)
-    const approved = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(approved.message.content).toContain('The user approved the plan.')
-    expect(approved.message.content).toContain('Edited by the user.')
-    expect(fake.emit('tool_call', editReadme)).toBeUndefined()
-  })
-
-  const savedOn = { type: 'custom', customType: 'pi-dot-plan-mode', data: { enabled: true } }
-
-  it('restores plan mode as active after a restart, with the full rules', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi([savedOn])
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-    expect(plan.active).toBe(true)
-    expect(fake.emit('tool_call', editReadme)).toMatchObject({ block: true })
-
-    const first = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(first.message.content).toContain('Plan mode is active.')
-    const second = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(second.message.content).toContain('still active')
-    fake.emit('session_compact')
-    const third = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(third.message.content).toContain('Plan mode is active.')
-  })
-
-  it('exits and persists the change when turned off right after a restart', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi([savedOn])
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-    plan.setNext(false)
-    const ended = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(ended.message.content).toContain('Plan mode has ended.')
-    expect(fake.appended).toEqual([{ customType: 'pi-dot-plan-mode', data: { enabled: false } }])
-  })
-
-  it('hands over the plan when approved right after a restart', async () => {
-    const plan = createPlanMode()
-    const fake = fakePi([savedOn])
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-    const path = planFilePath('abc')
-    await mkdir(dirname(path), { recursive: true })
-    await writeFile(path, '# Plan\n\nShip it.\n')
-    plan.setNext(false, true)
-    const approved = fake.emit('before_agent_start') as { message: { content: string } }
-    expect(approved.message.content).toContain('Ship it.')
-  })
-
-  it('follows the branch on tree navigation', async () => {
-    const entries: unknown[] = []
-    const plan = createPlanMode()
-    const fake = fakePi(entries)
-    await plan.extension(fake.pi)
-    fake.emit('session_start')
-    expect(plan.active).toBe(false)
-
-    entries.push(savedOn)
-    fake.emit('session_tree')
-    expect(plan.active).toBe(true)
-    expect(fake.emit('tool_call', editReadme)).toMatchObject({ block: true })
   })
 })

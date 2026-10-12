@@ -15,6 +15,7 @@ import {
   codemodeModel,
   emptyModel,
   playgroundContextUsage,
+  planBuiltModel,
   planModel,
   playgroundModel,
   playgroundPlanComments,
@@ -40,6 +41,7 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: stri
   { title: 'Working', model: workingModel, agoMs: 3_600 },
   { title: 'Queued', model: queuedModel, agoMs: 3_600 },
   { title: 'Plan', model: planModel, plan: playgroundPlanText },
+  { title: 'Plan built', model: planBuiltModel, plan: playgroundPlanText },
 ]
 
 const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
@@ -170,11 +172,14 @@ function usePlaygroundSession(model: ChatState, plan = '') {
       setThinkingLevel: async (level) => {
         useSession.setState({ thinkingLevel: level })
       },
-      planPath: playgroundPlanPath,
       refreshPlan: async () => {},
       approvePlan: async () => {
         useSession.setState((state) =>
-          patchChat(state, PLAYGROUND_FILE, { planMode: false, planActive: false }),
+          patchChat(state, PLAYGROUND_FILE, {
+            planMode: false,
+            planActive: false,
+            plan: { path: playgroundPlanPath, built: true },
+          }),
         )
       },
     })
@@ -191,8 +196,9 @@ function usePlaygroundSession(model: ChatState, plan = '') {
         [PLAYGROUND_FILE]: model,
       },
       planText: plan,
+      planSource: plan ? playgroundPlanPath : '',
       planViewer: false,
-      planComments: plan ? playgroundPlanComments(parsePlan(plan).body) : [],
+      planComments: plan && !model.plan?.built ? playgroundPlanComments(parsePlan(plan).body) : [],
     }))
   }, [model, plan])
 }

@@ -49,5 +49,5 @@ A per-Session toggle under which the agent explores read-only and writes a plan 
 _Avoid_: Planning mode, read-only mode, ask mode
 
 **Plan File**:
-The Markdown file a Session's plan is written to, `~/.pi-dot/plans/<sessionId>.md`, starting with `name` / `overview` frontmatter. It is the only file the agent may edit in Plan Mode, and the user may edit it before approving.
+The Markdown file one plan lives in, created by the agent's `create_plan` tool as `~/.pi-dot/plans/<name>_<hex>.plan.md` with `name` / `overview` frontmatter; a new plan means a new file. Until it is built it is the only file the agent may edit in Plan Mode, and the user may edit it too. Once built it stays read-only (a compact card keeps it viewable) until the next plan replaces it. Which file is current and whether it was built is replayed from the Session transcript.
 _Avoid_: Plan document, todo list

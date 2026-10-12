@@ -1,9 +1,12 @@
 import { useEffect, useMemo } from 'react'
+import { ListChecks } from 'lucide-react'
 import { parsePlan } from '@shared/plan-file'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { cn } from '@/lib/utils'
-import { useChat, useSession } from '@/session/store'
+import { planCard } from '@/session/state'
+import { ActionPill } from './ActionPill'
+import { useSession } from '@/session/store'
 
 export function usePlan() {
   const planText = useSession((state) => state.planText)
@@ -40,11 +43,9 @@ export function BuildButton({
 
 /** Above the Composer while there is a plan to review; ⌘⏎ builds it. */
 export function PlanReview() {
-  const visible = useSession((state) => state.planText !== '')
-  const reviewable = useChat((chat) => chat.planMode && !chat.isStreaming)
+  const shown = useSession((state) => planCard(state) === 'review')
   const openPlanViewer = useSession((state) => state.openPlanViewer)
   const { name, overview } = usePlan()
-  const shown = visible && reviewable
 
   useEffect(() => {
     if (!shown) return
@@ -88,5 +89,21 @@ export function PlanReview() {
         <BuildButton className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)]" />
       </div>
     </div>
+  )
+}
+
+/** A built plan, or one being revised, stays viewable read-only from the Composer's action bar. */
+export function PlanAction() {
+  const viewable = useSession((state) => planCard(state) === 'view')
+  const openPlanViewer = useSession((state) => state.openPlanViewer)
+  const { name } = usePlan()
+  if (!viewable) return null
+  return (
+    <ActionPill
+      icon={ListChecks}
+      label={name}
+      title={`View plan: ${name}`}
+      onClick={openPlanViewer}
+    />
   )
 }

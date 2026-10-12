@@ -418,18 +418,26 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
 
   refreshPlan: async (open = false) => {
-    const { sessionFile, planPath } = get()
-    if (!activeChat(get()).planMode) {
-      set({ planText: '', planViewer: false })
+    const { sessionFile } = get()
+    const path = activeChat(get()).plan?.path
+    if (!path) {
+      set({ planText: '', planSource: '', planViewer: false })
       return
     }
-    const text = await window.pi.readPlan(planPath)
-    if (get().sessionFile !== sessionFile) return
+    const text = await window.pi.readPlan(path)
+    // A newer refresh may be reading another plan by now; keep only the current one's text.
+    if (get().sessionFile !== sessionFile || activeChat(get()).plan?.path !== path) return
     set((state) => {
+      // A built plan has nothing new to review, so it never pops up on its own.
+      const planViewer = state.planViewer || (open && text !== '' && !activeChat(state).plan?.built)
+      // Comments belong to the plan they were made on; a new plan file starts without them.
+      if (state.planSource !== path) {
+        return { ...noPlanReview, planText: text, planSource: path, planViewer }
+      }
       const body = parsePlan(text).body
       return {
         planText: text,
-        planViewer: state.planViewer || (open && text !== ''),
+        planViewer,
         planComments: reanchor(state.planComments, body),
         planDraft: state.planDraft && reanchor([state.planDraft], body)[0]!,
       }

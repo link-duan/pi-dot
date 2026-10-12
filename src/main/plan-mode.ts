@@ -1,14 +1,24 @@
-import { readFileSync, realpathSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve, sep } from 'node:path'
+import { Type } from '@earendil-works/pi-ai'
 import type {
-  CustomEntry,
   ExtensionContext,
   ExtensionFactory,
+  SessionEntry,
 } from '@earendil-works/pi-coding-agent'
+import { stringify } from 'yaml'
+import { CREATE_PLAN_TOOL, type PlanRef } from '@shared/protocol'
 import { piDotDir } from './config'
 
-const ENTRY_TYPE = 'pi-dot-plan-mode'
+/** Custom entries in the session transcript, the source of truth for plan state; see `replayPlan`. */
+const ENTRY_TYPE = 'pi-dot-plan'
+
+export type PlanEntry =
+  | { kind: 'mode'; active: boolean }
+  | { kind: 'created'; path: string }
+  | { kind: 'built'; path: string }
 /** Every Nth reminder of a planning stretch repeats the full rules instead of the one-liner. */
 const FULL_EVERY = 5
 
@@ -25,8 +35,47 @@ export function plansDir(): string {
   return join(piDotDir(), 'plans')
 }
 
-export function planFilePath(sessionId: string): string {
-  return join(plansDir(), `${sessionId}.md`)
+/** File-name stem for a plan: keeps letters and digits in any script, the rest become `_`. */
+export function planSlug(name: string): string {
+  const slug = name
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '_')
+    .replace(/^_+|_+$/g, '')
+  return [...slug].slice(0, 50).join('').replace(/_+$/, '') || 'plan'
+}
+
+/** Writes a new Plan File: `<slug>_<hex>.plan.md` with `name` / `overview` frontmatter. */
+export function writePlanFile(name: string, overview: string, plan: string): string {
+  mkdirSync(plansDir(), { recursive: true })
+  const path = join(plansDir(), `${planSlug(name)}_${randomBytes(4).toString('hex')}.plan.md`)
+  writeFileSync(
+    path,
+    `---\n${stringify({ name, overview }, { lineWidth: 0 })}---\n\n${plan.trim()}\n`,
+    {
+      flag: 'wx',
+    },
+  )
+  return path
+}
+
+/**
+ * Replays the plan entries on a session branch, in order: the last `mode` is the mode in effect,
+ * the last `created` is the current plan, built once a later `built` names it.
+ * A fork replays its parent's entries too, so the two sessions share that Plan File.
+ */
+export function replayPlan(entries: readonly SessionEntry[]): { active: boolean; plan: PlanRef } {
+  let active = false
+  let plan = null as PlanRef
+  for (const entry of entries) {
+    if (entry.type !== 'custom' || entry.customType !== ENTRY_TYPE) continue
+    const data = entry.data as PlanEntry | undefined
+    if (data?.kind === 'mode') active = data.active
+    else if (data?.kind === 'created') plan = { path: data.path, built: false }
+    else if (data?.kind === 'built' && plan?.path === data.path)
+      plan = { path: data.path, built: true }
+  }
+  return { active, plan }
 }
 
 /** Resolves symlinks, so a link placed in the plans dir can't point `openPath` elsewhere. */
@@ -50,16 +99,17 @@ export function isPlanFileWrite(input: unknown, cwd: string, planPath: string): 
 
 /**
  * Runs once per run, at `before_agent_start`; see the injection table in the plan mode design.
+ * `hasPlan` means there is a plan under review (created and not built) to come back to.
  * `approved` hands the plan over even if plan mode already ended.
  */
 export function planStep(
   state: PlanState,
   next: boolean,
-  planHasContent: boolean,
+  hasPlan: boolean,
   approved = false,
 ): { state: PlanState; reminder: PlanReminder | null } {
   if (next && !state.active) {
-    return { state: { active: true, count: 1 }, reminder: planHasContent ? 'reentry' : 'full' }
+    return { state: { active: true, count: 1 }, reminder: hasPlan ? 'reentry' : 'full' }
   }
   if (next) {
     return {
@@ -73,56 +123,57 @@ export function planStep(
   return { state, reminder: null }
 }
 
-function rules(path: string, planHasContent: boolean): string[] {
+/** The plan under review, if any: a built plan is done, and the next one needs `create_plan`. */
+function reviewing(plan: PlanRef): string | null {
+  return plan && !plan.built ? plan.path : null
+}
+
+function rules(path: string | null): string[] {
   return [
-    'Do not modify the project — no edits, writes, or state-changing commands; bash is for read-only inspection.',
-    `The only file you may write is the plan file: ${path} (${planHasContent ? 'it already has content; read it first' : 'not created yet'}).`,
-    'If the user asks you to implement something, plan it instead.',
+    'Read-only: plan instead of implementing; use bash only to inspect.',
+    path
+      ? `Change only ${path}.`
+      : `Write the plan with ${CREATE_PLAN_TOOL}, then change only that file.`,
   ]
 }
 
-function workflow(path: string): string[] {
+function workflow(path: string | null): string[] {
   return [
     'Workflow:',
-    '1. Explore first and answer what you can from the code; prefer reusing existing functions and patterns.',
-    '2. If a decision materially changes the plan and cannot be discovered by reading, ask the user in plain text — 1–2 questions at a time, each with options and your recommendation — then end your turn.',
-    `3. Write a decision-complete plan to ${path}: the recommended approach only, no options left for the user to pick. Use this format:`,
-    '---',
-    'name: <short title>',
-    'overview: <1–2 sentences: the root cause and the gist of the approach>',
-    '---',
-    '',
-    '## Context',
-    '## Files to change',
-    '## Existing code to reuse',
-    '## Verification',
-    '4. Then end your turn and wait for review. Revise the same file on feedback, keeping the frontmatter current; the plan is executed only when the user clicks Build.',
+    '1. Explore the code first; reuse what exists.',
+    "2. Ask the user only when a decision changes the plan and the code can't answer it: 1–2 questions, each with options and your pick; then end your turn.",
+    path
+      ? `3. Revise ${path} in place (edit it, or rewrite it with write when that's simpler); keep it decision-complete and in the user's language.`
+      : `3. Call ${CREATE_PLAN_TOOL} with one decision-complete plan in the user's language.`,
+    '4. End your turn for review; the plan runs only when the user clicks Build.',
   ]
 }
 
-export function reminderText(reminder: PlanReminder, path: string, plan: string): string {
-  const planHasContent = plan.length > 0
+export function reminderText(reminder: PlanReminder, plan: PlanRef, content: string): string {
+  const path = reviewing(plan)
   const lines = (() => {
     switch (reminder) {
       case 'full':
-        return ['Plan mode is active.', ...rules(path, planHasContent), ...workflow(path)]
+        return ['Plan mode is active.', ...rules(path), ...workflow(path)]
       case 'reentry':
         return [
-          `You are entering plan mode again. A plan from earlier exists at ${path}. Read it first: if the new request is a different task, overwrite it; if it is the same task, revise it.`,
-          ...rules(path, planHasContent),
+          `Plan mode again. Under review: ${path}. Same task: revise it; different task: call ${CREATE_PLAN_TOOL}.`,
+          ...rules(path),
           ...workflow(path),
         ]
       case 'sparse':
         return [
-          `Plan mode is still active. Treat the user's message as feedback on the plan and update ${path}; the plan is executed only when the user clicks Build. Read-only except ${path}.`,
+          path
+            ? `Plan mode: treat this message as feedback and revise ${path}; read-only otherwise.`
+            : `Plan mode: read-only; write the plan with ${CREATE_PLAN_TOOL}.`,
         ]
       case 'exit':
-        return ['Plan mode has ended. You may now edit files and run commands.']
+        return ['Plan mode ended; you may edit files and run commands.']
       case 'approved':
         return [
-          `The user approved the plan. Plan mode has ended; implement the plan below, which is the current content of ${path} and may include the user's edits.`,
+          `The user approved the plan in ${plan?.path} (it may include their edits). Plan mode ended; implement it:`,
           '',
-          plan,
+          content,
         ]
     }
   })()
@@ -137,13 +188,17 @@ export function readPlan(path: string): string {
   }
 }
 
+const CREATE_PLAN_DESCRIPTION =
+  'Create a new Plan File for the user to review (plan mode only). Call once per plan; afterwards revise the returned file in place.'
+
 export interface PlanMode {
   extension: ExtensionFactory
   /** Mode in effect for the current (or last) run. */
   readonly active: boolean
-  readonly planPath: string
-  /** Fires when `active` changes. */
-  onChange(listener: (active: boolean) => void): () => void
+  /** The session's current plan, replayed from its transcript. */
+  readonly plan: PlanRef
+  /** Fires when the mode in effect or the current plan changes. */
+  onChange(listener: (state: { active: boolean; plan: PlanRef }) => void): () => void
   /**
    * Called right before `session.prompt()`, so the next `before_agent_start` applies it.
    * `approved` hands the current Plan File to the model as it leaves plan mode.
@@ -155,26 +210,57 @@ export function createPlanMode(): PlanMode {
   let next = false
   let approved = false
   let state: PlanState = { active: false, count: 0 }
-  let planPath = ''
-  const listeners = new Set<(active: boolean) => void>()
+  let plan: PlanRef = null
+  const listeners = new Set<(state: { active: boolean; plan: PlanRef }) => void>()
   const notify = () => {
-    for (const listener of listeners) listener(state.active)
+    for (const listener of listeners) listener({ active: state.active, plan })
   }
 
   const extension: ExtensionFactory = (pi) => {
+    const record = (entry: PlanEntry) => pi.appendEntry(ENTRY_TYPE, entry)
+
+    pi.registerTool({
+      name: CREATE_PLAN_TOOL,
+      label: 'Create Plan',
+      description: CREATE_PLAN_DESCRIPTION,
+      parameters: Type.Object({
+        name: Type.String({ description: "Short title, in the user's language." }),
+        overview: Type.String({ description: '1–2 sentences: root cause and approach.' }),
+        plan: Type.String({
+          description:
+            "Markdown without frontmatter, in the user's language, with sections (translated): Context, Approach, Files to change, Existing code to reuse, Verification.",
+        }),
+      }),
+      async execute(_toolCallId, params) {
+        if (!state.active) throw new Error('Plan mode is not active.')
+        const path = writePlanFile(params.name, params.overview, params.plan)
+        plan = { path, built: false }
+        record({ kind: 'created', path })
+        notify()
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Created ${path}. Revise that file in place and wait for the user's review.`,
+            },
+          ],
+          details: { path },
+        }
+      },
+    })
+
     function restore(ctx: ExtensionContext): void {
-      planPath = planFilePath(ctx.sessionManager.getSessionId())
-      const saved = ctx.sessionManager
-        .getBranch()
-        .filter(
-          (entry): entry is CustomEntry<{ enabled?: boolean }> =>
-            entry.type === 'custom' && entry.customType === ENTRY_TYPE,
-        )
-        .at(-1)
-      next = saved?.data?.enabled === true
+      const replayed = replayPlan(ctx.sessionManager.getBranch())
+      next = replayed.active
+      // A deleted plan file leaves nothing to review.
+      plan = replayed.plan && existsSync(replayed.plan.path) ? replayed.plan : null
       // count 0 makes the next run repeat the full rules.
       state = { active: next, count: 0 }
       approved = false
+      // The tool stays declared so the loadout (and prompt cache) never changes with the mode.
+      // pi restores a resumed session's loadout from its transcript, which may predate the tool.
+      const tools = pi.getActiveTools()
+      if (!tools.includes(CREATE_PLAN_TOOL)) pi.setActiveTools([...tools, CREATE_PLAN_TOOL])
       notify()
     }
 
@@ -187,26 +273,36 @@ export function createPlanMode(): PlanMode {
 
     pi.on('tool_call', (event, ctx) => {
       if (!state.active || (event.toolName !== 'edit' && event.toolName !== 'write')) return
-      if (isPlanFileWrite(event.input, ctx.cwd, planPath)) return
+      const path = reviewing(plan)
+      if (path && isPlanFileWrite(event.input, ctx.cwd, path)) return
       return {
         block: true,
-        reason: `Rejected: plan mode — the only editable file is ${planPath}`,
+        reason: path
+          ? `Rejected: plan mode — only ${path} is editable.`
+          : `Rejected: plan mode — write the plan with ${CREATE_PLAN_TOOL} first.`,
       }
     })
 
     pi.on('before_agent_start', () => {
-      const plan = readPlan(planPath)
-      const step = planStep(state, next, plan.length > 0, approved)
+      // Approving needs a plan to hand over; without one (its file is gone) it's a plain exit.
+      const step = planStep(state, next, reviewing(plan) !== null, approved && plan !== null)
       approved = false
-      const changed = step.state.active !== state.active
-      if (changed) pi.appendEntry(ENTRY_TYPE, { enabled: step.state.active })
+      let changed = step.state.active !== state.active
+      if (changed) record({ kind: 'mode', active: step.state.active })
+      if (step.reminder === 'approved' && plan && !plan.built) {
+        plan = { ...plan, built: true }
+        record({ kind: 'built', path: plan.path })
+        changed = true
+      }
       state = step.state
       if (changed) notify()
+      // Only the approval hands the plan's content over.
+      const content = step.reminder === 'approved' && plan ? readPlan(plan.path) : ''
       if (!step.reminder) return
       return {
         message: {
           customType: ENTRY_TYPE,
-          content: reminderText(step.reminder, planPath, plan),
+          content: reminderText(step.reminder, plan, content),
           display: false,
         },
       }
@@ -218,8 +314,8 @@ export function createPlanMode(): PlanMode {
     get active() {
       return state.active
     },
-    get planPath() {
-      return planPath
+    get plan() {
+      return plan
     },
     onChange(listener) {
       listeners.add(listener)

@@ -1,3 +1,4 @@
+import { CREATE_PLAN_TOOL } from '@shared/protocol'
 import { formatFileToken } from './file-token'
 import { displayPath, isImageFile } from './path'
 import { parseUserSegments, type UserSegment } from './user-message'
@@ -110,6 +111,7 @@ export function toolSummary(
   if (lower === 'write' || lower === 'edit' || lower === 'ls') {
     return pathField(record, cwd, home)
   }
+  if (lower === CREATE_PLAN_TOOL) return stringField(record, 'name')
 
   const command = stringField(record, 'command', 'CommandLine')
   if (command) return command

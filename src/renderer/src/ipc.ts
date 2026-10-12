@@ -99,6 +99,14 @@ function onLiveEvent(event: SessionEvent): void {
   flushPending(event.sessionFile)
   dispatch(event)
   const session = useSession.getState()
+  // The agent may have just edited the plan; keep a viewer opened mid-run current.
+  if (
+    event.type === 'tool_execution_end' &&
+    event.sessionFile === session.sessionFile &&
+    activeChat(session).planActive
+  ) {
+    void session.refreshPlan()
+  }
   if (
     event.type === 'agent_end' &&
     !event.willRetry &&
@@ -138,7 +146,9 @@ export function bindIpc(): void {
   useSession.subscribe((state, prev) => {
     if (
       state.sessionFile !== prev.sessionFile ||
-      activeChat(state).planMode !== activeChat(prev).planMode
+      activeChat(state).planMode !== activeChat(prev).planMode ||
+      activeChat(state).plan?.path !== activeChat(prev).plan?.path ||
+      activeChat(state).plan?.built !== activeChat(prev).plan?.built
     ) {
       void state.refreshPlan()
     }
