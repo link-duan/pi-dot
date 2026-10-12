@@ -7,7 +7,7 @@ import { ScrollFade } from '@/components/ui/scroll-area'
 import { HighlightedCode } from '../FileCard'
 import { codemodeCallMeta, type CodemodeBodyModel, type CodemodeCall } from './codemode'
 import { getToolIcon } from './kind'
-import { ToolImage } from './ToolImage'
+import { ToolImages } from './ToolImage'
 
 // One bordered panel, sections split by rules: script, nested calls, output, error.
 export function CodemodeBody({
@@ -44,7 +44,7 @@ export function CodemodeBody({
             <div className="space-y-2 px-3 py-2">
               {body.output.map((item, index) =>
                 item.type === 'image' ? (
-                  <ToolImage key={index} preview={item.image} />
+                  <ToolImages key={index} images={[item.image]} />
                 ) : (
                   <pre key={index} className="break-all whitespace-pre-wrap text-muted-foreground">
                     {item.text}

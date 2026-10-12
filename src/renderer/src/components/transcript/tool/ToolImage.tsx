@@ -1,161 +1,123 @@
 import { useState } from 'react'
-import { Check, Copy, Maximize2 } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
+import { ImageLightbox } from './ImageLightbox'
 import type { ToolImageItem } from './images'
 
-export function ToolImage({ preview }: { preview: ToolImageItem }) {
-  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null)
-  const [copied, setCopied] = useState(false)
-  const [lightboxOpen, setLightboxOpen] = useState(false)
+type Size = { width: number; height: number }
 
-  const copyImageOrPath = async () => {
-    try {
-      const res = await fetch(preview.src)
-      const blob = await res.blob()
-      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (error) {
-      console.warn('Failed to copy image preview', error)
-      if (preview.path) {
-        await navigator.clipboard.writeText(preview.path)
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      }
-    }
-  }
+/** Tool result images laid out side by side, with one quiet caption line underneath. */
+export function ToolImages({ images, notice }: { images: ToolImageItem[]; notice?: string }) {
+  const [size, setSize] = useState<Size | null>(null)
+  const [openIndex, setOpenIndex] = useState<number | null>(null)
+  const single = images.length === 1
+  const first = images[0]
+  const caption = [
+    first?.path || first?.title,
+    single && size ? `${size.width}×${size.height}` : '',
+    // Read hints arrive as bracketed lines, e.g. "[Image resized from 512x512 to 64x64.]".
+    notice
+      ?.split('\n')
+      .map((line) => line.trim().replace(/^\[(.*)\]$/, '$1'))
+      .join(' '),
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
+  return (
+    <div>
+      <div className="flex flex-wrap items-start gap-2">
+        {images.map((image, index) => (
+          <ToolImage
+            key={image.src}
+            preview={image}
+            compact={!single}
+            onOpen={() => setOpenIndex(index)}
+            onSize={index === 0 ? setSize : undefined}
+          />
+        ))}
+      </div>
+      {caption ? (
+        <p className="mt-1.5 truncate text-xs text-muted-foreground" title={caption}>
+          {caption}
+        </p>
+      ) : null}
+      <ImageLightbox images={images} index={openIndex} onIndexChange={setOpenIndex} />
+    </div>
+  )
+}
+
+function ToolImage({
+  preview,
+  compact,
+  onOpen,
+  onSize,
+}: {
+  preview: ToolImageItem
+  compact: boolean
+  onOpen: () => void
+  onSize?: (size: Size) => void
+}) {
   const titleText = preview.path || preview.title
 
   return (
-    <>
-      <div className="mt-2 w-full overflow-hidden rounded-xl border border-border bg-card">
-        {/* Header: clean path/title & resolution */}
-        <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/20 px-3 py-1.5">
-          <div className="flex min-w-0 flex-1 items-baseline gap-2">
-            {titleText ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={<span />}
-                  className="min-w-0 cursor-default truncate font-mono text-xs text-muted-foreground"
-                >
-                  {titleText}
-                </TooltipTrigger>
-                <TooltipContent className="max-w-lg font-mono text-xs break-all">
-                  {titleText}
-                </TooltipContent>
-              </Tooltip>
-            ) : null}
-            {dimensions ? (
-              <span className="shrink-0 font-mono text-[11px] whitespace-nowrap text-muted-foreground/60 tabular-nums">
-                {dimensions.width} × {dimensions.height}
-              </span>
-            ) : null}
-          </div>
-          <div className="flex shrink-0 items-center gap-1">
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label="Preview image"
-                    className="size-6 text-muted-foreground hover:text-foreground"
-                    onClick={() => setLightboxOpen(true)}
-                  />
-                }
-              >
-                <Maximize2 className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent>Preview image</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger
-                render={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-xs"
-                    aria-label="Copy image"
-                    className="size-6 text-muted-foreground hover:text-foreground"
-                    onClick={() => void copyImageOrPath()}
-                  />
-                }
-              >
-                {copied ? (
-                  <Check className="size-3.5 text-emerald-500" />
-                ) : (
-                  <Copy className="size-3.5" />
-                )}
-              </TooltipTrigger>
-              <TooltipContent>{copied ? 'Copied' : 'Copy image'}</TooltipContent>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Image Display: accessible button container with subtle background */}
-        <button
-          type="button"
-          aria-label={`Preview ${titleText || 'image'}`}
-          onClick={() => setLightboxOpen(true)}
-          className="group/img relative flex max-h-96 min-h-36 w-full cursor-zoom-in items-center justify-center overflow-hidden bg-muted/15 p-3 transition-colors hover:bg-muted/25 focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none dark:bg-muted/10 dark:hover:bg-muted/20"
-        >
-          <img
-            src={preview.src}
-            alt={titleText || 'Image preview'}
-            loading="lazy"
-            decoding="async"
-            onLoad={(e) => {
-              const img = e.currentTarget
-              setDimensions({ width: img.naturalWidth, height: img.naturalHeight })
-            }}
-            className="max-h-88 max-w-full rounded-md object-contain shadow-xs transition-transform duration-150 hover:scale-[1.01]"
-          />
-        </button>
+    <div className="group/img relative w-fit max-w-full overflow-hidden rounded-lg border border-border bg-muted/30">
+      <button
+        type="button"
+        aria-label={`Preview ${titleText || 'image'}`}
+        onClick={onOpen}
+        className="block cursor-zoom-in focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <img
+          src={preview.src}
+          alt={titleText || 'Image preview'}
+          loading="lazy"
+          decoding="async"
+          onLoad={(event) =>
+            onSize?.({
+              width: event.currentTarget.naturalWidth,
+              height: event.currentTarget.naturalHeight,
+            })
+          }
+          className={cn('block max-w-full object-contain', compact ? 'max-h-40' : 'max-h-72')}
+        />
+      </button>
+      <div className="absolute top-1 right-1 rounded-md bg-background/80 opacity-0 shadow-xs backdrop-blur-sm transition-opacity group-hover/img:opacity-100 focus-within:opacity-100">
+        <CopyImageButton image={preview} className="size-6 [&_svg]:size-3.5" />
       </div>
+    </div>
+  )
+}
 
-      {preview.notice ? (
-        <p className="mt-2 font-mono text-xs text-muted-foreground">{preview.notice}</p>
-      ) : null}
+/** Copies the image itself, falling back to its path when the clipboard rejects the image. */
+function CopyImageButton({ image, className }: { image: ToolImageItem; className?: string }) {
+  const [copied, setCopied] = useState(false)
 
-      {/* In-app Lightbox Dialog */}
-      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-[92vw] overflow-hidden p-4 sm:max-w-5xl">
-          <DialogHeader className="mb-2">
-            <DialogTitle className="flex min-w-0 items-baseline font-mono text-xs font-normal text-muted-foreground">
-              {titleText ? (
-                <Tooltip>
-                  <TooltipTrigger render={<span />} className="cursor-default truncate">
-                    {titleText}
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-lg font-mono text-xs break-all">
-                    {titleText}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                'Image Preview'
-              )}
-              {dimensions ? (
-                <span className="ml-2 shrink-0 font-mono text-[11px] whitespace-nowrap text-muted-foreground/60 tabular-nums">
-                  ({dimensions.width} × {dimensions.height})
-                </span>
-              ) : null}
-            </DialogTitle>
-          </DialogHeader>
+  const copy = async () => {
+    try {
+      const blob = await (await fetch(image.src)).blob()
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })])
+    } catch (error) {
+      console.warn('Failed to copy image preview', error)
+      if (!image.path) return
+      await navigator.clipboard.writeText(image.path)
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
-          {/* Viewport container: overflow-hidden ensures no scrollbars under any scale/dimensions */}
-          <div className="relative flex max-h-[78vh] w-full items-center justify-center overflow-hidden rounded-lg bg-muted/20 p-2 select-none">
-            <img
-              src={preview.src}
-              alt={titleText || 'Full preview'}
-              className="block max-h-[74vh] max-w-[88vw] rounded object-contain shadow-lg"
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Copy image"
+      title={copied ? 'Copied' : 'Copy image'}
+      className={cn('text-muted-foreground hover:text-foreground', className)}
+      onClick={() => void copy()}
+    >
+      {copied ? <Check className="text-emerald-600 dark:text-emerald-400" /> : <Copy />}
+    </Button>
   )
 }

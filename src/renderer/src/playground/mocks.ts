@@ -100,6 +100,10 @@ function chat(messages: AgentMessage[], extra: Partial<ChatState> = {}): ChatSta
 const src = 'src/app.ts'
 const sampleImage =
   'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAABmJLR0QA/wD/AP+gvaeTAAAFUElEQVR4nO2b228TRxTGv5nsbtbrGzYFO2ADzUNakLgGA6ECiQqJVgJKCKgPbRX1AcSfUCp6oSCK1JeqT+1bpaotBUICgVYtBaJWKpSQkohAUWpZQTHlEmJbdmwT766nDzRAyMXOrr2bYP+klVYzc+Z8c7QzPjPeJciDNWvWLIzHH26TZXkDwOYCzMsY3PnYGgUhiADkLkDCgiBcEEWxpaPj4s2cdhNVLl26YlM6PXRQluWV2Wy2cGoNgFIKjuPaJcmyr6ur45fx2o0ZgEAg4I3FUl9nMkObGGPFU2kAhBBUVlb+JAi2d7u7/7w3qv7ZgmXLAsvi8USLosjzjZFoDDzP3bbbHfWdne3tT5ePCEBtbe2KaDTRpiiq3Vh5xsBxFQmHw7m+s7O9c7iMDt8sX75uVjQ6ePx5HTwAKIpqj8cTJwOBgHe4rGL4xm63nZDlzEpzpBlHNqs6VRULBwb6vwP+nwKLFwc2xuPRs9NtpdcKIQQul/O1rq6/fqYAkEolPi2VwQMAYwzJZHo/AJDa2rqXHzzo/7uUAgA8yhNmznxhEZdMJuqzWdVsPYaTzapIp5NbqKoqG8wWYxaKIr/KKQrzTfNkTzOqmvVRgFWZLcQsGCNVHMBmACX6CCDrprkbPd+UfAA4xoBSXQQZA7hH879EIwBWngIlHwBOj7HVKmFt3Sq4XTPG7pyrQHX1AgBAKNQLRck/5c7HNhKN4Y+Ll5FMpiat/bEfxhi0nPv5fXPw7TdfwuuZrdl5Ibh77z7eemcP+sL/TtqWMR1rwO5djaYPHgC8ntnYvatRs73mAHg9szQ7LTR6tGgOwNlf2zQ7LTR6tGjOA441nYIkWdCwfQssFsuo+pnuGbBarSPKkskkBiKxnH3na5tOp9F0ohXHmk5pGgPAQObNq2ayLGswnpjDhz5AQ/3mEWVNzafx3vsHimo7GXieL+cBJR8AE/YCenwVWmd5L2D8dliPr0LrZKy8BhRzDRirz3x96bGdDOU1oByAkl8Ey3lAgXucdpQDYLYAs9F8JpiLsfrM15ce28mg60ywmKRT6VFlVV4vCJnwxVZN6DoWLxZ94Tujyl5Zuwq/t51BMBjC/f5+XLnSiabm01BVfW+3TMkn4Hzbb2M+7nOqPFi/rg47tm/F4UMf4sD+vbp90Sd5QKGv8chtGwr1ovnkmZzidzZshc1m1aWTAo8yokJf0ejow89oNJa3/ceffIaOjq6cQdCjESjiFDhytBmp1JO/rFKpFI4cbc7bPpFI4O3GPfj8i68wODg4Zpujx0+NW5cvZO5cP8tkCn8qDADV1fPx5s5tAIAfjrUgFLqlqZ/KSgGrV9XC7/fBM3sW3G4Xrl27juMnWnUtgoLAg/h8/sjQUMaluZdpjCAIAxQgo39zSgRCyB2OMXqbMSwyW4xJ3KY8z503W4VZ8Dx/jjocUjOlBMXLB6bmRSmBzSa1EgDw+fyXHz4cChQiqtMFUay8FA731VEAkCTLXkqnZFZcFAghEEXrR8BTH035fAt+TKdTr5snyzgkSWrt6+vdCjyVCYqiq5Hn+ZDZc7PYlyBwt5xO267hcT8OQDB4td9mc+7gOC6hMbBTHo7j4na7643u7u7HH1COmPjB4I2rDod7vSDwvYarKzKCIISdTvvGnp7rI3ZYFc82jET673o8L35PSHaRqio1xkksDpRSWCxiqyi6NweDN/55tn7CM6aampqNg4Opg5lMZvV0+6iKUgpBEC6JorQvFOo5N167vA7ZlixZ8lIsFt+mKMoGxuAHmJcxNsU+nycRgNwhBGGO485LkrPl5s2unlx2/wF09Ql7BCuqNwAAAABJRU5ErkJggg=='
+// Larger than the window, so the lightbox can toggle to 100%.
+const largeImage = btoa(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="2400" height="1600"><defs><linearGradient id="g" x2="1" y2="1"><stop stop-color="#5b5bd6"/><stop offset="1" stop-color="#3fa7d6"/></linearGradient></defs><rect width="2400" height="1600" fill="url(#g)"/><text x="160" y="520" font-family="sans-serif" font-size="360" fill="#fff">2400x1600</text></svg>',
+)
 const readBody = `export function greet(name: string) {\n  return \`hello \${name}\`\n}\n\n[Showing lines 1-3 of 40]`
 
 export const playgroundModel: ModelInfo = {
@@ -200,6 +204,7 @@ export const catalogModel = chat(
         edits: [{ oldText: 'missing', newText: 'other' }],
       }),
       tool('custom-1', 'weather', { city: 'Tokyo' }),
+      tool('shots-1', 'screenshot', { pages: ['home', 'settings'] }),
     ]),
     result('read-1', 'read', readBody),
     imageResult('read-img', sampleImage, 'image/png', '[Image resized from 512x512 to 64x64.]'),
@@ -208,6 +213,17 @@ export const catalogModel = chat(
       'bash',
       '\x1b[1;34mdir/\x1b[0m\n\x1b[32mapp.ts\x1b[0m\n\x1b[33mmain.tsx\x1b[0m',
     ),
+    {
+      role: 'toolResult',
+      toolCallId: 'shots-1',
+      toolName: 'screenshot',
+      content: [
+        { type: 'image', data: sampleImage, mimeType: 'image/png' },
+        { type: 'image', data: largeImage, mimeType: 'image/svg+xml' },
+      ],
+      isError: false,
+      timestamp: at(),
+    },
     result('bash-err', 'bash', 'cat: missing.txt: No such file or directory', true),
     result('grep-1', 'grep', 'src/app.ts:2:  return `hello ${name}`'),
     result('find-1', 'find', 'src/app.ts\nsrc/main.tsx'),

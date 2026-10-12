@@ -10,7 +10,7 @@ import { resolveToolViewModel, type ToolBodyModel } from './model'
 import { ReadFile } from './ReadFile'
 import { ShellBody } from './ShellBody'
 import { ToolDetails } from './ToolDetails'
-import { ToolImage } from './ToolImage'
+import { ToolImages } from './ToolImage'
 
 export function ToolCard({
   name,
@@ -100,15 +100,9 @@ function ToolBody({
               <MarkdownBody text={body.description} />
             </div>
           ) : null}
-          {body.images.map((image, i) => (
-            <ToolImage
-              key={image.src}
-              preview={{
-                ...image,
-                notice: i === body.images.length - 1 ? body.notice : undefined,
-              }}
-            />
-          ))}
+          <div className="mt-2">
+            <ToolImages images={body.images} notice={body.notice} />
+          </div>
         </div>
       )
 

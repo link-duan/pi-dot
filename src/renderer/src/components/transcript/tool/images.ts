@@ -5,7 +5,6 @@ export interface ToolImageItem {
   mimeType: string
   path?: string
   title?: string
-  notice?: string
 }
 
 export interface ToolImageTextMeta {
