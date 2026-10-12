@@ -1,8 +1,7 @@
 import { randomUUID } from 'node:crypto'
-import { writeFileSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { resizeImage } from '@earendil-works/pi-coding-agent'
 
 const MIME_EXT: Record<string, string> = {
   'image/png': 'png',
@@ -13,22 +12,9 @@ const MIME_EXT: Record<string, string> = {
   'image/bmp': 'bmp',
 }
 
-const MAX_RAW_BYTES = 4.5 * 1024 * 1024
-
+// Saved as-is like Pi TUI: the read tool resizes images for the model when the agent reads them.
 export async function saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string> {
-  const resized = await resizeImage(data, mimeType)
-  if (resized) {
-    const path = tmpPath(resized.mimeType)
-    writeFileSync(path, Buffer.from(resized.data, 'base64'))
-    return path
-  }
-  if (data.byteLength > MAX_RAW_BYTES) throw new Error('Image too large')
-  const path = tmpPath(mimeType)
-  writeFileSync(path, data)
+  const path = join(tmpdir(), `pi-ui-clipboard-${randomUUID()}.${MIME_EXT[mimeType] ?? 'png'}`)
+  await writeFile(path, data)
   return path
-}
-
-function tmpPath(mimeType: string): string {
-  const ext = MIME_EXT[mimeType] ?? 'png'
-  return join(tmpdir(), `pi-ui-clipboard-${randomUUID()}.${ext}`)
 }
