@@ -47,7 +47,7 @@ export class FileNode extends DecoratorNode<ReactNode> {
 
   createDOM(): HTMLElement {
     const span = document.createElement('span')
-    span.className = 'file-chip-host inline-flex align-middle'
+    span.className = 'file-chip-host inline-flex max-w-full align-middle'
     return span
   }
 

@@ -37,7 +37,12 @@ export function PlanFeedbackButton() {
           </span>
         ) : null}
       </PopoverTrigger>
-      <PopoverContent side="top" sideOffset={10} className="w-96 p-2" data-plan-comment="">
+      <PopoverContent
+        side="top"
+        sideOffset={10}
+        className="w-[32rem] max-w-[calc(100vw-2rem)] p-2"
+        data-plan-comment=""
+      >
         <LexicalComposer initialConfig={feedbackConfig}>
           <FeedbackForm onSent={() => setOpen(false)} />
         </LexicalComposer>
@@ -76,7 +81,7 @@ function FeedbackForm({ onSent }: { onSent: () => void }) {
       <div className="relative">
         <PromptEditorField
           placeholder="Add feedback on the plan…"
-          className="block max-h-60 min-h-[calc(3lh+0.75rem)] w-full overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
+          className="block max-h-80 min-h-[calc(5lh+0.75rem)] w-full overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
           onChange={setNote}
         />
       </div>
