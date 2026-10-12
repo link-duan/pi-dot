@@ -30,6 +30,7 @@ describe('codemode view model', () => {
     const model = resolveToolViewModel({ name: 'codemode', args: { code }, result })
     expect(model.label).toBe('Codemode')
     expect(model.summary).toBe('2 calls')
+    expect(model.meta).toBe('100ms')
     expect(model.body).toEqual({
       kind: 'codemode',
       code,
@@ -42,6 +43,7 @@ describe('codemode view model', () => {
         },
         { type: 'text', text: 'last output' },
       ],
+      wallTimeMs: 100,
     })
   })
 
@@ -116,6 +118,7 @@ describe('codemode view model', () => {
     })
     expect(model.hasError).toBe(false)
     expect(model.summary).toBe('2 calls')
+    expect(model.meta).toBe('200ms')
     expect(model.body).toMatchObject({
       kind: 'codemode',
       calls: failure.details.calls,
@@ -149,6 +152,7 @@ describe('codemode view model', () => {
 
   it('handles scripts without nested calls and results without details', () => {
     expect(codemodeSummary([])).toBe('')
+    expect(codemodeSummary(calls.slice(0, 1))).toBe('1 call')
     expect(resolveCodemodeBody({ code: 'text(42)' }, undefined, false)).toEqual({
       kind: 'codemode',
       code: 'text(42)',

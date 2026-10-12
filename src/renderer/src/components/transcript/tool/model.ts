@@ -1,7 +1,12 @@
 import type { ToolLiveState } from '@/chat/state'
 import { asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
 import type { LucideIcon } from 'lucide-react'
-import { codemodeSummary, resolveCodemodeBody, type CodemodeBodyModel } from './codemode'
+import {
+  codemodeSummary,
+  formatDuration,
+  resolveCodemodeBody,
+  type CodemodeBodyModel,
+} from './codemode'
 import { toolDiffStats, toolEditDiff, toolWriteDiff, type DiffLine, type DiffStats } from './diff'
 import { extractToolImages, resolveToolImageText, type ToolImageItem } from './images'
 import {
@@ -34,6 +39,8 @@ export interface ToolViewModel {
   icon: LucideIcon
   label: string
   summary: string
+  /** Quiet trailing detail, e.g. codemode wall time. */
+  meta: string
   stats: DiffStats | null
   running: boolean
   hasError: boolean
@@ -69,11 +76,13 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
   let summary = collapsedAttempt ? '' : toolSummary(name, payload, cwd, homedir)
 
   let body: ToolBodyModel | null = null
+  let meta = ''
   const codemode = name.toLowerCase() === 'codemode'
 
   if (codemode) {
     const codemodeBody = resolveCodemodeBody(payload, resolved, rawError)
     summary = codemodeSummary(codemodeBody.calls)
+    meta = formatDuration(codemodeBody.wallTimeMs)
     // Arguments may still be empty while streaming; an empty body would leave an empty panel.
     const { code, calls, output, error } = codemodeBody
     if (code || calls.length || output.length || error) body = codemodeBody
@@ -151,6 +160,7 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
     icon,
     label,
     summary,
+    meta,
     stats,
     running: running && !collapsedAttempt,
     hasError,

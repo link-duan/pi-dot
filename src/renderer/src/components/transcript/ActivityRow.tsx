@@ -21,6 +21,7 @@ export function ActivityRow({
   icon: Icon,
   label,
   summary,
+  meta,
   stats,
   running,
   error,
@@ -34,6 +35,7 @@ export function ActivityRow({
   icon: LucideIcon
   label: string
   summary: string
+  meta?: string
   stats?: DiffStats | null
   running?: boolean
   error?: boolean
@@ -83,6 +85,9 @@ export function ActivityRow({
           </span>
         ) : null}
       </span>
+      {showMeta && meta ? (
+        <span className="shrink-0 text-muted-foreground/60 tabular-nums">{meta}</span>
+      ) : null}
       {showMeta && stats ? <DiffStatsLabel stats={stats} /> : null}
       {expandable ? (
         <ChevronRight

@@ -8,7 +8,7 @@ export type CodemodeOutput =
   | { type: 'image'; image: ToolImageItem }
 
 // Header the SDK puts before script output; Pi TUI hides it as noise.
-const SCRIPT_HEADER = /^Script (completed|failed)\nWall time [\d.]+ seconds\nOutput:\n$/
+const SCRIPT_HEADER = /^Script (?:completed|failed)\nWall time ([\d.]+) seconds\nOutput:\n$/
 // A failed script appends this marker and the error to its output.
 const SCRIPT_ERROR = 'Script error:\n'
 // Model-facing recap of nested call statuses after the error; the call rows already show it.
@@ -20,6 +20,8 @@ export interface CodemodeBodyModel {
   code: string
   calls: CodemodeCall[]
   output: CodemodeOutput[]
+  /** Script wall time in milliseconds, from the SDK header. */
+  wallTimeMs?: number
   /** Script error, split from the output so it renders as one quiet line. */
   error?: string
 }
@@ -34,13 +36,14 @@ export function resolveCodemodeBody(
   const details = asRecord(record?.details)
   const calls = Array.isArray(details?.calls) ? (details.calls as CodemodeCall[]) : []
   const content = Array.isArray(record?.content) ? record.content : []
-  let hasHeader = false
+  let wallTimeMs: number | undefined
   let output: CodemodeOutput[] = []
   for (const [index, block] of content.entries()) {
     const item = asRecord(block)
     if (item?.type === 'text' && typeof item.text === 'string') {
-      if (index === 0 && SCRIPT_HEADER.test(item.text)) {
-        hasHeader = true
+      const header = index === 0 ? SCRIPT_HEADER.exec(item.text) : null
+      if (header) {
+        wallTimeMs = Number(header[1]) * 1000
         continue
       }
       // Keep leading indentation; only drop blank blocks and trailing whitespace.
@@ -70,7 +73,7 @@ export function resolveCodemodeBody(
         ...(rest ? [{ type: 'text' as const, text: rest }] : []),
         ...output.slice(index + 1),
       ]
-    } else if (!hasHeader) {
+    } else if (wallTimeMs === undefined) {
       // The codemode call itself was rejected (validation, permissions): its text is the error.
       error = output.flatMap((item) => (item.type === 'text' ? [item.text] : [])).join('\n')
       output = output.filter((item) => item.type !== 'text')
@@ -82,6 +85,7 @@ export function resolveCodemodeBody(
     code: typeof payload?.code === 'string' ? payload.code : '',
     calls,
     output,
+    ...(wallTimeMs === undefined ? {} : { wallTimeMs }),
     ...(error ? { error } : {}),
   }
 }
@@ -95,13 +99,13 @@ export function codemodeSummary(calls: CodemodeCall[]): string {
   return `${calls.length} ${calls.length === 1 ? 'call' : 'calls'}`
 }
 
+export function formatDuration(ms: number | undefined): string {
+  if (ms === undefined) return ''
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
 export function codemodeCallMeta(call: CodemodeCall): string {
-  const duration =
-    call.durationMs === undefined
-      ? ''
-      : call.durationMs < 1000
-        ? `${Math.round(call.durationMs)}ms`
-        : `${(call.durationMs / 1000).toFixed(1)}s`
+  const duration = formatDuration(call.durationMs)
   const cost = call.cost
     ? `$${call.cost >= 0.01 ? call.cost.toFixed(2) : call.cost.toPrecision(2)}`
     : ''
