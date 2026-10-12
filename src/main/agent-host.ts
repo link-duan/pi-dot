@@ -23,6 +23,7 @@ import {
   isAgentMessage,
   parseThinkingLevels,
   type AgentMessage,
+  type AskReply,
   type ContextUsage,
   type ModelInfo,
   type ModelSelection,
@@ -34,6 +35,7 @@ import {
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
+import { createAskUser, type AskUser } from './ask-user'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
 import { createPlanMode, type PlanMode } from './plan-mode'
@@ -74,6 +76,7 @@ export class AgentHost {
   private createRuntime: CreateAgentSessionRuntimeFactory | null = null
   private ops = new SerialQueue()
   private planModes = new WeakMap<SessionManager, PlanMode>()
+  private askUsers = new WeakMap<SessionManager, AskUser>()
 
   constructor(readonly cwd: string) {}
 
@@ -114,6 +117,8 @@ export class AgentHost {
         const trusted = isProjectTrusted(cwd, nextAgentDir)
         const planMode = createPlanMode()
         this.planModes.set(sessionManager, planMode)
+        const askUser = createAskUser()
+        this.askUsers.set(sessionManager, askUser)
         const services = await createAgentSessionServices({
           cwd,
           agentDir: nextAgentDir,
@@ -123,6 +128,7 @@ export class AgentHost {
             extensionFactories: [
               ...builtinExtensions,
               { name: 'plan-mode', factory: planMode.extension, builtin: true },
+              { name: 'ask-user', factory: askUser.extension, builtin: true },
             ],
           },
         })
@@ -162,6 +168,13 @@ export class AgentHost {
   /** `message` is the user's approval, which may carry comments on the plan. */
   async approvePlan(sessionFile: string | undefined, message: string): Promise<void> {
     await this.prompt(message, sessionFile, false, true)
+  }
+
+  async answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void> {
+    const live = this.requireActive(sessionFile)
+    if (!this.askUsers.get(live.session.sessionManager)?.answer(toolCallId, reply)) {
+      throw new Error('No question is waiting for an answer')
+    }
   }
 
   async prompt(

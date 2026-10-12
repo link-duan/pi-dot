@@ -7,6 +7,7 @@ import { MarkdownBody } from '../MarkdownBody'
 import { CodemodeBody } from './CodemodeBody'
 import { EditDiff } from './EditDiff'
 import { resolveToolViewModel, type ToolBodyModel } from './model'
+import { QuestionBody } from './QuestionBody'
 import { ReadFile } from './ReadFile'
 import { ShellBody } from './ShellBody'
 import { ToolDetails } from './ToolDetails'
@@ -118,6 +119,9 @@ function ToolBody({
           scrollRef={scrollRef}
         />
       )
+
+    case 'question':
+      return <QuestionBody questions={body.questions} reply={body.reply} />
 
     case 'error':
       return (

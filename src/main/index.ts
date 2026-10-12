@@ -12,7 +12,7 @@ import {
   shell,
 } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { StartResult, ThinkingLevel } from '@shared/protocol'
+import type { AskReply, StartResult, ThinkingLevel } from '@shared/protocol'
 import type { SettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
@@ -224,6 +224,9 @@ function registerIpc(): void {
   )
   handleHost(IPC.approvePlan, (host, sessionFile: string, message: string) =>
     host.approvePlan(sessionFile, message),
+  )
+  handleHost(IPC.answerQuestion, (host, sessionFile: string, toolCallId: string, reply: AskReply) =>
+    host.answerQuestion(sessionFile, toolCallId, reply),
   )
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>

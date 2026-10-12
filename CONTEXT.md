@@ -51,3 +51,7 @@ _Avoid_: Planning mode, read-only mode, ask mode
 **Plan File**:
 The Markdown file one plan lives in, created by the agent's `create_plan` tool as `~/.pi-dot/plans/<name>_<hex>.plan.md` with `name` / `overview` frontmatter; a new plan means a new file. Until it is built it is the only file the agent may edit in Plan Mode, and the user may edit it too. Once built it stays read-only (a compact card keeps it viewable) until the next plan replaces it. Which file is current and whether it was built is replayed from the Session transcript.
 _Avoid_: Plan document, todo list
+
+**Question**:
+A set of 1–4 multiple-choice questions the agent asks with its `ask_user` tool. The run waits until the user answers in a card above the Composer, picks an option or types their own answer per question, skips, or replies to all of them from the Composer. A pending Question is the running `ask_user` call, so it comes back with the Session.
+_Avoid_: Prompt, dialog, questionnaire

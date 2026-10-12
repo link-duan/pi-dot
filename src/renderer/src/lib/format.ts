@@ -321,3 +321,9 @@ export function groupByTime<T extends { modified: string }>(
     .filter((group) => buckets[group].length > 0)
     .map((group) => ({ group, items: buckets[group] }))
 }
+
+/** Splits the `(Recommended)` suffix the agent marks its pick with off an option label. */
+export function splitRecommended(label: string): { text: string; recommended: boolean } {
+  const text = label.replace(/\s*\(recommended\)\s*$/i, '')
+  return { text, recommended: text !== label }
+}

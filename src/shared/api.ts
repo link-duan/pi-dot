@@ -1,4 +1,5 @@
 import type {
+  AskReply,
   ConnectionStatus,
   FileHit,
   ModelSelection,
@@ -32,6 +33,7 @@ export interface PiApi {
   stop(): Promise<{ cancelled: boolean }>
   prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
   approvePlan(sessionFile: string, message: string): Promise<void>
+  answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>
   followUp(text: string, sessionFile: string): Promise<void>

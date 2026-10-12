@@ -15,10 +15,12 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { displayPath } from '@/lib/path'
 import { cn } from '@/lib/utils'
+import { pendingQuestion } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import { FollowUpQueue } from './FollowUpQueue'
 import { ComposerActions } from './ComposerActions'
 import { PlanReview } from './PlanReview'
+import { QuestionCard } from './QuestionCard'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
 import { $clearEditor, PromptEditorField, promptEditorConfig } from './composer/PromptEditor'
 import { serializeEditorState } from './composer/serialize'
@@ -26,6 +28,15 @@ import { ContextUsageRing } from './ContextUsageRing'
 import { ModelSelect } from './ModelSelect'
 
 const initialConfig = promptEditorConfig('pi-composer')
+
+/** What sending does: reply to a waiting question, steer the run, or start one. */
+type SendAction = 'reply' | 'steer' | 'send'
+
+const SEND_LABELS: Record<SendAction, { label: string; tooltip: string }> = {
+  reply: { label: 'Reply', tooltip: 'Reply to the questions' },
+  steer: { label: 'Steer', tooltip: 'Steer · ⌥Enter for follow-up' },
+  send: { label: 'Send', tooltip: 'Send' },
+}
 
 export function Composer({ onSend }: { onSend?: () => void } = {}) {
   return (
@@ -46,6 +57,8 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const send = useSession((state) => state.send)
   const steer = useSession((state) => state.steer)
   const followUp = useSession((state) => state.followUp)
+  const answerQuestion = useSession((state) => state.answerQuestion)
+  const questionId = useSession((state) => pendingQuestion(state)?.toolCallId ?? null)
   const abort = useSession((state) => state.abort)
   const openFolder = useSession((state) => state.openFolder)
   const isStreaming = useChat((state) => state.isStreaming)
@@ -59,7 +72,12 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
     [setPlanMode],
   )
   const hasDraft = draft.trim().length > 0
-  const placeholder = planMode ? 'Describe what to plan...' : 'Message...'
+  const action: SendAction = questionId ? 'reply' : isStreaming ? 'steer' : 'send'
+  const placeholder = questionId
+    ? 'Or type a reply to all questions...'
+    : planMode
+      ? 'Describe what to plan...'
+      : 'Message...'
   const canSend = connection === 'ready' && hasDraft
 
   const submit = useCallback(
@@ -67,7 +85,10 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
       const next = serializeEditorState(editor.getEditorState()).trim()
       if (!next || connection !== 'ready') return
       try {
-        if (isStreaming) {
+        // A waiting question blocks the run, so a steer would only land after it is answered.
+        if (questionId) {
+          await answerQuestion(questionId, { kind: 'message', text: next })
+        } else if (isStreaming) {
           try {
             if (mode === 'followUp') {
               await followUp(next)
@@ -90,7 +111,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
       setDraft('')
       onSend?.()
     },
-    [connection, editor, followUp, isStreaming, onSend, send, steer],
+    [answerQuestion, connection, editor, followUp, isStreaming, onSend, questionId, send, steer],
   )
 
   useLayoutEffect(() => {
@@ -144,6 +165,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
     <div className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3">
       <div className="pointer-events-auto mx-auto max-w-3xl">
         <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
+        <QuestionCard />
         <PlanReview />
         <ComposerActions />
       </div>
@@ -251,15 +273,13 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                       size="icon-sm"
                       className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] transition-opacity"
                       disabled={!canSend}
-                      aria-label={isStreaming ? 'Steer' : 'Send'}
+                      aria-label={SEND_LABELS[action].label}
                     />
                   }
                 >
                   <ArrowUp className="size-3.5" />
                 </TooltipTrigger>
-                <TooltipContent>
-                  {isStreaming ? 'Steer · ⌥Enter for follow-up' : 'Send'}
-                </TooltipContent>
+                <TooltipContent>{SEND_LABELS[action].tooltip}</TooltipContent>
               </Tooltip>
             )}
           </div>

@@ -82,6 +82,33 @@ export const PLAN_APPROVED_PROMPT = 'I approved the plan. Implement it.'
 /** The tool the agent writes a new Plan File with. */
 export const CREATE_PLAN_TOOL = 'create_plan'
 
+/** The tool the agent asks the user questions with; its run blocks until the user replies. */
+export const ASK_USER_TOOL = 'ask_user'
+
+export interface AskQuestion {
+  question: string
+  options: { label: string; description?: string }[]
+  multiSelect?: boolean
+}
+
+/** The labels picked for one question, plus the user's own answer if they typed one. */
+export interface AskAnswer {
+  selected: string[]
+  other?: string
+}
+
+/** `answers[i]` answers question i; a `message` replies to all questions at once from the Composer. */
+export type AskReply =
+  | { kind: 'answers'; answers: AskAnswer[] }
+  | { kind: 'message'; text: string }
+  | { kind: 'skipped' }
+
+/** The questions of an `ask_user` call's arguments, which may still be streaming. */
+export function askQuestions(args: unknown): AskQuestion[] {
+  const questions = (args as { questions?: unknown } | null)?.questions
+  return Array.isArray(questions) ? (questions as AskQuestion[]) : []
+}
+
 export interface TextContent {
   type: 'text'
   text: string

@@ -9,7 +9,7 @@ import type {
   SessionEntry,
 } from '@earendil-works/pi-coding-agent'
 import { stringify } from 'yaml'
-import { CREATE_PLAN_TOOL, type PlanRef } from '@shared/protocol'
+import { ASK_USER_TOOL, CREATE_PLAN_TOOL, type PlanRef } from '@shared/protocol'
 import { piDotDir } from './config'
 
 /** Custom entries in the session transcript, the source of truth for plan state; see `replayPlan`. */
@@ -141,7 +141,7 @@ function workflow(path: string | null): string[] {
   return [
     'Workflow:',
     '1. Explore the code first; reuse what exists.',
-    "2. Ask the user only when a decision changes the plan and the code can't answer it: 1–2 questions, each with options and your pick; then end your turn.",
+    `2. Ask the user only when a decision changes the plan and the code can't answer it: call ${ASK_USER_TOOL} with 1–2 questions, your pick first.`,
     path
       ? `3. Revise ${path} in place (edit it, or rewrite it with write when that's simpler); keep it decision-complete and in the user's language.`
       : `3. Call ${CREATE_PLAN_TOOL} with one decision-complete plan in the user's language.`,

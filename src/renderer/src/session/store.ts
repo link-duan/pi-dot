@@ -3,6 +3,7 @@ import { formatApproval, formatPlanFeedback, reanchor, type PlanComment } from '
 import { parsePlan } from '@shared/plan-file'
 import type {
   AgentMessage,
+  AskReply,
   ModelSelection,
   SessionListItem,
   SessionSnapshot,
@@ -28,6 +29,8 @@ interface SessionStore extends WindowState {
   leave: () => Promise<boolean>
   send: (text: string) => Promise<void>
   steer: (text: string) => Promise<void>
+  /** Replies to the active session's `ask_user` call `toolCallId`. */
+  answerQuestion: (toolCallId: string, reply: AskReply) => Promise<void>
   removeSteering: (index: number) => Promise<void>
   followUp: (text: string) => Promise<void>
   setFollowUpQueue: (messages: string[]) => Promise<void>
@@ -130,6 +133,17 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return
     const planMode = get().chats[file]?.planMode ?? false
     await submitPrompt(file, text, () => window.pi.prompt(text, file, planMode))
+  },
+
+  answerQuestion: async (toolCallId: string, reply: AskReply) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.answerQuestion(file, toolCallId, reply)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      throw error
+    }
   },
 
   steer: async (text: string) => {

@@ -29,6 +29,7 @@ import {
   waitingModel,
   workingModel,
   queuedModel,
+  questionModel,
 } from './mocks'
 
 const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: string }> = [
@@ -40,6 +41,7 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: stri
   { title: 'Waiting', model: waitingModel, agoMs: 1_500 },
   { title: 'Working', model: workingModel, agoMs: 3_600 },
   { title: 'Queued', model: queuedModel, agoMs: 3_600 },
+  { title: 'Question', model: questionModel, agoMs: 4_000 },
   { title: 'Plan', model: planModel, plan: playgroundPlanText },
   { title: 'Plan built', model: planBuiltModel, plan: playgroundPlanText },
 ]

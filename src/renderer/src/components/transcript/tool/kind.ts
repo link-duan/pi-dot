@@ -5,13 +5,14 @@ import {
   Folder,
   FolderSearch,
   ImageIcon,
+  MessageCircleQuestion,
   Search,
   SquareCode,
   Terminal,
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { CREATE_PLAN_TOOL } from '@shared/protocol'
+import { ASK_USER_TOOL, CREATE_PLAN_TOOL } from '@shared/protocol'
 import { isImageFile } from '@/lib/path'
 
 export function isEditTool(name: string): boolean {
@@ -46,6 +47,7 @@ const TOOL_LABELS: Record<string, string> = {
   find: 'Find',
   ls: 'Ls',
   [CREATE_PLAN_TOOL]: 'Create Plan',
+  [ASK_USER_TOOL]: 'Ask User',
 }
 
 export function toolLabel(name: string): string {
@@ -62,6 +64,7 @@ export function getToolIcon(name: string, path?: string | null, hasImage = false
   if (hasImage) return ImageIcon
   const lower = name.toLowerCase()
   if (lower === 'codemode') return SquareCode
+  if (lower === ASK_USER_TOOL) return MessageCircleQuestion
   if (isShellTool(name)) return Terminal
   if (lower === 'grep') return Search
   if (lower === 'find') return FolderSearch

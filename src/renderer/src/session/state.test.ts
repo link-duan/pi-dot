@@ -8,6 +8,7 @@ import {
   createWindowState,
   parkActive,
   patchChat,
+  pendingQuestion,
   planCard,
   type WindowState,
 } from './state'
@@ -277,5 +278,26 @@ describe('plan mode', () => {
   it('closes the plan viewer when switching sessions', () => {
     const state = { ...applySnapshot(createWindowState(), snapshot(fileA)), planViewer: true }
     expect(applySnapshot(state, snapshot(fileB)).planViewer).toBe(false)
+  })
+})
+
+describe('pendingQuestion', () => {
+  const questions = [{ question: 'Which?', options: [{ label: 'A' }, { label: 'B' }] }]
+  const withTools = (toolLive: ChatState['toolLive']) =>
+    windowWith({ sessionFile: fileA, chats: { [fileA]: { ...createChatState(), toolLive } } })
+
+  it('is the running ask_user call of the active session', () => {
+    const state = withTools({
+      read: { toolCallId: 'read', toolName: 'read', args: {}, status: 'running' },
+      ask: { toolCallId: 'ask', toolName: 'ask_user', args: { questions }, status: 'running' },
+    })
+    expect(pendingQuestion(state)).toEqual({ toolCallId: 'ask', questions })
+  })
+
+  it('ignores finished calls', () => {
+    const state = withTools({
+      ask: { toolCallId: 'ask', toolName: 'ask_user', args: { questions }, status: 'done' },
+    })
+    expect(pendingQuestion(state)).toBeNull()
   })
 })

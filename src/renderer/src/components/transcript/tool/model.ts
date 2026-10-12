@@ -1,5 +1,6 @@
 import type { ToolLiveState } from '@/chat/state'
-import { asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
+import { asRecord, asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
+import { ASK_USER_TOOL, askQuestions, type AskQuestion, type AskReply } from '@shared/protocol'
 import type { LucideIcon } from 'lucide-react'
 import {
   codemodeSummary,
@@ -34,6 +35,7 @@ export type ToolBodyModel =
   | { kind: 'shell'; command: string; resultText: string; error?: boolean }
   | { kind: 'error'; message: string }
   | { kind: 'generic'; argsText?: string; resultText?: string; error?: boolean }
+  | { kind: 'question'; questions: AskQuestion[]; reply: Exclude<AskReply, { kind: 'skipped' }> }
 
 export interface ToolViewModel {
   icon: LucideIcon
@@ -86,6 +88,22 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
     // Arguments may still be empty while streaming; an empty body would leave an empty panel.
     const { code, calls, output, error } = codemodeBody
     if (code || calls.length || output.length || error) body = codemodeBody
+  } else if (name === ASK_USER_TOOL) {
+    const questions = askQuestions(payload)
+    summary = questions[0]?.question ?? ''
+    const reply = (asRecord(resolved)?.details as { reply?: AskReply } | undefined)?.reply
+    if (reply?.kind === 'skipped') {
+      meta = 'Skipped'
+    } else if (reply) {
+      body = { kind: 'question', questions, reply }
+      if (reply.kind === 'message') meta = 'Replied'
+      // The summary already shows a lone question.
+      else if (questions.length > 1) meta = `${questions.length} questions`
+    } else if (running) {
+      meta = 'Waiting for you'
+    } else if (rawError) {
+      body = { kind: 'error', message: asText(resolved) }
+    }
   } else if (!collapsedAttempt) {
     const fileDiff = isEditTool(name)
       ? toolEditDiff(payload, resolved)

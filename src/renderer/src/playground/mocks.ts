@@ -1,15 +1,17 @@
 import { createChatState, type ChatState } from '@/chat/state'
 import type { PlanComment } from '@/lib/plan-feedback'
-import type {
-  AgentMessage,
-  AssistantMessage,
-  ContentBlock,
-  ContextUsage,
-  ModelInfo,
-  ThinkingLevel,
-  SkillInfo,
-  ToolResultMessage,
-  UserMessage,
+import {
+  ASK_USER_TOOL,
+  type AskQuestion,
+  type AgentMessage,
+  type AssistantMessage,
+  type ContentBlock,
+  type ContextUsage,
+  type ModelInfo,
+  type ThinkingLevel,
+  type SkillInfo,
+  type ToolResultMessage,
+  type UserMessage,
 } from '@shared/protocol'
 
 let clock = Date.now() - 180_000
@@ -281,6 +283,68 @@ export const runningToolModel = chat(
     },
     steeringQueue: ['Stop after reading the first 50 lines'],
     followUpQueue: ['Compare with main branch'],
+  },
+)
+
+const askedQuestions: AskQuestion[] = [
+  {
+    question: 'Should the search box debounce or throttle input?',
+    options: [
+      { label: 'Debounce (Recommended)', description: 'Search once typing pauses for 150ms.' },
+      { label: 'Throttle', description: 'Search at most every 150ms while typing.' },
+    ],
+  },
+]
+
+const pendingQuestions: AskQuestion[] = [
+  {
+    question: 'Which platforms should this cover?',
+    options: [
+      { label: 'macOS only (Recommended)', description: 'Only the darwin entry point changes.' },
+      { label: 'macOS + Windows', description: 'Also touches the win32 installer.' },
+      { label: 'All platforms' },
+    ],
+  },
+  {
+    question: 'How should it be verified?',
+    multiSelect: true,
+    options: [
+      { label: 'Unit tests' },
+      { label: 'E2E via CDP', description: 'Drive the running app.' },
+      { label: 'Manual check' },
+    ],
+  },
+]
+
+export const questionModel = chat(
+  [
+    user('Add debounced file search.'),
+    assistant([tool('ask-done', ASK_USER_TOOL, { questions: askedQuestions })]),
+    {
+      ...result(
+        'ask-done',
+        ASK_USER_TOOL,
+        '"Should the search box debounce or throttle input?" → Debounce (Recommended)',
+      ),
+      details: {
+        questions: askedQuestions,
+        reply: { kind: 'answers', answers: [{ selected: ['Debounce (Recommended)'] }] },
+      },
+    },
+    assistant([tool('ask-run', ASK_USER_TOOL, { questions: pendingQuestions })]),
+  ],
+  {
+    isStreaming: true,
+    turnActive: true,
+    turnStartedAt: clock - 4_000,
+    toolLive: {
+      'ask-run': {
+        toolCallId: 'ask-run',
+        toolName: ASK_USER_TOOL,
+        args: { questions: pendingQuestions },
+        status: 'running',
+      },
+    },
   },
 )
 

@@ -1,13 +1,16 @@
 import { applySessionEvent, createChatState, hydrateMessages, type ChatState } from '@/chat/state'
 import type { PlanComment } from '@/lib/plan-feedback'
-import type {
-  ConnectionStatus,
-  ContextUsage,
-  ModelInfo,
-  SessionEvent,
-  SessionSnapshot,
-  SkillInfo,
-  ThinkingLevel,
+import {
+  ASK_USER_TOOL,
+  askQuestions,
+  type AskQuestion,
+  type ConnectionStatus,
+  type ContextUsage,
+  type ModelInfo,
+  type SessionEvent,
+  type SessionSnapshot,
+  type SkillInfo,
+  type ThinkingLevel,
 } from '@shared/protocol'
 
 export type WindowState = {
@@ -88,6 +91,18 @@ export function planCard(state: WindowState): 'review' | 'view' | null {
   if (chat.plan.built) return 'view'
   if (!chat.planMode) return null
   return chat.isStreaming ? 'view' : 'review'
+}
+
+/** The active session's `ask_user` call waiting for the user, if any. */
+export function pendingQuestion(
+  state: WindowState,
+): { toolCallId: string; questions: AskQuestion[] } | null {
+  for (const tool of Object.values(activeChat(state).toolLive)) {
+    if (tool.status !== 'running' || tool.toolName !== ASK_USER_TOOL) continue
+    const questions = askQuestions(tool.args)
+    if (questions.length > 0) return { toolCallId: tool.toolCallId, questions }
+  }
+  return null
 }
 
 export function activeChat(state: WindowState): ChatState {

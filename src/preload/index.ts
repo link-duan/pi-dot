@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { ImagePreview, PiApi } from '@shared/api'
 import { IPC } from '@shared/ipc'
 import type {
+  AskReply,
   ConnectionStatus,
   FileHit,
   SessionEvent,
@@ -32,6 +33,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.prompt, text, sessionFile, planMode) as Promise<void>,
   approvePlan: (sessionFile: string, message: string) =>
     ipcRenderer.invoke(IPC.approvePlan, sessionFile, message) as Promise<void>,
+  answerQuestion: (sessionFile: string, toolCallId: string, reply: AskReply) =>
+    ipcRenderer.invoke(IPC.answerQuestion, sessionFile, toolCallId, reply) as Promise<void>,
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>
