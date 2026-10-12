@@ -1,4 +1,4 @@
-import { Suspense, use, type CSSProperties, type ReactNode } from 'react'
+import { Suspense, use, useDeferredValue, type CSSProperties, type ReactNode } from 'react'
 import { CodeBlockCopyButton } from 'streamdown'
 import { DiffStatsLabel } from './ActivityRow'
 import { highlight, type HighlightToken } from '@/lib/highlight'
@@ -98,7 +98,9 @@ export function HighlightedCode({
   startLine?: number
   pending?: boolean
 }) {
-  const lines = splitLines(source)
+  // While the source grows, keep the previous highlight on screen until the new tokens resolve.
+  const deferred = useDeferredValue(source)
+  const lines = splitLines(deferred)
   const gutterCh = Math.max(1, String(startLine + lines.length - 1).length)
   const view = (tokens?: Token[][]) =>
     lines.map((text, i) => (
@@ -107,13 +109,21 @@ export function HighlightedCode({
       </FileCardLine>
     ))
   return (
-    <Highlighted source={source} language={language} pending={pending} fallback={view()}>
+    <Highlighted source={deferred} language={language} pending={pending} fallback={view()}>
       {view}
     </Highlighted>
   )
 }
 
-export function HighlightedDiff({ lines, language }: { lines: DiffLine[]; language: string }) {
+export function HighlightedDiff({
+  lines: source,
+  language,
+}: {
+  lines: DiffLine[]
+  language: string
+}) {
+  // Edit/write diffs grow with streaming arguments; keep the previous highlight like HighlightedCode.
+  const lines = useDeferredValue(source)
   const gutterCh = Math.max(1, ...lines.map((line) => String(lineNo(line) ?? '').length))
   const view = (tokens?: Token[][]) =>
     lines.map((line, i) => (

@@ -11,11 +11,9 @@ import { ToolImage } from './ToolImage'
 
 export function CodemodeBody({
   body,
-  streaming,
   scrollRef,
 }: {
   body: CodemodeBodyModel
-  streaming: boolean
   scrollRef: RefObject<HTMLDivElement | null>
 }) {
   return (
@@ -27,7 +25,7 @@ export function CodemodeBody({
         >
           <ScrollFade ref={scrollRef} className="max-h-64" scrollbarClassName="my-0.5">
             <div className="py-2 pr-8 break-all">
-              <HighlightedCode source={body.code} language="javascript" pending={streaming} />
+              <HighlightedCode source={body.code} language="javascript" />
             </div>
           </ScrollFade>
           <div className="absolute top-1.5 right-2">

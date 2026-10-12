@@ -63,28 +63,23 @@ export function ToolCard({
       hideMetaWhenOpen={model.hideMetaWhenOpen}
       animateIn={animateIn}
     >
-      {model.body ? (
-        // Codemode highlights the script once it starts; only streaming arguments stay plain.
-        <ToolBody body={model.body} streaming={streaming} scrollRef={scrollRef} />
-      ) : null}
+      {model.body ? <ToolBody body={model.body} scrollRef={scrollRef} /> : null}
     </ActivityRow>
   )
 }
 
 function ToolBody({
   body,
-  streaming,
   scrollRef,
 }: {
   body: ToolBodyModel | null
-  streaming: boolean
   scrollRef: React.RefObject<HTMLDivElement | null>
 }) {
   if (!body) return null
 
   switch (body.kind) {
     case 'codemode':
-      return <CodemodeBody body={body} streaming={streaming} scrollRef={scrollRef} />
+      return <CodemodeBody body={body} scrollRef={scrollRef} />
 
     case 'diff':
       return <EditDiff path={body.path} stats={body.stats} lines={body.lines} />

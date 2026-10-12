@@ -13,6 +13,7 @@ export type HighlightToken = {
 
 export type HighlightResult = { tokens: HighlightToken[][] }
 
+const CACHE_LIMIT = 200
 const cache = new Map<string, Promise<HighlightResult>>()
 
 function langId(language: string): string {
@@ -25,8 +26,15 @@ export function highlight(source: string, language: string): Promise<HighlightRe
   const lang = langId(language)
   const key = `${lang}\0${source}`
   const hit = cache.get(key)
-  if (hit) return hit
+  if (hit) {
+    // Refresh recency so code still on screen isn't evicted and re-suspended.
+    cache.delete(key)
+    cache.set(key, hit)
+    return hit
+  }
   const task = tokenize(source, lang)
+  // Streaming code caches every prefix; drop the least recently used so the cache stays bounded.
+  if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value!)
   cache.set(key, task)
   return task
 }
