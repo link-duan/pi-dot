@@ -12,7 +12,7 @@ const WIDGET_LINES = 10
 
 /**
  * Text widgets extensions set with `ctx.ui.setWidget`: above the editor as a card over the
- * Composer, below it inside the Composer.
+ * Composer that scrolls past 8 lines, below it inside the Composer.
  */
 export function ExtensionWidgets({
   placement,
@@ -25,19 +25,27 @@ export function ExtensionWidgets({
     useShallow((chat) => chat.ui.widgets.filter((widget) => widget.placement === placement)),
   )
   if (widgets.length === 0) return null
+  const scrolls = placement === 'aboveEditor'
   return (
-    <div className={cn('flex flex-col gap-1', className)}>
-      {widgets.map((widget) => (
-        <Widget key={widget.key} widget={widget} />
-      ))}
+    <div className={className}>
+      <div
+        className={cn(
+          'flex flex-col gap-1',
+          scrolls && 'max-h-40 scroll-fade overflow-y-auto overscroll-contain',
+        )}
+      >
+        {widgets.map((widget) => (
+          <Widget key={widget.key} widget={widget} collapsible={!scrolls} />
+        ))}
+      </div>
     </div>
   )
 }
 
-function Widget({ widget }: { widget: UiWidget }) {
+function Widget({ widget, collapsible }: { widget: UiWidget; collapsible: boolean }) {
   const [expanded, setExpanded] = useState(false)
-  const extra = widget.lines.length - WIDGET_LINES
-  const lines = expanded ? widget.lines : widget.lines.slice(0, WIDGET_LINES)
+  const extra = collapsible ? widget.lines.length - WIDGET_LINES : 0
+  const lines = expanded || !collapsible ? widget.lines : widget.lines.slice(0, WIDGET_LINES)
   return (
     <div className="font-mono text-xs leading-5 text-muted-foreground">
       {lines.map((line, index) => (
