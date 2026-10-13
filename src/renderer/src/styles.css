@@ -25,6 +25,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-plan: var(--plan);
+  --color-command: var(--command);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -58,6 +59,7 @@
   --ring: oklch(0.705 0.015 286.067);
   --plan: oklch(0.62 0.16 60);
   --plan-highlight: color-mix(in oklch, var(--plan) 25%, transparent);
+  --command: oklch(0.55 0.17 255);
   --ansi-0: #1e1e1e;
   --ansi-1: #c42b1c;
   --ansi-2: #0a7a3c;
@@ -99,6 +101,7 @@
   --plan: oklch(0.8 0.15 75);
   /* A dark page needs a stronger tint to read as highlighted. */
   --plan-highlight: color-mix(in oklch, var(--plan) 45%, transparent);
+  --command: oklch(0.75 0.13 250);
   --ansi-0: #0d1117;
   --ansi-1: #f85149;
   --ansi-2: #3fb950;

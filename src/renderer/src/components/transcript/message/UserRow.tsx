@@ -10,6 +10,7 @@ import { keyedUserSegments } from '@/lib/user-message'
 import { useChat, useSession } from '@/session/store'
 import type { UserMessage } from '@shared/protocol'
 import { CopyAction, MessageAction } from '../MessageActions'
+import { UserBubble } from './UserBubble'
 
 export const UserRow = memo(function UserRow({ message }: { message: UserMessage }) {
   const segments = useMemo(() => keyedUserSegments(userText(message)), [message])
@@ -20,24 +21,8 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
   const idleOnly = 'Available when the run ends'
 
   return (
-    <div className="group/user mt-6 mb-2 flex justify-end group-first/turn:mt-2 first:mt-2">
-      <div className="flex max-w-[min(32rem,80%)] min-w-0 flex-col items-end">
-        <div className="w-fit max-w-full rounded-xl bg-foreground/4 px-3 py-2 leading-relaxed break-words whitespace-pre-wrap text-foreground select-text dark:bg-foreground/12">
-          {segments.map((segment) =>
-            segment.type === 'skill' ? (
-              <SkillChip key={segment.key} name={segment.name} />
-            ) : segment.type === 'file' ? (
-              <FileChip
-                key={segment.key}
-                label={fileChipLabel(segment.path, segment.range)}
-                title={segment.path}
-                directory={segment.path.endsWith('/')}
-              />
-            ) : (
-              <span key={segment.key}>{segment.text}</span>
-            ),
-          )}
-        </div>
+    <UserBubble
+      footer={
         <div className="mt-0.5 flex items-center gap-0.5">
           <div className="flex items-center opacity-0 transition-opacity duration-150 group-hover/user:opacity-100 focus-within:opacity-100">
             <CopyAction text={() => userText(message)} />
@@ -67,7 +52,22 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
             </time>
           ) : null}
         </div>
-      </div>
-    </div>
+      }
+    >
+      {segments.map((segment) =>
+        segment.type === 'skill' ? (
+          <SkillChip key={segment.key} name={segment.name} />
+        ) : segment.type === 'file' ? (
+          <FileChip
+            key={segment.key}
+            label={fileChipLabel(segment.path, segment.range)}
+            title={segment.path}
+            directory={segment.path.endsWith('/')}
+          />
+        ) : (
+          <span key={segment.key}>{segment.text}</span>
+        ),
+      )}
+    </UserBubble>
   )
 })

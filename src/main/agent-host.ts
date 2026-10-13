@@ -712,15 +712,14 @@ export class AgentHost {
         },
         reload: () => session.reload(),
       },
-      // As pi's TUI does; otherwise an extension that throws fails silently. A handler that
-      // throws on every streamed update keeps one toast, not one per update.
-      onError: (error) => {
+      // As pi's TUI does; otherwise an extension that throws fails silently.
+      onError: ({ extensionPath, event, error }) => {
         this.emit({
-          type: 'ui_notify',
+          type: 'extension_error',
           sessionFile: live.sessionFile,
-          message: `Extension "${error.extensionPath}" error: ${error.error}`,
-          level: 'error',
-          id: `${error.extensionPath}:${error.event}`,
+          extensionPath,
+          event,
+          message: error,
         })
       },
     })

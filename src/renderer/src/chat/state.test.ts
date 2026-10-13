@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { AssistantMessage, UserMessage } from '@shared/protocol'
-import { applySessionEvent, createChatState, hydrateMessages, userText } from './state'
+import {
+  appendExtensionLine,
+  applySessionEvent,
+  createChatState,
+  hydrateMessages,
+  userText,
+  type ExtensionLine,
+} from './state'
 
 const user = (text: string): UserMessage => ({
   role: 'user',
@@ -222,5 +229,81 @@ describe('applySessionEvent', () => {
     })
     expect(state.steeringQueue).toEqual(['fix the typo'])
     expect(state.followUpQueue).toEqual(['add tests', 'update docs'])
+  })
+})
+
+describe('extension lines', () => {
+  const info = (message: string, at = 0) =>
+    ({ kind: 'notice', at, level: 'info', message }) as const
+  const command = (text: string, at = 0) => ({ kind: 'command', at, text }) as const
+  const texts = (lines: ExtensionLine[]) =>
+    lines.map((line) => (line.kind === 'command' ? line.text : line.message))
+
+  it('places a notice after the messages so far', () => {
+    const state = applySessionEvent(hydrateMessages([user('/status'), assistant('ok')]), {
+      type: 'ui_notify',
+      message: 'All good',
+      level: 'info',
+    })
+    expect(state.extensionLines).toEqual([info('All good', 2)])
+  })
+
+  it('replaces an info right after another info at the same place, as pi does', () => {
+    let lines = appendExtensionLine([], info('Syncing'))
+    lines = appendExtensionLine(lines, info('Synced'))
+    expect(texts(lines)).toEqual(['Synced'])
+    lines = appendExtensionLine(lines, info('Later', 1))
+    expect(texts(lines)).toEqual(['Synced', 'Later'])
+  })
+
+  it('keeps the result of one command when the next one reports', () => {
+    let lines = appendExtensionLine([], command('/status'))
+    lines = appendExtensionLine(lines, info('All good'))
+    lines = appendExtensionLine(lines, command('/quota'))
+    lines = appendExtensionLine(lines, info('80% left'))
+    expect(texts(lines)).toEqual(['/status', 'All good', '/quota', '80% left'])
+  })
+
+  describe('errors', () => {
+    const fail = (message: string, at = 0, event = 'command') =>
+      ({ kind: 'error', at, extensionPath: 'command:deploy', event, message, count: 1 }) as const
+    const counts = (lines: ExtensionLine[]) =>
+      lines.map((line) => (line.kind === 'error' ? line.count : line.kind))
+
+    it('adds an extension error after the messages so far', () => {
+      const state = applySessionEvent(hydrateMessages([user('/deploy')]), {
+        type: 'extension_error',
+        extensionPath: 'command:deploy',
+        event: 'command',
+        message: 'boom',
+      })
+      expect(state.extensionLines).toEqual([fail('boom', 1)])
+    })
+
+    it('folds repeats from the same source into one line with a count', () => {
+      let lines = appendExtensionLine([], fail('boom 1'))
+      lines = appendExtensionLine(lines, fail('boom 2'))
+      lines = appendExtensionLine(lines, fail('boom 3'))
+      expect(lines).toEqual([{ ...fail('boom 3'), count: 3 }])
+    })
+
+    it('shows a command failing again under its own line', () => {
+      let lines = appendExtensionLine([], command('/deploy'))
+      lines = appendExtensionLine(lines, fail('boom'))
+      lines = appendExtensionLine(lines, command('/deploy'))
+      lines = appendExtensionLine(lines, fail('boom'))
+      expect(counts(lines)).toEqual(['command', 1, 'command', 1])
+    })
+
+    it('keeps errors at different places or from different events apart', () => {
+      expect(counts(appendExtensionLine([fail('boom', 1)], fail('boom', 2)))).toEqual([1, 1])
+      expect(counts(appendExtensionLine([fail('boom')], fail('boom', 0, 'turn_end')))).toEqual([
+        1, 1,
+      ])
+    })
+  })
+
+  it('drops them when the session is loaded again', () => {
+    expect(hydrateMessages([user('hi')]).extensionLines).toEqual([])
   })
 })

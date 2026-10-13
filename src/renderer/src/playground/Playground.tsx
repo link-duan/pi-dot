@@ -13,7 +13,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { notify } from '@/ipc'
 import { PATH } from '@/router'
 import { parsePlan } from '@shared/plan-file'
 import { activeChat, patchChat, type WindowState } from '@/session/state'
@@ -334,19 +333,6 @@ export function Playground() {
         <div className="app-drag h-full min-w-0 flex-1" />
         <div className="app-no-drag flex shrink-0 items-center gap-1">
           <SessionSwitcher />
-          <Button
-            type="button"
-            size="xs"
-            variant="ghost"
-            className="text-muted-foreground"
-            onClick={() => {
-              notify('Review finished: 2 suggestions', 'info')
-              notify('Lint reported 2 warnings', 'warning')
-              notify('Extension "deploy" failed to load', 'error')
-            }}
-          >
-            Toasts
-          </Button>
           <Button
             type="button"
             size="xs"

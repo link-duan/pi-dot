@@ -91,4 +91,10 @@ describe('createExtensionUi', () => {
       { type: 'ui_editor_text', text: '/deploy prod' },
     ])
   })
+
+  it('says a terminal view cannot be shown', async () => {
+    const { ui, events } = setup()
+    await expect(ui.context.custom(() => ({ render: () => [] }))).resolves.toBeUndefined()
+    expect(events).toEqual([expect.objectContaining({ type: 'ui_notify', level: 'warning' })])
+  })
 })

@@ -1,4 +1,4 @@
-import { useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
+import { Fragment, useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
@@ -9,6 +9,7 @@ import { PATH } from '@/router'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { ExtensionLineRow } from './message/ExtensionLineRow'
 import { SteeringRow } from './message/SteeringRow'
 import { TurnActions } from './TurnActions'
 import { TurnStatus } from './TurnStatus'
@@ -31,6 +32,7 @@ export type TranscriptModel = Pick<
   | 'turnEndedAt'
   | 'retry'
   | 'steeringQueue'
+  | 'extensionLines'
 >
 
 export function Transcript({
@@ -58,6 +60,7 @@ export function Transcript({
     turnEndedAt,
     retry,
     steeringQueue = [],
+    extensionLines,
   } = model
   const contentRef = useRef<HTMLDivElement>(null)
   const { showScrollBottom, scrollToBottom, onScroll, onWheel } = useStickyToBottom({
@@ -78,6 +81,11 @@ export function Transcript({
     }
     return map
   }, [messages])
+  // Extension lines added after message `at - 1`; they only append or replace the last one.
+  const extensionRows = (at: number) =>
+    extensionLines.map((line, index) =>
+      line.at === at ? <ExtensionLineRow key={index} line={line} /> : null,
+    )
 
   return (
     <ScrollArea className="min-h-0 flex-1">
@@ -88,7 +96,7 @@ export function Transcript({
         onScroll={onScroll}
       >
         <div ref={contentRef} className="flex min-h-full flex-col">
-          {!hasMessages && !isStreaming ? (
+          {!hasMessages && !isStreaming && extensionLines.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center py-12 text-center select-none">
               <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
               {noModels ? (
@@ -115,14 +123,17 @@ export function Transcript({
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-3xl flex-col pt-12 pb-10">
+              {extensionRows(0)}
               {messages.slice(0, turns[0]?.start ?? messages.length).map((message, index) => (
-                <MessageRow
-                  key={messageKey(message, index)}
-                  message={message}
-                  toolLive={toolLive}
-                  toolResults={toolResults}
-                  streaming={index === streamingIndex}
-                />
+                <Fragment key={messageKey(message, index)}>
+                  <MessageRow
+                    message={message}
+                    toolLive={toolLive}
+                    toolResults={toolResults}
+                    streaming={index === streamingIndex}
+                  />
+                  {extensionRows(index + 1)}
+                </Fragment>
               ))}
               {turns.map((turn, turnIndex) => {
                 const isLast = turnIndex === turns.length - 1
@@ -139,32 +150,38 @@ export function Transcript({
                   turn,
                 })
                 return (
-                  <div key={turn.start} className="group/turn flex flex-col">
-                    {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
-                      const index = turn.start + offset
-                      return (
-                        <MessageRow
-                          key={messageKey(message, index)}
-                          message={message}
-                          toolLive={toolLive}
-                          toolResults={toolResults}
-                          streaming={index === streamingIndex}
-                          isLive={isTurnLive}
-                        />
-                      )
-                    })}
-                    <div className="flex items-start gap-2">
-                      <div className="min-w-0 flex-1">
-                        {status ? <TurnStatus {...status} /> : null}
+                  <Fragment key={turn.start}>
+                    <div className="group/turn flex flex-col">
+                      {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
+                        const index = turn.start + offset
+                        return (
+                          <Fragment key={messageKey(message, index)}>
+                            <MessageRow
+                              message={message}
+                              toolLive={toolLive}
+                              toolResults={toolResults}
+                              streaming={index === streamingIndex}
+                              isLive={isTurnLive}
+                            />
+                            {/* Lines after the turn's last message go below the whole turn. */}
+                            {index === turn.end ? null : extensionRows(index + 1)}
+                          </Fragment>
+                        )
+                      })}
+                      <div className="flex items-start gap-2">
+                        <div className="min-w-0 flex-1">
+                          {status ? <TurnStatus {...status} /> : null}
+                        </div>
+                        {isLast && isStreaming ? null : (
+                          <TurnActions
+                            messages={messages.slice(turn.start, turn.end + 1)}
+                            canRetry={isLast && !isStreaming}
+                          />
+                        )}
                       </div>
-                      {isLast && isStreaming ? null : (
-                        <TurnActions
-                          messages={messages.slice(turn.start, turn.end + 1)}
-                          canRetry={isLast && !isStreaming}
-                        />
-                      )}
                     </div>
-                  </div>
+                    {extensionRows(turn.end + 1)}
+                  </Fragment>
                 )
               })}
               {isStreaming && turns.length === 0 && turnStartedAt != null ? (

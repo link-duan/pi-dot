@@ -1,4 +1,4 @@
-import type { ChatState } from '@/chat/state'
+import { appendExtensionLine, type ChatState } from '@/chat/state'
 import { extensionCommand } from '@/lib/slash-query'
 import { formatApproval, formatPlanFeedback, reanchor, type PlanComment } from '@/lib/plan-feedback'
 import { parsePlan } from '@shared/plan-file'
@@ -140,9 +140,17 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return
     set({ editing: null })
     const planMode = get().chats[file]?.planMode ?? false
-    // An extension command runs in main and adds no user message of its own.
-    // It may wait on its own dialogs, so the Composer does not wait for it.
+    // An extension command runs in main and adds no user message of its own, so the Transcript
+    // shows it as a line, above what the extension says. It may wait on its own dialogs, so the
+    // Composer does not wait for it.
     if (extensionCommand(text, get().commands)) {
+      set((state) => {
+        const chat = activeChat(state)
+        const line = { kind: 'command' as const, at: chat.messages.length, text }
+        return patchChat(state, file, {
+          extensionLines: appendExtensionLine(chat.extensionLines, line),
+        })
+      })
       void window.pi.prompt(text, file, planMode).catch((error: unknown) => {
         set({ error: error instanceof Error ? error.message : String(error) })
       })

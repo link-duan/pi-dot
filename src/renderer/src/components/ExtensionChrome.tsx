@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { ShieldOff } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import type { UiWidget, WidgetPlacement } from '@shared/protocol'
+import { AnsiText } from '@/components/AnsiText'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ansiStyleToCss, parseAnsi } from '@/lib/ansi'
+import { parseAnsi } from '@/lib/ansi'
 import { cn } from '@/lib/utils'
 import { useChat, useSession } from '@/session/store'
 
@@ -94,14 +95,6 @@ export function ExtensionStatuses() {
       ) : null}
     </>
   )
-}
-
-function AnsiText({ text }: { text: string }) {
-  return parseAnsi(text).map((span, index) => (
-    <span key={index} style={ansiStyleToCss(span.style)}>
-      {span.text}
-    </span>
-  ))
 }
 
 function stripAnsi(text: string): string {

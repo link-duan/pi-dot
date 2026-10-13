@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import type { SessionSnapshot } from '@shared/protocol'
-import { activeChat, createWindowState } from './state'
+import { activeChat } from './state'
 import { applyLiveSnapshot, useSession } from './store'
 
 const snapshot: SessionSnapshot = {
@@ -38,7 +38,8 @@ const snapshot: SessionSnapshot = {
 }
 
 afterEach(() => {
-  useSession.setState(createWindowState())
+  // Actions too: a test may stub one, e.g. `send`.
+  useSession.setState(useSession.getInitialState(), true)
 })
 
 describe('applyLiveSnapshot', () => {
@@ -284,5 +285,24 @@ describe('refreshPlan', () => {
     await first
     expect(useSession.getState().planText).toBe('plan B')
     expect(useSession.getState().planSource).toBe('/plans/b_2.plan.md')
+  })
+})
+
+describe('send', () => {
+  it('shows an extension command in the Transcript, not a plain message', async () => {
+    const sent: string[] = []
+    ;(globalThis as unknown as { window: { pi: unknown } }).window = {
+      pi: { prompt: async (text: string) => void sent.push(text) },
+    }
+    applyLiveSnapshot({
+      ...snapshot,
+      state: { ...snapshot.state, isStreaming: false },
+      commands: [{ name: 'deploy', source: 'extension' }],
+    })
+    await useSession.getState().send('/deploy prod')
+    expect(activeChat(useSession.getState()).extensionLines).toEqual([
+      { kind: 'command', at: snapshot.messages.length, text: '/deploy prod' },
+    ])
+    expect(sent).toEqual(['/deploy prod'])
   })
 })

@@ -701,6 +701,33 @@ export const extensionModel = chat(
   ],
   {
     uiRequests: extensionRequests,
+    // Two extension commands after the reply, then an extension failing mid-run.
+    extensionLines: [
+      { kind: 'command', at: 2, text: '/opencode-status' },
+      {
+        kind: 'notice',
+        at: 2,
+        level: 'info',
+        message:
+          'OpenCode Auth Status:\n  Go plan:  ✅ authenticated\n  Zen plan: ✅ authenticated',
+      },
+      { kind: 'command', at: 2, text: '/tps' },
+      {
+        kind: 'notice',
+        at: 2,
+        level: 'warning',
+        message:
+          'This extension opens a terminal view, which Pi Dot cannot show. Use it in pi in a terminal.',
+      },
+      {
+        kind: 'error',
+        at: 2,
+        extensionPath: '/Users/demo/.pi/extensions/deploy.ts',
+        event: 'message_update',
+        message: 'ENOENT: dist/manifest.json',
+        count: 3,
+      },
+    ],
     ui: {
       // What the plan-mode, status-line and pi-token-speed extensions set, ANSI and all.
       statuses: {

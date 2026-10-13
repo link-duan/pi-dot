@@ -19,8 +19,8 @@ export interface ExtensionUi {
 
 /**
  * Pi Dot's `ctx.ui`: dialogs, statuses, text widgets and notices become native UI; anything
- * drawn with pi-tui components (custom, component widgets, header, footer, editor) is ignored,
- * as in pi's RPC mode.
+ * drawn with pi-tui components (component widgets, header, footer, editor) is ignored, as in
+ * pi's RPC mode, and `custom` says it needs a terminal.
  */
 export function createExtensionUi(
   emit: (event: SessionEventBody) => void,
@@ -110,7 +110,16 @@ export function createExtensionUi(
     setFooter() {},
     setHeader() {},
     setTitle() {},
-    custom: async () => undefined as never,
+    custom: async () => {
+      // A command like /tps that opens one would otherwise seem to do nothing.
+      emit({
+        type: 'ui_notify',
+        message:
+          'This extension opens a terminal view, which Pi Dot cannot show. Use it in pi in a terminal.',
+        level: 'warning',
+      })
+      return undefined as never
+    },
     addAutocompleteProvider() {},
     setEditorComponent() {},
     getEditorComponent: () => undefined,

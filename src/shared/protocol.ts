@@ -237,9 +237,10 @@ export type SessionEventBody =
   | { type: 'ui_request'; request: UiRequest }
   | { type: 'ui_dismiss'; id: string }
   | { type: 'ui_state'; state: UiState }
-  /** Notices with the same `id` replace each other instead of stacking. */
-  | { type: 'ui_notify'; message: string; level: NotifyLevel; id?: string }
+  | { type: 'ui_notify'; message: string; level: NotifyLevel }
   | { type: 'ui_editor_text'; text: string }
+  /** An extension threw; `extensionPath` is its file, or `command:<name>` for a command. */
+  | { type: 'extension_error'; extensionPath: string; event: string; message: string }
 
 export type SessionEvent = SessionEventBody & { sessionFile: string }
 

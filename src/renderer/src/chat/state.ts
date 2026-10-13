@@ -1,6 +1,7 @@
 import {
   isAgentMessage,
   type AgentMessage,
+  type NotifyLevel,
   type PlanRef,
   type SessionEventBody,
   type TextContent,
@@ -45,7 +46,28 @@ export interface ChatState {
   /** Extension dialogs waiting for the user, oldest first. */
   uiRequests: UiRequest[]
   ui: UiState
+  extensionLines: ExtensionLine[]
 }
+
+/**
+ * A Transcript line from an extension that is not in the session file, so it is gone once the
+ * session loads again, as in pi's TUI. `at` is `messages.length` when it was added: the line
+ * shows after the message before it.
+ */
+export type ExtensionLine =
+  /** An extension command the user ran, e.g. `/tps overrides`. */
+  | { kind: 'command'; at: number; text: string }
+  /** What the extension said with `ctx.ui.notify`. */
+  | { kind: 'notice'; at: number; level: NotifyLevel; message: string }
+  /** An extension that threw; `count` is how many times in a row it failed the same way. */
+  | {
+      kind: 'error'
+      at: number
+      extensionPath: string
+      event: string
+      message: string
+      count: number
+    }
 
 const EMPTY_UI: UiState = { statuses: {}, widgets: [] }
 
@@ -67,6 +89,7 @@ export function createChatState(): ChatState {
     plan: null,
     uiRequests: [],
     ui: EMPTY_UI,
+    extensionLines: [],
   }
 }
 
@@ -105,7 +128,36 @@ export function hydrateMessages(
     plan: options?.plan ?? null,
     uiRequests: options?.ui?.requests ?? [],
     ui: options?.ui?.state ?? EMPTY_UI,
+    extensionLines: [],
   }
+}
+
+/**
+ * Appends `line`. At the same place, an info right after an info replaces it, as pi's status line
+ * does; and an error right after one from the same extension and event folds into it with a
+ * count, as browser consoles do with repeats, so a handler that throws on every streamed update
+ * shows once. A command in between keeps both.
+ */
+export function appendExtensionLine(lines: ExtensionLine[], line: ExtensionLine): ExtensionLine[] {
+  const last = lines.at(-1)
+  const rest = lines.slice(0, -1)
+  if (last?.at === line.at) {
+    if (isInfo(line) && isInfo(last)) return [...rest, line]
+    if (line.kind === 'error' && last.kind === 'error' && sameSource(line, last)) {
+      return [...rest, { ...line, count: last.count + 1 }]
+    }
+  }
+  return [...lines, line]
+}
+
+type ErrorLine = Extract<ExtensionLine, { kind: 'error' }>
+
+function sameSource(a: ErrorLine, b: ErrorLine): boolean {
+  return a.extensionPath === b.extensionPath && a.event === b.event
+}
+
+function isInfo(line: ExtensionLine): line is Extract<ExtensionLine, { kind: 'notice' }> {
+  return line.kind === 'notice' && line.level === 'info'
 }
 
 function inferRunningTools(messages: AgentMessage[]): Record<string, ToolLiveState> {
@@ -280,6 +332,29 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
       return { ...state, ui: event.state }
 
     case 'ui_notify':
+      return {
+        ...state,
+        extensionLines: appendExtensionLine(state.extensionLines, {
+          kind: 'notice',
+          at: state.messages.length,
+          level: event.level,
+          message: event.message,
+        }),
+      }
+
+    case 'extension_error':
+      return {
+        ...state,
+        extensionLines: appendExtensionLine(state.extensionLines, {
+          kind: 'error',
+          at: state.messages.length,
+          extensionPath: event.extensionPath,
+          event: event.event,
+          message: event.message,
+          count: 1,
+        }),
+      }
+
     case 'ui_editor_text':
       return state
 
