@@ -306,6 +306,33 @@ describe('pendingQuestion', () => {
   })
 })
 
+describe('attention', () => {
+  const background = '/tmp/project/other.jsonl'
+
+  it('marks a background session that waits for the user, then finishes', () => {
+    let state = windowWith({ sessionFile: '/tmp/project/session.jsonl' })
+    state = applyEvent(state, {
+      type: 'ui_request',
+      sessionFile: background,
+      request: { id: 'r1', method: 'confirm', title: 'Sure?', message: '' },
+    })
+    expect(state.attention).toEqual({ [background]: 'input' })
+    state = applyEvent(state, { type: 'ui_dismiss', sessionFile: background, id: 'r1' })
+    expect(state.attention).toEqual({})
+    state = applyEvent(state, { type: 'agent_end', sessionFile: background })
+    expect(state.attention).toEqual({ [background]: 'done' })
+  })
+
+  it('never marks the active session and clears a mark once it is shown', () => {
+    let state = windowWith({ sessionFile: '/tmp/project/session.jsonl' })
+    state = applyEvent(state, { type: 'agent_end', sessionFile: '/tmp/project/session.jsonl' })
+    expect(state.attention).toEqual({})
+    state = applyEvent(state, { type: 'agent_end', sessionFile: background })
+    state = applySnapshot(state, snapshot(background))
+    expect(state.attention).toEqual({})
+  })
+})
+
 describe('pendingUiRequest', () => {
   it('shows the oldest extension dialog after any waiting question', () => {
     const file = '/tmp/project/session.jsonl'

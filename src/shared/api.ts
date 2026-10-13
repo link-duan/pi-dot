@@ -81,6 +81,6 @@ export interface PiApi {
   logout(providerId: string): Promise<void>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
-  onCommand(cb: (command: string) => void): () => void
+  onCommand(cb: (command: string, arg?: string) => void): () => void
   onLoginEvent(cb: (event: LoginEvent) => void): () => void
 }

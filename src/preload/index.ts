@@ -118,8 +118,9 @@ const api: PiApi = {
       ipcRenderer.removeListener(IPC.status, listener)
     }
   },
-  onCommand: (cb: (command: string) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, command: string) => cb(command)
+  onCommand: (cb: (command: string, arg?: string) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, command: string, arg?: string) =>
+      cb(command, arg)
     ipcRenderer.on(IPC.command, listener)
     return () => {
       ipcRenderer.removeListener(IPC.command, listener)

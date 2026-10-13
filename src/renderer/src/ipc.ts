@@ -172,7 +172,11 @@ export function bindIpc(): void {
     })
   })
 
-  window.pi.onCommand((command) => {
+  window.pi.onCommand((command, arg) => {
+    if (command === 'switchSession' && arg) {
+      if (router.state.location.pathname !== PATH.session) void router.navigate(PATH.session)
+      void useSession.getState().switchSession(arg)
+    }
     if (command === 'newSession') {
       void useSession
         .getState()

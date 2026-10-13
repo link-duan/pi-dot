@@ -104,6 +104,32 @@ export class AgentHost {
     for (const listener of this.listeners) listener(event)
   }
 
+  get activeSessionFile(): string | null {
+    return this.active?.sessionFile ?? null
+  }
+
+  /** The session's name, else its first message; for notifications. */
+  sessionTitle(sessionFile: string): string | undefined {
+    const session = this.live.get(sessionFile)?.session
+    if (!session) return undefined
+    if (session.sessionName) return session.sessionName
+    const first = session.messages.find((message) => message.role === 'user')
+    const text = first ? messageText(first.content as UserMessage['content']) : ''
+    return text ? (text.length > 40 ? `${text.slice(0, 39)}…` : text) : undefined
+  }
+
+  /** The text, or error, of the session's last assistant message. */
+  lastReply(sessionFile: string): { text: string; error?: string } | undefined {
+    const session = this.live.get(sessionFile)?.session
+    const last = session?.messages.filter((message) => message.role === 'assistant').at(-1)
+    if (last?.role !== 'assistant') return undefined
+    const text = last.content
+      .map((block) => (block.type === 'text' ? block.text : ''))
+      .join(' ')
+      .trim()
+    return last.stopReason === 'error' ? { text, error: last.errorMessage ?? 'Error' } : { text }
+  }
+
   runningSessionFiles(): string[] {
     const files: string[] = []
     for (const live of this.live.values()) {

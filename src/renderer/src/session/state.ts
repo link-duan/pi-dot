@@ -42,12 +42,16 @@ export type WindowState = {
   /** The inline comment being written; Build and feedback send it too if it has text. */
   planDraft: PlanComment | null
   running: string[]
+  /** Sessions that finished (`done`) or wait for the user (`input`) while not shown. */
+  attention: Record<string, Attention>
   /** The active session was rewound to edit a message; `leafId` returns to where it was. */
   editing: { sessionFile: string; leafId: string | null } | null
   /** Text for the Composer to take once, e.g. the message being edited. */
   composerFill: { text: string } | null
   chats: Record<string, ChatState>
 }
+
+export type Attention = 'done' | 'input'
 
 const EMPTY_CHAT = createChatState()
 
@@ -74,6 +78,7 @@ export function createWindowState(): WindowState {
     planComments: [],
     planDraft: null,
     running: [],
+    attention: {},
     editing: null,
     composerFill: null,
     chats: {},
@@ -182,6 +187,8 @@ export function applySnapshot<T extends WindowState>(
       })
   const chats = { ...state.chats }
   if (sessionFile) chats[sessionFile] = chat
+  const attention = { ...state.attention }
+  if (sessionFile) delete attention[sessionFile]
   return {
     ...state,
     ...snapshotMeta(snapshot),
@@ -189,6 +196,7 @@ export function applySnapshot<T extends WindowState>(
     ...(sessionFile !== state.sessionFile
       ? { planViewer: false, ...noPlanReview, editing: null }
       : null),
+    attention,
     chats,
   }
 }
@@ -209,6 +217,7 @@ export function applyEvent<T extends WindowState>(state: T, event: SessionEvent)
   }
 
   const isActive = file === state.sessionFile
+  const attention = isActive ? state.attention : nextAttention(state.attention, event)
   const existing = state.chats[file]
   if (isActive || existing) {
     const nextChat = applySessionEvent(existing ?? createChatState(), event)
@@ -216,10 +225,33 @@ export function applyEvent<T extends WindowState>(state: T, event: SessionEvent)
     if (!isActive && event.type === 'agent_end' && !event.willRetry) {
       delete chats[file]
     }
-    return { ...state, running, chats }
+    return { ...state, running, attention, chats }
   }
 
-  return running === state.running ? state : { ...state, running }
+  return running === state.running && attention === state.attention
+    ? state
+    : { ...state, running, attention }
+}
+
+function nextAttention(
+  attention: Record<string, Attention>,
+  event: SessionEvent,
+): Record<string, Attention> {
+  const file = event.sessionFile
+  const asks =
+    (event.type === 'tool_execution_start' && event.toolName === ASK_USER_TOOL) ||
+    event.type === 'ui_request'
+  const answered =
+    (event.type === 'tool_execution_end' && event.toolName === ASK_USER_TOOL) ||
+    event.type === 'ui_dismiss'
+  if (asks) return attention[file] === 'input' ? attention : { ...attention, [file]: 'input' }
+  if (event.type === 'agent_end' && !event.willRetry) return { ...attention, [file]: 'done' }
+  if (answered && attention[file] === 'input') {
+    const next = { ...attention }
+    delete next[file]
+    return next
+  }
+  return attention
 }
 
 export function parkActive<T extends WindowState>(state: T): T {

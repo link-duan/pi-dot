@@ -33,6 +33,8 @@ export function SessionSwitcher() {
   const sessionFile = useSession((state) => state.sessionFile)
   const connection = useSession((state) => state.connection)
   const runningFiles = useSession((state) => state.running)
+  const attention = useSession((state) => state.attention)
+  const needsLook = Object.keys(attention).length > 0
   const listSessions = useSession((state) => state.listSessions)
   const switchSession = useSession((state) => state.switchSession)
   const canSwitch = connection === 'ready'
@@ -81,13 +83,16 @@ export function SessionSwitcher() {
               type="button"
               size="icon-sm"
               variant="ghost"
-              className="app-no-drag text-muted-foreground"
-              aria-label="Session history"
+              className="app-no-drag relative text-muted-foreground"
+              aria-label={needsLook ? 'Session history (sessions need you)' : 'Session history'}
               onClick={() => setListOpen(true)}
             />
           }
         >
           <History />
+          {needsLook ? (
+            <span className="absolute top-1 right-1 size-1.5 rounded-full bg-plan" />
+          ) : null}
         </TooltipTrigger>
         <TooltipContent>
           Session history
@@ -127,6 +132,7 @@ export function SessionSwitcher() {
                     const title = sessionTitle(item)
                     const current = item.path === sessionFile
                     const running = runningFiles.includes(item.path)
+                    const mark = current ? undefined : attention[item.path]
                     return (
                       <CommandItem
                         key={item.path}
@@ -144,10 +150,19 @@ export function SessionSwitcher() {
                         <span
                           className={cn(
                             'size-1.5 shrink-0 rounded-full',
-                            current ? 'bg-foreground' : 'bg-muted-foreground/55',
+                            current || mark === 'done'
+                              ? 'bg-foreground'
+                              : mark === 'input'
+                                ? 'bg-plan'
+                                : 'bg-muted-foreground/55',
                           )}
                         />
                         <SessionTitle item={item} />
+                        {mark ? (
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {mark === 'input' ? 'Needs input' : 'New'}
+                          </span>
+                        ) : null}
                         {running ? (
                           <Spinner className="size-3 shrink-0" aria-label="Running" />
                         ) : (

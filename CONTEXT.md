@@ -24,6 +24,10 @@ _Avoid_: Current session, focused session, foreground session
 A Live Session that is still streaming and is not the Active Session of its Window.
 _Avoid_: Hidden session, parked session
 
+**Attention**:
+The mark on a Session that finished, or waits for the user (a Question or an Extension Dialog), while it was not shown. It shows in the Session list and as a system notification, and clears when the Session is shown.
+_Avoid_: Unread, badge, alert
+
 **Fork**:
 A new Session holding the history before one of the user's messages, with that message back in the Composer. Editing a message instead rewinds the same Session to before it; the old branch stays in its file.
 _Avoid_: Clone, branch, copy

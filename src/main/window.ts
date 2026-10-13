@@ -1,7 +1,14 @@
 import { getAgentDir, ProjectTrustStore } from '@earendil-works/pi-coding-agent'
-import { app, BrowserWindow, dialog } from 'electron'
+import { basename } from 'node:path'
+import { app, BrowserWindow, dialog, Notification } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ConnectionStatus, StartResult } from '@shared/protocol'
+import {
+  ASK_USER_TOOL,
+  askQuestions,
+  type ConnectionStatus,
+  type SessionEvent,
+  type StartResult,
+} from '@shared/protocol'
 import { AgentHost } from './agent-host'
 import { projectCwd, withCwdLock } from './cwd'
 import { addRecentProject } from './recent-projects'
@@ -17,7 +24,7 @@ export type AppWindow = {
   /** Asks again whether to trust the bound folder; rebinds it if the answer changed. */
   retrust(): Promise<StartResult>
   readonly host: AgentHost | null
-  send(command: string): void
+  send(command: string, arg?: string): void
   focus(): void
 }
 
@@ -64,6 +71,9 @@ class HostedWindow implements AppWindow {
   host: AgentHost | null = null
   private disposed = false
   private ops = new SerialQueue()
+  private notices = new Map<string, Notification>()
+  /** Sessions whose run waits for the user: an `ask_user` call or an extension dialog. */
+  private waiting = new Set<string>()
 
   private constructor(readonly window: BrowserWindow) {}
 
@@ -111,9 +121,9 @@ class HostedWindow implements AppWindow {
     })
   }
 
-  send(command: string): void {
+  send(command: string, arg?: string): void {
     if (this.window.isDestroyed()) return
-    this.window.webContents.send(IPC.command, command)
+    this.window.webContents.send(IPC.command, command, arg)
   }
 
   focus(): void {
@@ -215,7 +225,10 @@ class HostedWindow implements AppWindow {
 
       this.sendStatus('connecting')
       const next = new AgentHost(key, trusted)
-      next.onEvent((event) => this.sendTo(IPC.event, event))
+      next.onEvent((event) => {
+        this.sendTo(IPC.event, event)
+        this.track(next, event)
+      })
       try {
         await next.start()
         if (!this.live()) {
@@ -264,6 +277,8 @@ class HostedWindow implements AppWindow {
       await current.stop()
     } finally {
       if (this.host === current) this.host = null
+      this.waiting.clear()
+      HostedWindow.updateBadge()
       this.setTitle()
     }
   }
@@ -278,9 +293,64 @@ class HostedWindow implements AppWindow {
     this.window.webContents.send(channel, ...args)
   }
 
+  /** Keeps the Dock badge and posts a notification when a session the user is not watching needs them. */
+  private track(host: AgentHost, event: SessionEvent): void {
+    const file = event.sessionFile
+    const asks = event.type === 'tool_execution_start' && event.toolName === ASK_USER_TOOL
+    if (asks || event.type === 'ui_request') this.waiting.add(file)
+    else if (
+      (event.type === 'tool_execution_end' && event.toolName === ASK_USER_TOOL) ||
+      event.type === 'ui_dismiss' ||
+      (event.type === 'agent_end' && !event.willRetry)
+    ) {
+      this.waiting.delete(file)
+    }
+    HostedWindow.updateBadge()
+
+    let body: string | null = null
+    if (event.type === 'agent_end' && !event.willRetry) {
+      const last = host.lastReply(file)
+      body = last?.error
+        ? `Failed · ${clip(last.error, 80)}`
+        : `Finished · ${clip(last?.text ?? '', 80)}`
+    } else if (asks) {
+      body = `Waiting for your answer · ${clip(askQuestions(event.args)[0]?.question ?? '', 80)}`
+    } else if (event.type === 'ui_request') {
+      body = `Needs your input · ${clip(event.request.title, 80)}`
+    }
+    if (!body || !Notification.isSupported()) return
+    if (this.window.isFocused() && file === host.activeSessionFile) return
+
+    this.notices.get(file)?.close()
+    const notice = new Notification({
+      title: host.sessionTitle(file) ?? basename(host.cwd),
+      body: body.replace(/ · $/, ''),
+    })
+    notice.on('click', () => {
+      this.focus()
+      if (this.host === host && file !== host.activeSessionFile) this.send('switchSession', file)
+    })
+    notice.on('close', () => {
+      if (this.notices.get(file) === notice) this.notices.delete(file)
+    })
+    this.notices.set(file, notice)
+    notice.show()
+  }
+
+  private static updateBadge(): void {
+    if (process.platform !== 'darwin') return
+    const waiting = [...windows.values()].some((hosted) => hosted.waiting.size > 0)
+    app.dock?.setBadge(waiting ? '•' : '')
+  }
+
   private sendStatus(status: ConnectionStatus, error?: string): void {
     this.sendTo(IPC.status, status, error)
   }
+}
+
+function clip(text: string, max: number): string {
+  const line = text.replace(/\s+/g, ' ').trim()
+  return line.length > max ? `${line.slice(0, max - 1)}…` : line
 }
 
 export type Rect = { x: number; y: number; width: number; height: number }
