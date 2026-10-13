@@ -228,6 +228,15 @@ function registerIpc(): void {
   handleHost(IPC.answerQuestion, (host, sessionFile: string, toolCallId: string, reply: AskReply) =>
     host.answerQuestion(sessionFile, toolCallId, reply),
   )
+  handleHost(IPC.editMessage, (host, sessionFile: string, timestamp: number) =>
+    host.editMessage(sessionFile, timestamp),
+  )
+  handleHost(IPC.cancelEdit, (host, sessionFile: string, leafId: string) =>
+    host.cancelEdit(sessionFile, leafId),
+  )
+  handleHost(IPC.forkMessage, (host, sessionFile: string, timestamp: number) =>
+    host.forkMessage(sessionFile, timestamp),
+  )
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>
     host.removeSteering(index, sessionFile),

@@ -34,6 +34,16 @@ export interface PiApi {
   prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
   approvePlan(sessionFile: string, message: string): Promise<void>
   answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void>
+  /** Rewinds to before the user message sent at `timestamp`; `leafId` undoes it. */
+  editMessage(
+    sessionFile: string,
+    timestamp: number,
+  ): Promise<{ snapshot: SessionSnapshot; text: string; leafId: string | null }>
+  cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot>
+  forkMessage(
+    sessionFile: string,
+    timestamp: number,
+  ): Promise<{ snapshot: SessionSnapshot; text: string }>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>
   followUp(text: string, sessionFile: string): Promise<void>

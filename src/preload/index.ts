@@ -35,6 +35,12 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.approvePlan, sessionFile, message) as Promise<void>,
   answerQuestion: (sessionFile: string, toolCallId: string, reply: AskReply) =>
     ipcRenderer.invoke(IPC.answerQuestion, sessionFile, toolCallId, reply) as Promise<void>,
+  editMessage: (sessionFile: string, timestamp: number) =>
+    ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
+  cancelEdit: (sessionFile: string, leafId: string) =>
+    ipcRenderer.invoke(IPC.cancelEdit, sessionFile, leafId),
+  forkMessage: (sessionFile: string, timestamp: number) =>
+    ipcRenderer.invoke(IPC.forkMessage, sessionFile, timestamp),
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>

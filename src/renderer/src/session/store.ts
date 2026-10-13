@@ -31,6 +31,15 @@ interface SessionStore extends WindowState {
   steer: (text: string) => Promise<void>
   /** Replies to the active session's `ask_user` call `toolCallId`. */
   answerQuestion: (toolCallId: string, reply: AskReply) => Promise<void>
+  /** Rewinds to before the user message sent at `timestamp` and puts it in the Composer. */
+  editMessage: (timestamp: number) => Promise<void>
+  /** Leaves an edit, back to the branch it rewound from. */
+  cancelEdit: () => Promise<void>
+  /** Starts a new session from before the user message sent at `timestamp`. */
+  forkMessage: (timestamp: number) => Promise<boolean>
+  /** Sends the last user message again, replacing its reply. */
+  retryLast: () => Promise<void>
+  fillComposer: (text: string) => void
   removeSteering: (index: number) => Promise<void>
   followUp: (text: string) => Promise<void>
   setFollowUpQueue: (messages: string[]) => Promise<void>
@@ -131,6 +140,7 @@ export const useSession = create<SessionStore>((set, get) => ({
   send: async (text: string) => {
     const file = get().sessionFile
     if (!file) return
+    set({ editing: null })
     const planMode = get().chats[file]?.planMode ?? false
     await submitPrompt(file, text, () => window.pi.prompt(text, file, planMode))
   },
@@ -145,6 +155,70 @@ export const useSession = create<SessionStore>((set, get) => ({
       throw error
     }
   },
+
+  editMessage: async (timestamp: number) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      const { snapshot, text, leafId } = await window.pi.editMessage(file, timestamp)
+      set((state) => ({
+        ...applySnapshot(state, snapshot),
+        editing: { sessionFile: file, leafId },
+      }))
+      get().fillComposer(text)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+
+  cancelEdit: async () => {
+    const editing = get().editing
+    if (!editing || editing.sessionFile !== get().sessionFile) return
+    set({ editing: null })
+    if (!editing.leafId) return
+    try {
+      const snapshot = await window.pi.cancelEdit(editing.sessionFile, editing.leafId)
+      set((state) => applySnapshot(state, snapshot))
+      get().fillComposer('')
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+
+  forkMessage: async (timestamp: number) => {
+    const file = get().sessionFile
+    if (!file) return false
+    try {
+      let text = ''
+      await activateSession(async () => {
+        const result = await window.pi.forkMessage(file, timestamp)
+        text = result.text
+        return result.snapshot
+      })
+      get().fillComposer(text)
+      return true
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      return false
+    }
+  },
+
+  retryLast: async () => {
+    const file = get().sessionFile
+    const last = activeChat(get())
+      .messages.filter((message) => message.role === 'user')
+      .at(-1)
+    if (!file || !last) return
+    try {
+      const { snapshot, text } = await window.pi.editMessage(file, last.timestamp)
+      set((state) => applySnapshot(state, snapshot))
+      await get().send(text)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
+
+  fillComposer: (text: string) => set({ composerFill: { text } }),
 
   steer: async (text: string) => {
     const file = get().sessionFile

@@ -1,9 +1,6 @@
 import { ArrowUp, Folder, ListChecks, Square, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  $createParagraphNode,
-  $createTextNode,
-  $getRoot,
   COMMAND_PRIORITY_NORMAL,
   INSERT_LINE_BREAK_COMMAND,
   KEY_ENTER_COMMAND,
@@ -24,6 +21,7 @@ import { QuestionCard } from './QuestionCard'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
 import { $clearEditor, PromptEditorField, promptEditorConfig } from './composer/PromptEditor'
 import { serializeEditorState } from './composer/serialize'
+import { $setComposerText } from './composer/set-text'
 import { ContextUsageRing } from './ContextUsageRing'
 import { ModelSelect } from './ModelSelect'
 
@@ -65,6 +63,8 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const planMode = useChat((state) => state.planMode)
   const setPlanMode = useSession((state) => state.setPlanMode)
   const togglePlanMode = useCallback(() => setPlanMode(!planMode), [planMode, setPlanMode])
+  const editing = useSession((state) => state.editing?.sessionFile === state.sessionFile)
+  const cancelEdit = useSession((state) => state.cancelEdit)
   const runCommand = useCallback(
     (name: string) => {
       if (name === 'plan') setPlanMode(true)
@@ -140,26 +140,20 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
 
   const handleEditFollowUp = useCallback(
     (text: string) => {
-      editor.update(() => {
-        const root = $getRoot()
-        root.clear()
-        const lines = text.split('\n')
-        for (const line of lines) {
-          const paragraph = $createParagraphNode()
-          if (line) {
-            paragraph.append($createTextNode(line))
-          }
-          root.append(paragraph)
-        }
-        const lastChild = root.getLastChild()
-        if (lastChild) {
-          lastChild.selectEnd()
-        }
-      })
+      editor.update(() => $setComposerText(text))
       editor.focus()
     },
     [editor],
   )
+
+  // Text main or the store hands over: a message being edited, or an extension's setEditorText.
+  const composerFill = useSession((state) => state.composerFill)
+  useEffect(() => {
+    if (!composerFill) return
+    handleEditFollowUp(composerFill.text)
+    // Taken once; a remounted Composer must not fill it again.
+    useSession.setState({ composerFill: null })
+  }, [composerFill, handleEditFollowUp])
 
   return (
     <div className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3">
@@ -178,6 +172,11 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         onSubmit={(event) => {
           event.preventDefault()
           submit(isStreaming ? 'steer' : undefined)
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape' || !editing || event.defaultPrevented) return
+          event.preventDefault()
+          void cancelEdit()
         }}
       >
         <label className="sr-only" htmlFor="prompt-input">

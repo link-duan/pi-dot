@@ -1,4 +1,5 @@
 import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
+import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 
 export const PATH = {
@@ -13,6 +14,8 @@ function Shell() {
   return (
     <TooltipProvider>
       <Outlet />
+      {/* Top right, clear of the title bar and of the cards stacked above the Composer. */}
+      <Toaster position="top-right" offset={{ top: 44, right: 16 }} />
     </TooltipProvider>
   )
 }

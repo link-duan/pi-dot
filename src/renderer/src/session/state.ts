@@ -37,6 +37,10 @@ export type WindowState = {
   /** The inline comment being written; Build and feedback send it too if it has text. */
   planDraft: PlanComment | null
   running: string[]
+  /** The active session was rewound to edit a message; `leafId` returns to where it was. */
+  editing: { sessionFile: string; leafId: string | null } | null
+  /** Text for the Composer to take once, e.g. the message being edited. */
+  composerFill: { text: string } | null
   chats: Record<string, ChatState>
 }
 
@@ -63,6 +67,8 @@ export function createWindowState(): WindowState {
     planComments: [],
     planDraft: null,
     running: [],
+    editing: null,
+    composerFill: null,
     chats: {},
   }
 }
@@ -161,7 +167,9 @@ export function applySnapshot<T extends WindowState>(
     ...state,
     ...snapshotMeta(snapshot),
     // A reload of the same session (e.g. after a provider login) keeps the plan review open.
-    ...(sessionFile !== state.sessionFile ? { planViewer: false, ...noPlanReview } : null),
+    ...(sessionFile !== state.sessionFile
+      ? { planViewer: false, ...noPlanReview, editing: null }
+      : null),
     chats,
   }
 }

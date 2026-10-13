@@ -56,8 +56,12 @@ class LiveSession {
   unsubscribe: (() => void) | null = null
   promptRun: Promise<unknown> | null = null
   titled = false
+  /** The `AgentHost.live` key; the runtime may replace the session (a fork) under it. */
+  key: string
 
-  constructor(readonly runtime: AgentSessionRuntime) {}
+  constructor(readonly runtime: AgentSessionRuntime) {
+    this.key = this.sessionFile
+  }
 
   get session(): AgentSession {
     return this.runtime.session
@@ -149,7 +153,7 @@ export class AgentHost {
       const live = await this.createLive(
         SessionManager.create(this.cwd, settingsManager.getSessionDir()),
       )
-      this.live.set(live.sessionFile, live)
+      this.live.set(live.key, live)
       this.active = live
     })
   }
@@ -285,6 +289,51 @@ export class AgentHost {
       live.session.clearQueue()
       await live.session.abort()
     })
+  }
+
+  /**
+   * Rewinds the session to just before the user message sent at `timestamp`, keeping the old
+   * branch in the file. `leafId` returns there; `text` is the message, for the Composer.
+   */
+  async editMessage(
+    sessionFile: string,
+    timestamp: number,
+  ): Promise<{ snapshot: SessionSnapshot; text: string; leafId: string | null }> {
+    return this.ops.enqueue(async () => {
+      const session = this.requireIdle(sessionFile).session
+      const leafId = session.sessionManager.getLeafId()
+      const result = await session.navigateTree(userEntryId(session, timestamp))
+      if (result.cancelled) throw new Error('An extension cancelled the edit')
+      return { snapshot: this.snapshot(), text: result.editorText ?? '', leafId }
+    })
+  }
+
+  /** Returns from an edit to the branch it left. */
+  async cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot> {
+    return this.ops.enqueue(async () => {
+      await this.requireIdle(sessionFile).session.navigateTree(leafId)
+      return this.snapshot()
+    })
+  }
+
+  /** Starts a new session with the history before the user message sent at `timestamp`. */
+  async forkMessage(
+    sessionFile: string,
+    timestamp: number,
+  ): Promise<{ snapshot: SessionSnapshot; text: string }> {
+    return this.ops.enqueue(async () => {
+      const live = this.requireIdle(sessionFile)
+      const id = userEntryId(live.session, timestamp)
+      const result = await live.runtime.fork(id, { position: 'before' })
+      if (result.cancelled) throw new Error('An extension cancelled the fork')
+      return { snapshot: this.snapshot(), text: result.selectedText ?? '' }
+    })
+  }
+
+  private requireIdle(sessionFile: string): LiveSession {
+    const live = this.requireActive(sessionFile)
+    if (live.promptRun || live.session.isStreaming) throw new Error('Session is running')
+    return live
   }
 
   async compact(sessionFile?: string): Promise<void> {
@@ -451,7 +500,7 @@ export class AgentHost {
         SessionManager.open(sessionPath, previous.session.sessionManager.getSessionDir(), this.cwd),
         { type: 'session_start', reason: 'resume', previousSessionFile: previous.sessionFile },
       )
-      this.live.set(next.sessionFile, next)
+      this.live.set(next.key, next)
       this.active = next
       await this.discardIfUnused(previous)
       return this.snapshot()
@@ -472,7 +521,7 @@ export class AgentHost {
           previousSessionFile: previous.sessionFile,
         },
       )
-      this.live.set(next.sessionFile, next)
+      this.live.set(next.key, next)
       this.active = next
       await this.discardIfUnused(previous)
       return this.snapshot()
@@ -526,6 +575,14 @@ export class AgentHost {
     }
 
     const live = new LiveSession(runtime)
+    // A fork or an extension's session switch replaces the session inside the runtime.
+    runtime.setRebindSession(async () => {
+      if (this.live.get(live.key) === live) this.live.delete(live.key)
+      live.key = live.sessionFile
+      this.live.set(live.key, live)
+      await this.bindSession(live)
+    })
+
     try {
       await this.bindSession(live)
     } catch (error) {
@@ -545,8 +602,8 @@ export class AgentHost {
   private async discardIfUnused(live: LiveSession): Promise<void> {
     if (live === this.active) return
     if (live.promptRun) return
-    if (this.live.get(live.sessionFile) !== live) return
-    this.live.delete(live.sessionFile)
+    if (this.live.get(live.key) !== live) return
+    this.live.delete(live.key)
     await this.disposeLive(live)
   }
 
@@ -671,4 +728,17 @@ function toModelInfo(model: Model<Api>): ModelInfo {
     provider: String(model.provider ?? ''),
     thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(model)),
   }
+}
+
+function userEntryId(session: AgentSession, timestamp: number): string {
+  const entry = session.sessionManager
+    .getBranch()
+    .find(
+      (item) =>
+        item.type === 'message' &&
+        item.message.role === 'user' &&
+        item.message.timestamp === timestamp,
+    )
+  if (!entry) throw new Error('Message not found in this session')
+  return entry.id
 }

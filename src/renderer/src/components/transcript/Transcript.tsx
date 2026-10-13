@@ -1,4 +1,4 @@
-import { Fragment, useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
+import { useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
@@ -7,6 +7,7 @@ import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/component
 import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
 import { SteeringRow } from './message/SteeringRow'
+import { TurnActions } from './TurnActions'
 import { TurnStatus } from './TurnStatus'
 import { useStickyToBottom } from './useStickyToBottom'
 import { useSession } from '@/session/store'
@@ -113,7 +114,7 @@ export function Transcript({
                   turn,
                 })
                 return (
-                  <Fragment key={turn.start}>
+                  <div key={turn.start} className="group/turn flex flex-col">
                     {messages.slice(turn.start, turn.end + 1).map((message, offset) => {
                       const index = turn.start + offset
                       return (
@@ -127,8 +128,18 @@ export function Transcript({
                         />
                       )
                     })}
-                    {status ? <TurnStatus key={`status-${turn.start}`} {...status} /> : null}
-                  </Fragment>
+                    <div className="flex items-start gap-2">
+                      <div className="min-w-0 flex-1">
+                        {status ? <TurnStatus {...status} /> : null}
+                      </div>
+                      {isLast && isStreaming ? null : (
+                        <TurnActions
+                          messages={messages.slice(turn.start, turn.end + 1)}
+                          canRetry={isLast && !isStreaming}
+                        />
+                      )}
+                    </div>
+                  </div>
                 )
               })}
               {isStreaming && turns.length === 0 && turnStartedAt != null ? (

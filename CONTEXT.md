@@ -24,6 +24,10 @@ _Avoid_: Current session, focused session, foreground session
 A Live Session that is still streaming and is not the Active Session of its Window.
 _Avoid_: Hidden session, parked session
 
+**Fork**:
+A new Session holding the history before one of the user's messages, with that message back in the Composer. Editing a message instead rewinds the same Session to before it; the old branch stays in its file.
+_Avoid_: Clone, branch, copy
+
 **Skill**:
 An on-demand capability package, invoked as `/skill:name`.
 _Avoid_: Slash command, command, prompt template
