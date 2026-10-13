@@ -2,7 +2,10 @@ import { useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from '
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { estimateTurnMs, userTurns } from '@shared/turns'
+import { useNavigate } from 'react-router'
 import { PiIcon } from '@/components/PiIcon'
+import { Button } from '@/components/ui/button'
+import { PATH } from '@/router'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
@@ -42,6 +45,8 @@ export function Transcript({
   follow?: boolean
 }) {
   const removeSteering = useSession((state) => state.removeSteering)
+  const noModels = useSession((state) => state.connection === 'ready' && state.models.length === 0)
+  const navigate = useNavigate()
   const {
     messages,
     persistedAt,
@@ -86,7 +91,27 @@ export function Transcript({
           {!hasMessages && !isStreaming ? (
             <div className="flex flex-1 flex-col items-center justify-center py-12 text-center select-none">
               <PiIcon className="size-10 text-neutral-400 dark:text-neutral-600" />
-              <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
+              {noModels ? (
+                <>
+                  <p className="mt-3 text-sm font-medium text-foreground">
+                    Connect a model provider
+                  </p>
+                  <p className="mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">
+                    Sign in with a subscription or add an API key to start chatting. Your existing
+                    ~/.pi/agent login is picked up automatically.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => navigate(`${PATH.settings}?section=providers`)}
+                  >
+                    Open Providers
+                  </Button>
+                </>
+              ) : (
+                <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
+              )}
             </div>
           ) : (
             <div className="mx-auto flex w-full max-w-3xl flex-col pt-12 pb-10">

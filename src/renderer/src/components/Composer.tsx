@@ -67,6 +67,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const togglePlanMode = useCallback(() => setPlanMode(!planMode), [planMode, setPlanMode])
   const compact = useSession((state) => state.compact)
   const newSession = useSession((state) => state.newSession)
+  const noModels = useSession((state) => state.connection === 'ready' && state.models.length === 0)
   const editing = useSession((state) => state.editing?.sessionFile === state.sessionFile)
   const cancelEdit = useSession((state) => state.cancelEdit)
   const runCommand = useCallback(
@@ -79,12 +80,14 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   )
   const hasDraft = draft.trim().length > 0
   const action: SendAction = questionId ? 'reply' : isStreaming ? 'steer' : 'send'
-  const placeholder = questionId
-    ? 'Or type a reply to all questions...'
-    : planMode
-      ? 'Describe what to plan...'
-      : 'Message...'
-  const canSend = connection === 'ready' && hasDraft
+  const placeholder = noModels
+    ? 'Connect a provider to start…'
+    : questionId
+      ? 'Or type a reply to all questions...'
+      : planMode
+        ? 'Describe what to plan...'
+        : 'Message...'
+  const canSend = connection === 'ready' && hasDraft && !noModels
 
   const submit = useCallback(
     async (mode?: 'steer' | 'followUp') => {

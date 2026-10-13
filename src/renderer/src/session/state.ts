@@ -142,10 +142,7 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     sessionId: snapshot.state.sessionId ?? null,
     sessionFile: snapshot.state.sessionFile ?? null,
     connection: 'ready' as const,
-    error:
-      snapshot.models.length === 0
-        ? 'No models available. Run pi in a terminal and complete /login first.'
-        : null,
+    error: null,
     models: snapshot.models,
     model: snapshot.state.model ?? snapshot.models[0] ?? null,
     thinkingLevel: snapshot.state.thinkingLevel,
