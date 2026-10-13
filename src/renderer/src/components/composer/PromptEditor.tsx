@@ -21,6 +21,7 @@ import { useSession } from '@/session/store'
 import { FilePicker } from '../FilePicker'
 import { SkillPicker } from '../SkillPicker'
 import { AtFilePlugin, type FilePickerState } from './AtFilePlugin'
+import { CommandHighlightPlugin } from './CommandHighlightPlugin'
 import { ComposerPastePlugin } from './ComposerPastePlugin'
 import { FileNode } from './FileNode'
 import { $replaceAtQueryWithFile } from './insert-file'
@@ -166,6 +167,7 @@ export function PromptEditorField({
         setPicker={setPicker}
         onCommand={onCommand}
       />
+      {onCommand ? <CommandHighlightPlugin commands={commands} /> : null}
       <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
       <ComposerPastePlugin cwd={cwd} />
     </>
