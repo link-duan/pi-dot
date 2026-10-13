@@ -6,11 +6,14 @@ import {
   type AgentMessage,
   type AssistantMessage,
   type ContentBlock,
+  type CommandInfo,
   type ContextUsage,
   type ModelInfo,
+  type SessionListItem,
   type ThinkingLevel,
   type SkillInfo,
   type ToolResultMessage,
+  type UiRequest,
   type UserMessage,
 } from '@shared/protocol'
 
@@ -124,6 +127,35 @@ export const playgroundThinkingLevels: ThinkingLevel[] = ['off', 'minimal', 'low
 export const playgroundSkills: SkillInfo[] = [
   { name: 'tdd', description: 'Test-driven development' },
   { name: 'react-doctor', description: 'Scan React diagnostics' },
+]
+
+export const playgroundCommands: CommandInfo[] = [
+  { name: 'review', description: 'Review the working tree diff', source: 'extension' },
+  { name: 'changelog', description: 'Draft a changelog entry', source: 'prompt' },
+]
+
+export const playgroundSessions: SessionListItem[] = [
+  {
+    id: 'a',
+    path: '/Users/demo/pi-ui/a.jsonl',
+    modified: new Date(Date.now() - 60_000).toISOString(),
+    firstMessage: 'Add debounced file search.',
+    messageCount: 6,
+  },
+  {
+    id: 'b',
+    path: '/Users/demo/pi-ui/b.jsonl',
+    modified: new Date(Date.now() - 600_000).toISOString(),
+    firstMessage: 'Refactor the auth service.',
+    messageCount: 14,
+  },
+  {
+    id: 'c',
+    path: '/Users/demo/pi-ui/c.jsonl',
+    modified: new Date(Date.now() - 3_600_000).toISOString(),
+    firstMessage: 'Run the slow checks.',
+    messageCount: 3,
+  },
 ]
 
 export const playgroundContextUsage: ContextUsage = {
@@ -637,3 +669,84 @@ export const planBuiltModel = chat(
   ],
   { plan: { path: playgroundPlanPath, built: true } },
 )
+
+/** Oldest first; the card shows the first and counts the rest. `expiresAt` is ms from opening the tab. */
+const extensionRequests: UiRequest[] = [
+  {
+    id: 'ui-select',
+    method: 'select',
+    title: 'Pick a deploy target',
+    options: ['staging', 'production', 'preview'],
+    expiresAt: 30_000,
+  },
+  {
+    id: 'ui-confirm',
+    method: 'confirm',
+    title: 'Push to origin?',
+    message: '3 commits will be pushed to origin/main.',
+  },
+  { id: 'ui-input', method: 'input', title: 'Release name', placeholder: 'v0.2.0' },
+  {
+    id: 'ui-editor',
+    method: 'editor',
+    title: 'Edit the commit message',
+    prefill: 'feat(composer): extension widgets\n\nShow ctx.ui widgets around the Composer.',
+  },
+]
+
+export const extensionModel = chat(
+  [
+    user('/review'),
+    assistant([{ type: 'text', text: 'The review extension is waiting on a few dialogs.' }]),
+  ],
+  {
+    uiRequests: extensionRequests,
+    ui: {
+      // What the plan-mode, status-line and pi-token-speed extensions set, ANSI and all.
+      statuses: {
+        'plan-mode': '\x1b[36m📋 1/4\x1b[39m',
+        'status-demo': '\x1b[39m\x1b[2mReady\x1b[22;39m',
+        tokenSpeed: '\x1b[2m⚡ TPS:\x1b[22m 42.3',
+      },
+      widgets: [
+        {
+          key: 'plan-todos',
+          placement: 'aboveEditor',
+          lines: [
+            '\x1b[32m☑ \x1b[39m\x1b[2m\x1b[9mRead search-files.ts\x1b[29m\x1b[22m',
+            '\x1b[2m☐ \x1b[22mDebounce the @ picker by 120 ms',
+            '\x1b[2m☐ \x1b[22mAbort the previous walk in main',
+            '\x1b[2m☐ \x1b[22mRun the tests',
+          ],
+        },
+        {
+          key: 'long-log',
+          placement: 'aboveEditor',
+          lines: Array.from(
+            { length: 14 },
+            (_, i) =>
+              `\x1b[2m${String(i + 1).padStart(2)}\x1b[22m  walk src/${i % 3 ? 'components' : 'lib'} … ${(i + 1) * 120} files`,
+          ),
+        },
+        {
+          key: 'hint',
+          placement: 'belowEditor',
+          lines: ['\x1b[2mtip: /todos shows plan progress\x1b[22m'],
+        },
+      ],
+    },
+  },
+)
+
+export const editingModel = chat([
+  user('What does formatMessageTime do?'),
+  assistant([{ type: 'text', text: 'It formats a message timestamp as a short local time.' }]),
+])
+
+/** The rewound message, back in the Composer. */
+export const editingFill = 'Rename the helper to formatTime and update its callers.'
+
+export const noModelsChatModel = chat([
+  user('Explain the session store.'),
+  assistant([{ type: 'text', text: 'It keeps one ChatState per live session file.' }]),
+])

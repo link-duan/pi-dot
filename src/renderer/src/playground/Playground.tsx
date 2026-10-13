@@ -1,19 +1,33 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { createChatState, type ChatState } from '@/chat/state'
+import { useNavigate, useSearchParams } from 'react-router'
+import { createChatState, userText, type ChatState } from '@/chat/state'
 import { Composer } from '@/components/Composer'
+import { SessionSwitcher } from '@/components/SessionSwitcher'
 import { PlanViewer } from '@/components/PlanViewer'
 import { Transcript, type TranscriptHandle } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { notify } from '@/ipc'
 import { PATH } from '@/router'
 import { parsePlan } from '@shared/plan-file'
-import { patchChat } from '@/session/state'
+import { activeChat, patchChat, type WindowState } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import {
   catalogModel,
   codemodeModel,
+  editingFill,
+  editingModel,
   emptyModel,
+  extensionModel,
+  noModelsChatModel,
+  playgroundCommands,
+  playgroundSessions,
   playgroundContextUsage,
   planBuiltModel,
   planModel,
@@ -32,7 +46,18 @@ import {
   questionModel,
 } from './mocks'
 
-const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: string }> = [
+const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
+
+type Tab = {
+  title: string
+  model: ChatState
+  agoMs?: number
+  plan?: string
+  /** Window state this tab needs on top of the defaults. */
+  session?: Partial<WindowState>
+}
+
+const TABS: Tab[] = [
   { title: 'Empty', model: emptyModel },
   { title: 'Catalog', model: catalogModel },
   { title: 'Codemode', model: codemodeModel, agoMs: 6_000 },
@@ -44,11 +69,30 @@ const TABS: Array<{ title: string; model: ChatState; agoMs?: number; plan?: stri
   { title: 'Question', model: questionModel, agoMs: 4_000 },
   { title: 'Plan', model: planModel, plan: playgroundPlanText },
   { title: 'Plan built', model: planBuiltModel, plan: playgroundPlanText },
+  { title: 'Extensions', model: extensionModel, session: { trusted: false } },
+  {
+    title: 'Editing',
+    model: editingModel,
+    session: {
+      editing: { sessionFile: PLAYGROUND_FILE, leafId: 'playground-leaf' },
+      composerFill: { text: editingFill },
+    },
+  },
+  { title: 'No models', model: emptyModel, session: { models: [], model: null } },
+  { title: 'No models (chat)', model: noModelsChatModel, session: { models: [], model: null } },
 ]
 
-const PLAYGROUND_FILE = '/Users/demo/pi-ui/session.jsonl'
+/** What every tab starts from, so one tab's `session` does not leak into the next. */
+const TAB_DEFAULTS: Partial<WindowState> = {
+  models: playgroundModels,
+  model: playgroundModel,
+  trusted: true,
+  editing: null,
+  // Each tab opens with an empty Composer; Editing fills it instead.
+  composerFill: { text: '' },
+}
 
-function usePlaygroundSession(model: ChatState, plan = '') {
+function usePlaygroundSession(model: ChatState, plan = '', session?: Partial<WindowState>) {
   useEffect(() => {
     const prev = useSession.getState()
     useSession.setState({
@@ -57,13 +101,48 @@ function usePlaygroundSession(model: ChatState, plan = '') {
       error: null,
       sessionFile: PLAYGROUND_FILE,
       chats: { [PLAYGROUND_FILE]: createChatState() },
-      models: playgroundModels,
-      model: playgroundModel,
       thinkingLevel: 'low',
       thinkingLevels: playgroundThinkingLevels,
       skills: playgroundSkills,
+      commands: playgroundCommands,
+      running: [playgroundSessions[2]!.path],
+      attention: { [playgroundSessions[0]!.path]: 'input', [playgroundSessions[1]!.path]: 'done' },
       contextUsage: playgroundContextUsage,
       send: async () => {},
+      listSessions: async () => playgroundSessions,
+      switchSession: async () => {},
+      respondUi: async (id) => {
+        useSession.setState((state) =>
+          patchChat(state, PLAYGROUND_FILE, {
+            uiRequests: activeChat(state).uiRequests.filter((item) => item.id !== id),
+          }),
+        )
+      },
+      retrust: async () => {
+        useSession.setState({ trusted: true })
+      },
+      editMessage: async (timestamp) => {
+        const message = activeChat(useSession.getState()).messages.find(
+          (item) => item.role === 'user' && item.timestamp === timestamp,
+        )
+        if (message?.role !== 'user') return
+        useSession.setState({
+          editing: { sessionFile: PLAYGROUND_FILE, leafId: 'playground-leaf' },
+        })
+        useSession.getState().fillComposer(userText(message))
+      },
+      cancelEdit: async () => {
+        useSession.setState({ editing: null })
+        useSession.getState().fillComposer('')
+      },
+      forkMessage: async (timestamp) => {
+        const message = activeChat(useSession.getState()).messages.find(
+          (item) => item.role === 'user' && item.timestamp === timestamp,
+        )
+        if (message?.role === 'user') useSession.getState().fillComposer(userText(message))
+        return true
+      },
+      retryLast: async () => {},
       steer: async (text) => {
         useSession.setState((state) => {
           const chat = state.chats[PLAYGROUND_FILE]
@@ -201,52 +280,73 @@ function usePlaygroundSession(model: ChatState, plan = '') {
       planSource: plan ? playgroundPlanPath : '',
       planViewer: false,
       planComments: plan && !model.plan?.built ? playgroundPlanComments(parsePlan(plan).body) : [],
+      ...TAB_DEFAULTS,
+      ...session,
     }))
-  }, [model, plan])
+  }, [model, plan, session])
 }
 
 export function Playground() {
   const navigate = useNavigate()
-  const [tab, setTab] = useState(TABS[1]?.title ?? TABS[0].title)
-  const pane = TABS.find((item) => item.title === tab) ?? TABS[0]
+  // In the URL, so a reload stays on the same tab.
+  const [params, setParams] = useSearchParams()
+  const pane = TABS.find((item) => item.title === params.get('tab')) ?? TABS[1]!
   const scrollerRef = useRef<HTMLDivElement>(null)
   const transcriptRef = useRef<TranscriptHandle>(null)
-  const [startedAt] = useState(() => Date.now())
+  // Mock times are relative, so turn timers and dialog countdowns start when the tab opens.
+  const [openedAt, setOpenedAt] = useState(() => Date.now())
   const model = useMemo(
-    () =>
-      pane.agoMs == null ? pane.model : { ...pane.model, turnStartedAt: startedAt - pane.agoMs },
-    [pane, startedAt],
+    () => ({
+      ...pane.model,
+      turnStartedAt: pane.agoMs == null ? pane.model.turnStartedAt : openedAt - pane.agoMs,
+      uiRequests: pane.model.uiRequests.map((request) =>
+        request.expiresAt ? { ...request, expiresAt: openedAt + request.expiresAt } : request,
+      ),
+    }),
+    [pane, openedAt],
   )
-  usePlaygroundSession(model, pane.plan)
+  usePlaygroundSession(model, pane.plan, pane.session)
   const chat = useChat()
   const activeModel = chat.messages.length > 0 || chat.steeringQueue.length > 0 ? chat : model
 
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       <header className="app-drag flex h-9 shrink-0 items-center gap-2 overflow-hidden border-b border-border pr-3 pl-20">
-        <nav className="app-no-drag flex shrink-0 items-center gap-0.5">
-          {TABS.map((item) => {
-            const selected = item.title === pane.title
-            return (
-              <Button
-                key={item.title}
-                type="button"
-                size="xs"
-                variant="ghost"
-                aria-pressed={selected}
-                className={cn(
-                  'text-muted-foreground',
-                  selected && 'bg-muted text-foreground hover:bg-muted hover:text-foreground',
-                )}
-                onClick={() => setTab(item.title)}
-              >
+        <Select
+          value={pane.title}
+          onValueChange={(title) => {
+            if (!title) return
+            setParams({ tab: title }, { replace: true })
+            setOpenedAt(Date.now())
+          }}
+        >
+          <SelectTrigger variant="ghost" size="sm" className="app-no-drag" aria-label="Scenario">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {TABS.map((item) => (
+              <SelectItem key={item.title} value={item.title}>
                 {item.title}
-              </Button>
-            )
-          })}
-        </nav>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <div className="app-drag h-full min-w-0 flex-1" />
         <div className="app-no-drag flex shrink-0 items-center gap-1">
+          <SessionSwitcher />
+          <Button
+            type="button"
+            size="xs"
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => {
+              notify('Review finished: 2 suggestions', 'info')
+              notify('Lint reported 2 warnings', 'warning')
+              notify('Extension "deploy" failed to load', 'error')
+            }}
+          >
+            Toasts
+          </Button>
           <Button
             type="button"
             size="xs"
