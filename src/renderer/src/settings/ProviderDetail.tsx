@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { ArrowLeft, ChevronDown, ChevronRight, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { ChevronDown, ChevronRight, Eye, EyeOff, Plus, Trash2 } from 'lucide-react'
 import {
   modelId,
   PROVIDER_APIS,
@@ -10,8 +10,13 @@ import {
   type ModelForm,
   type ProviderForm,
 } from '@shared/models-file'
-import { THINKING_LEVELS } from '@shared/protocol'
-import type { ProviderAuthMethod, ProviderListItem } from '@shared/settings'
+import { THINKING_LEVELS, type ModelInfo } from '@shared/protocol'
+import {
+  describeAuth,
+  type ProviderAuthMethod,
+  type ProviderListItem,
+  type ProviderTestResult,
+} from '@shared/settings'
 import { Button } from '@/components/ui/button'
 import {
   InputGroup,
@@ -21,6 +26,7 @@ import {
 } from '@/components/ui/input-group'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
 import {
@@ -32,7 +38,7 @@ import {
 } from './components/SettingCard'
 import { LabeledSelectValue } from './fields'
 
-function DeleteAction({
+export function DeleteAction({
   pending,
   onArm,
   onConfirm,
@@ -75,96 +81,216 @@ function formatTokens(count: number): string {
   return String(count)
 }
 
+function authDot(item: ProviderListItem): 'online' | 'offline' | 'warning' {
+  if (item.authSource === 'oauth') return 'online'
+  return item.configured ? 'offline' : 'warning'
+}
+
+/** Runs a connection test; a result only shows while the provider and `config` it tested are current. */
+function useConnectionTest(providerId: string, config: string) {
+  const stamp = `${providerId}\n${config}`
+  const [last, setLast] = useState<{ stamp: string; result: ProviderTestResult } | null>(null)
+  const [testing, setTesting] = useState(false)
+
+  async function run(): Promise<void> {
+    const tested = stamp
+    setTesting(true)
+    setLast(null)
+    const result = await window.pi
+      .testProvider(providerId)
+      .catch((error: unknown): ProviderTestResult => ({
+        ok: false,
+        message: error instanceof Error ? error.message : String(error),
+      }))
+    setTesting(false)
+    setLast({ stamp: tested, result })
+  }
+
+  return { result: last?.stamp === stamp ? last.result : null, testing, run }
+}
+
+function TestResultText({ result, className }: { result: ProviderTestResult; className?: string }) {
+  return (
+    <span
+      className={cn('block truncate', !result.ok && 'text-destructive', className)}
+      title={result.ok ? undefined : result.message}
+    >
+      {result.ok
+        ? `Connected · ${result.latencyMs} ms · ${result.model}`
+        : `Connection failed · ${result.message}`}
+    </span>
+  )
+}
+
+function TestButton({
+  testing,
+  onClick,
+  variant = 'outline',
+  className,
+}: {
+  testing: boolean
+  onClick: () => void
+  variant?: 'outline' | 'ghost'
+  className?: string
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={variant}
+      className={className}
+      disabled={testing}
+      onClick={onClick}
+    >
+      {testing ? <Spinner className="size-3.5" /> : null}
+      {testing ? 'Testing…' : 'Test'}
+    </Button>
+  )
+}
+
+function connectionConfig(form: ProviderForm): string {
+  const { baseUrl, api, apiKey, authHeader, headers } = form
+  return JSON.stringify({ baseUrl, api, apiKey, authHeader, headers })
+}
+
+function ConnectionTest({ providerId, config }: { providerId: string; config: string }) {
+  const { result, testing, run } = useConnectionTest(providerId, config)
+  return (
+    <SettingRow
+      title="Connection test"
+      description={
+        result ? <TestResultText result={result} /> : 'Send a short request with the cheapest model'
+      }
+    >
+      <TestButton testing={testing} onClick={() => void run()} />
+    </SettingRow>
+  )
+}
+
+function ProviderStatusRow({ item, actions }: { item: ProviderListItem; actions: ReactNode }) {
+  const { result, testing, run } = useConnectionTest(item.id, item.authSource)
+  return (
+    <div className="flex min-h-12 items-center justify-between gap-4 px-4 py-2.5">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <div className="flex items-center gap-2 text-[13px] font-medium text-foreground">
+          <StatusDot status={authDot(item)} />
+          <span className="truncate">{item.configured ? describeAuth(item) : 'Not connected'}</span>
+        </div>
+        {result ? (
+          <TestResultText result={result} className="pl-3.5 text-xs text-muted-foreground" />
+        ) : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        {item.configured ? (
+          <TestButton
+            testing={testing}
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={() => void run()}
+          />
+        ) : null}
+        {actions}
+      </div>
+    </div>
+  )
+}
+
 export function BuiltinProvider({
   item,
+  models,
   onLogin,
   onLogout,
 }: {
   item: ProviderListItem
+  models: ModelInfo[]
   onLogin: (login: { id: string; name: string; methods: ProviderAuthMethod[] }) => void
   onLogout: () => void
 }) {
-  const title = item.name.trim() || item.id
   const [pendingLogout, setPendingLogout] = useState(false)
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <SettingCard>
-        <div className="flex items-center justify-between gap-4 px-4 py-3.5">
-          <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h3 className="truncate text-base font-semibold text-foreground">{title}</h3>
-              {item.id !== title ? (
-                <span className="text-xs text-muted-foreground">{item.id}</span>
-              ) : null}
-            </div>
-            <div className="flex items-center gap-1.5">
-              <StatusDot status={item.configured ? 'online' : 'offline'} pulse={item.configured} />
-              <span className="text-xs text-muted-foreground">
-                {item.configured ? (item.authLabel ?? 'Signed in') : 'Not signed in'}
-              </span>
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {item.methods.length > 0 ? (
-              <Button
-                type="button"
-                size="sm"
-                variant={item.configured ? 'outline' : 'default'}
-                onClick={() => onLogin({ id: item.id, name: item.name, methods: item.methods })}
-              >
-                {item.configured ? 'Re-authenticate' : 'Connect'}
-              </Button>
-            ) : null}
-            {item.configured ? (
-              pendingLogout ? (
-                <div className="flex animate-in items-center gap-1.5 duration-150 fade-in">
+    <div className="flex flex-col gap-8 pb-12">
+      <SettingSection title="Account">
+        <SettingCard>
+          <ProviderStatusRow
+            item={item}
+            actions={
+              <>
+                {item.configured ? (
+                  pendingLogout ? (
+                    <div className="flex animate-in items-center gap-1.5 duration-150 fade-in">
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => setPendingLogout(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="destructive"
+                        onClick={() => {
+                          setPendingLogout(false)
+                          onLogout()
+                        }}
+                      >
+                        Sign out
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setPendingLogout(true)}
+                    >
+                      Sign out
+                    </Button>
+                  )
+                ) : null}
+                {item.methods.length > 0 ? (
                   <Button
                     type="button"
-                    size="xs"
-                    variant="ghost"
-                    onClick={() => setPendingLogout(false)}
+                    size="sm"
+                    variant={item.configured ? 'outline' : 'default'}
+                    onClick={() => onLogin({ id: item.id, name: item.name, methods: item.methods })}
                   >
-                    Cancel
+                    {item.configured ? 'Reconnect' : 'Connect'}
                   </Button>
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="destructive"
-                    onClick={() => {
-                      setPendingLogout(false)
-                      onLogout()
-                    }}
-                  >
-                    Logout
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => setPendingLogout(true)}
-                >
-                  Logout
-                </Button>
-              )
-            ) : null}
-          </div>
-        </div>
+                ) : null}
+              </>
+            }
+          />
+        </SettingCard>
+      </SettingSection>
 
-        {item.methods.length > 0 ? (
-          <div className="flex items-center justify-between px-4 py-2.5">
-            <span className="text-[13px] font-medium text-foreground">Auth methods</span>
-            <div className="flex items-center gap-1.5">
-              {item.methods.map((method, idx) => (
-                <SettingBadge key={idx}>{method.name || method.type}</SettingBadge>
-              ))}
+      <SettingSection
+        title="Models"
+        description="Choose which ones show in the model picker on the Models page"
+      >
+        <SettingCard>
+          {models.length === 0 ? (
+            <div className="px-4 py-5 text-center text-xs text-muted-foreground">
+              {item.configured ? 'No models available' : 'Connect to use this provider’s models'}
             </div>
-          </div>
-        ) : null}
-      </SettingCard>
+          ) : (
+            models.map((model) => (
+              <div
+                key={model.id}
+                className="flex items-baseline gap-2 px-4 py-2.5 text-[13px] text-foreground"
+              >
+                <span className="truncate">{model.name}</span>
+                {model.name !== model.id ? (
+                  <span className="truncate text-[11px] text-muted-foreground">{model.id}</span>
+                ) : null}
+              </div>
+            ))
+          )}
+        </SettingCard>
+      </SettingSection>
     </div>
   )
 }
@@ -174,20 +300,17 @@ export function CustomProviderEditor({
   provider,
   onChange,
   onAddModel,
-  onDelete,
   onSelectModel,
 }: {
   id: string
   provider: JsonObject
   onChange: (form: ProviderForm) => void
   onAddModel: (id: string) => void
-  onDelete: () => void
   onSelectModel: (id: string) => void
 }) {
   const models = providerModels(provider)
   const [form, setForm] = useState(() => readProviderForm(provider))
   const [reveal, setReveal] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState(false)
 
   function commit(next: ProviderForm): void {
     setForm(next)
@@ -195,23 +318,8 @@ export function CustomProviderEditor({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <h3 className="truncate text-base font-semibold text-foreground">{form.name || id}</h3>
-          {form.name && form.name !== id ? (
-            <span className="text-xs text-muted-foreground">{id}</span>
-          ) : null}
-        </div>
-        <DeleteAction
-          pending={pendingDelete}
-          onArm={() => setPendingDelete(true)}
-          onCancel={() => setPendingDelete(false)}
-          onConfirm={onDelete}
-        />
-      </div>
-
-      <SettingSection title="Provider settings">
+    <div className="flex flex-col gap-8 pb-12">
+      <SettingSection title="Connection">
         <SettingCard>
           <SettingRow title="Display name">
             <Input
@@ -277,6 +385,7 @@ export function CustomProviderEditor({
               onCheckedChange={(authHeader) => commit({ ...form, authHeader })}
             />
           </SettingRow>
+          <ConnectionTest providerId={id} config={connectionConfig(form)} />
         </SettingCard>
       </SettingSection>
 
@@ -409,21 +518,14 @@ export function CustomProviderEditor({
 }
 
 export function ModelEditor({
-  providerName,
   model,
-  onBack,
   onChange,
-  onDelete,
 }: {
-  providerName: string
   model: JsonObject
-  onBack: () => void
   onChange: (form: ModelForm, previousId: string) => void
-  onDelete: () => void
 }) {
   const previousId = modelId(model)
   const [form, setForm] = useState(() => readModelForm(model))
-  const [pendingDelete, setPendingDelete] = useState(false)
   const [advanced, setAdvanced] = useState(false)
 
   function commit(next: ModelForm): void {
@@ -432,35 +534,7 @@ export function ModelEditor({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="-ml-2 h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
-            onClick={onBack}
-          >
-            <ArrowLeft className="size-3.5" />
-            <span>{providerName}</span>
-          </Button>
-          <span className="text-muted-foreground/50">/</span>
-          <h3 className="truncate text-base font-semibold text-foreground">
-            {form.name || form.id || previousId}
-          </h3>
-          {form.id && form.name && form.id !== form.name ? (
-            <span className="text-xs text-muted-foreground">{form.id}</span>
-          ) : null}
-        </div>
-        <DeleteAction
-          pending={pendingDelete}
-          onArm={() => setPendingDelete(true)}
-          onCancel={() => setPendingDelete(false)}
-          onConfirm={onDelete}
-        />
-      </div>
-
+    <div className="flex flex-col gap-8 pb-12">
       <SettingSection title="Model settings">
         <SettingCard>
           <SettingRow title="Model ID">
@@ -601,12 +675,7 @@ function ThinkingMapRow({
   onChange: (value: string | null | undefined) => void
 }) {
   const mode = value === undefined ? 'default' : value === null ? 'unsupported' : 'custom'
-  const [custom, setCustom] = useState(typeof value === 'string' ? value : '')
-  const [seen, setSeen] = useState(value)
-  if (typeof value === 'string' && value !== seen) {
-    setSeen(value)
-    setCustom(value)
-  }
+  const [draft, setDraft] = useState<string | null>(null)
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-2.5 transition-colors hover:bg-muted/10">
       <span className="w-28 shrink-0 text-[13px] font-medium text-foreground capitalize">
@@ -618,7 +687,7 @@ function ThinkingMapRow({
           onValueChange={(next) => {
             if (next === 'default') onChange(undefined)
             else if (next === 'unsupported') onChange(null)
-            else onChange(custom || level)
+            else onChange(level)
           }}
         >
           <SelectTrigger className="w-36">
@@ -632,12 +701,15 @@ function ThinkingMapRow({
             <SelectItem value="custom">Custom</SelectItem>
           </SelectContent>
         </Select>
-        {mode === 'custom' ? (
+        {typeof value === 'string' ? (
           <Input
             className="w-36 text-xs"
-            value={custom}
-            onChange={(event) => setCustom(event.target.value)}
-            onBlur={() => onChange(custom)}
+            value={draft ?? value}
+            onChange={(event) => setDraft(event.target.value)}
+            onBlur={() => {
+              if (draft !== null) onChange(draft)
+              setDraft(null)
+            }}
           />
         ) : null}
       </div>

@@ -1,273 +1,340 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Search, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import {
+  modelKey,
   THINKING_LEVEL_LABELS,
   THINKING_LEVELS,
   type ModelInfo,
   type ThinkingLevel,
 } from '@shared/protocol'
-import type { AppSettings } from '@shared/settings'
+import {
+  enabledModelPatterns,
+  resolveEnabledModels,
+  type ModelSettings,
+  type ModelSettingsPatch,
+  type ProviderListItem,
+} from '@shared/settings'
+import { ModelPickerDropdown } from '@/components/ModelPicker'
 import { Button } from '@/components/ui/button'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { cn } from '@/lib/utils'
 import { SettingCard, SettingRow, SettingSection } from './components/SettingCard'
 import { LabeledSelectValue } from './fields'
-import { ModelPickerDropdown, modelKey } from '@/components/ModelPicker'
+
+const DEFAULT_LEVEL = 'default'
 
 export function ModelsPage({
   settings,
-  available,
+  usable,
+  providers,
   onPatch,
 }: {
-  settings: AppSettings
-  available: ModelInfo[]
-  onPatch: (patch: Partial<AppSettings>) => void
+  settings: ModelSettings
+  usable: ModelInfo[]
+  providers: ProviderListItem[]
+  onPatch: (patch: ModelSettingsPatch) => void
 }) {
+  const [query, setQuery] = useState('')
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const defaultKey =
     settings.defaultProvider && settings.defaultModel
       ? `${settings.defaultProvider}/${settings.defaultModel}`
       : ''
 
-  const options = useMemo(() => {
-    const keys = new Set(available.map(modelKey))
-    const extras: ModelInfo[] = []
-    if (
-      settings.defaultProvider &&
-      settings.defaultModel &&
-      !keys.has(`${settings.defaultProvider}/${settings.defaultModel}`)
-    ) {
-      extras.push({
+  const defaultOptions = useMemo(() => {
+    if (!defaultKey || usable.some((item) => modelKey(item) === defaultKey)) return usable
+    return [
+      ...usable,
+      {
         provider: settings.defaultProvider,
         id: settings.defaultModel,
         name: settings.defaultModel,
         thinkingLevels: [...THINKING_LEVELS],
-      })
-      keys.add(`${settings.defaultProvider}/${settings.defaultModel}`)
-    }
-    for (const key of Object.keys(settings.modelThinkingLevels)) {
-      if (!keys.has(key)) {
-        const [provider, ...rest] = key.split('/')
-        const id = rest.join('/')
-        extras.push({
-          provider: provider ?? '',
-          id,
-          name: id,
-          thinkingLevels: [...THINKING_LEVELS],
-        })
-        keys.add(key)
-      }
-    }
-    return [...available, ...extras]
-  }, [available, settings.defaultProvider, settings.defaultModel, settings.modelThinkingLevels])
+      },
+    ]
+  }, [usable, defaultKey, settings.defaultProvider, settings.defaultModel])
 
-  const overridesList = Object.entries(settings.modelThinkingLevels)
+  const defaultModel = defaultOptions.find((item) => modelKey(item) === defaultKey)
+  const defaultLevels = defaultModel?.thinkingLevels ?? THINKING_LEVELS
 
-  const defaultModelInfo = options.find(
-    (item) => item.provider === settings.defaultProvider && item.id === settings.defaultModel,
+  const enabled = useMemo(
+    () =>
+      settings.enabledModels
+        ? resolveEnabledModels(settings.enabledModels, usable)
+        : new Set(usable.map(modelKey)),
+    [settings.enabledModels, usable],
   )
-  const defaultModelLevels = defaultModelInfo?.thinkingLevels ?? THINKING_LEVELS
+  const providerNames = new Map(providers.map((item) => [item.id, item.name.trim() || item.id]))
+  const needle = query.trim().toLowerCase()
+  const groups = new Map<string, ModelInfo[]>()
+  for (const model of usable) {
+    const haystack = `${model.provider} ${providerNames.get(model.provider) ?? ''} ${model.id} ${model.name}`
+    if (needle && !haystack.toLowerCase().includes(needle)) continue
+    groups.set(model.provider, [...(groups.get(model.provider) ?? []), model])
+  }
+  const usableKeys = new Set(usable.map(modelKey))
+  const staleOverrides = Object.entries(settings.modelThinkingLevels).filter(
+    ([key]) => !usableKeys.has(key),
+  )
+
+  function setVisible(keys: string[], visible: boolean): void {
+    const next = new Set(enabled)
+    for (const key of keys) {
+      if (visible) next.add(key)
+      else next.delete(key)
+    }
+    if (next.size === 0) return
+    onPatch({ enabledModels: enabledModelPatterns(settings.enabledModels, usable, next) })
+  }
+
+  function setLevel(key: string, level: string): void {
+    const next = { ...settings.modelThinkingLevels }
+    if (level === DEFAULT_LEVEL) delete next[key]
+    else next[key] = level as ThinkingLevel
+    onPatch({ modelThinkingLevels: next })
+  }
 
   return (
     <div className="flex flex-col gap-8 pb-12">
-      <SettingSection title="Default model & reasoning">
+      <SettingSection title="Defaults">
         <SettingCard>
-          <SettingRow title="Default model">
+          <SettingRow title="Default model" description="Used for new sessions">
             <ModelPickerDropdown
-              models={options}
+              models={defaultOptions}
               value={defaultKey}
-              onChange={(_key, nextModel) => {
-                const nextLevels = nextModel.thinkingLevels ?? THINKING_LEVELS
-                const nextLevel =
-                  settings.defaultThinkingLevel &&
-                  nextLevels.includes(settings.defaultThinkingLevel)
+              onChange={(_key, next) => {
+                const levels = next.thinkingLevels ?? THINKING_LEVELS
+                const level =
+                  settings.defaultThinkingLevel && levels.includes(settings.defaultThinkingLevel)
                     ? settings.defaultThinkingLevel
-                    : nextLevels.includes('high')
+                    : levels.includes('high')
                       ? 'high'
-                      : (nextLevels[0] ?? 'off')
+                      : (levels[0] ?? 'off')
                 onPatch({
-                  defaultProvider: nextModel.provider,
-                  defaultModel: nextModel.id,
-                  defaultThinkingLevel: nextLevel,
+                  defaultProvider: next.provider,
+                  defaultModel: next.id,
+                  defaultThinkingLevel: level,
                 })
               }}
             />
           </SettingRow>
-
-          <SettingRow title="Default reasoning effort">
-            <Select
+          <SettingRow
+            title="Default reasoning effort"
+            description="Unless a model below sets its own"
+          >
+            <LevelSelect
+              levels={defaultLevels}
               value={
                 settings.defaultThinkingLevel &&
-                defaultModelLevels.includes(settings.defaultThinkingLevel)
+                defaultLevels.includes(settings.defaultThinkingLevel)
                   ? settings.defaultThinkingLevel
-                  : (defaultModelLevels[0] ?? 'off')
+                  : (defaultLevels[0] ?? 'off')
               }
-              onValueChange={(value) => {
-                if (value) onPatch({ defaultThinkingLevel: value as ThinkingLevel })
-              }}
-            >
-              <SelectTrigger variant="ghost" size="sm" className="gap-1.5 px-2 text-xs font-normal">
-                <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
-              </SelectTrigger>
-              <SelectContent align="end" className="w-auto min-w-36 text-xs">
-                {defaultModelLevels.map((level) => (
-                  <SelectItem key={level} value={level}>
-                    {THINKING_LEVEL_LABELS[level]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              onChange={(value) => onPatch({ defaultThinkingLevel: value as ThinkingLevel })}
+            />
           </SettingRow>
         </SettingCard>
       </SettingSection>
 
-      <SettingSection title="Per-model reasoning overrides">
-        <SettingCard>
-          {overridesList.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-              No model-specific thinking overrides configured. All models use the default reasoning
-              effort.
-            </div>
-          ) : (
-            overridesList.map(([key, level]) => {
-              const [provider, ...rest] = key.split('/')
-              const id = rest.join('/')
-              const modelInfo = options.find((m) => m.provider === provider && m.id === id)
-              const supportedLevels = modelInfo?.thinkingLevels ?? THINKING_LEVELS
-
-              return (
-                <div
-                  key={key}
-                  className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-muted/15"
-                >
-                  <div className="flex min-w-0 items-center gap-1.5 text-xs">
-                    <span className="text-muted-foreground">{provider}</span>
-                    <span className="text-muted-foreground/40">/</span>
-                    <span className="truncate font-medium text-foreground">{id}</span>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Select
-                      value={
-                        supportedLevels.includes(level) ? level : (supportedLevels[0] ?? level)
-                      }
-                      onValueChange={(value) => {
-                        if (!value) return
-                        onPatch({
-                          modelThinkingLevels: {
-                            ...settings.modelThinkingLevels,
-                            [key]: value as ThinkingLevel,
-                          },
-                        })
-                      }}
-                    >
-                      <SelectTrigger
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 px-2 text-xs font-normal"
-                      >
-                        <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
-                      </SelectTrigger>
-                      <SelectContent align="end" className="w-auto min-w-36 text-xs">
-                        {supportedLevels.map((item) => (
-                          <SelectItem key={item} value={item}>
-                            {THINKING_LEVEL_LABELS[item]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={`Remove override for ${key}`}
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => {
-                        const next = { ...settings.modelThinkingLevels }
-                        delete next[key]
-                        onPatch({ modelThinkingLevels: next })
-                      }}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })
-          )}
-          <div className="border-t border-border/40 bg-muted/20 px-4 py-3">
-            <AddThinkingOverride
-              models={options}
-              existing={settings.modelThinkingLevels}
-              onAdd={(key, level) =>
-                onPatch({ modelThinkingLevels: { ...settings.modelThinkingLevels, [key]: level } })
-              }
+      <SettingSection
+        title="All models"
+        description={
+          enabled.size < usable.length ? `${usable.length - enabled.size} hidden` : undefined
+        }
+        action={
+          <InputGroup className="h-7 w-56">
+            <InputGroupAddon>
+              <Search className="size-3.5" />
+            </InputGroupAddon>
+            <InputGroupInput
+              aria-label="Search models"
+              placeholder="Search models…"
+              className="text-xs"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
+          </InputGroup>
+        }
+      >
+        {usable.length === 0 ? (
+          <SettingCard>
+            <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+              No models yet. Connect a provider to use its models.
+            </div>
+          </SettingCard>
+        ) : groups.size === 0 ? (
+          <SettingCard>
+            <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+              No models match “{query}”.
+            </div>
+          </SettingCard>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {[...groups].map(([provider, models]) => {
+              const keys = models.map(modelKey)
+              const shown = keys.filter((key) => enabled.has(key)).length
+              const open = !!needle || expanded.has(provider)
+              return (
+                <SettingCard key={provider}>
+                  <div className="flex items-center justify-between gap-4 pr-4 hover:bg-muted/15">
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      className="flex min-w-0 flex-1 items-center gap-2 py-2.5 pl-3 text-left outline-none focus-visible:bg-muted/30"
+                      onClick={() =>
+                        setExpanded((current) => {
+                          const next = new Set(current)
+                          if (next.has(provider)) next.delete(provider)
+                          else next.add(provider)
+                          return next
+                        })
+                      }
+                    >
+                      <ChevronRight
+                        className={cn(
+                          'size-3.5 shrink-0 text-muted-foreground transition-transform',
+                          open && 'rotate-90',
+                        )}
+                      />
+                      <span className="truncate text-[13px] font-medium text-foreground">
+                        {providerNames.get(provider) ?? provider}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground tabular-nums">
+                        {shown === models.length
+                          ? `${models.length} models`
+                          : `${shown} of ${models.length} shown`}
+                      </span>
+                    </button>
+                    <Switch
+                      size="sm"
+                      aria-label={`Show all ${providerNames.get(provider) ?? provider} models`}
+                      checked={shown === models.length}
+                      disabled={shown === models.length && shown === enabled.size}
+                      onCheckedChange={(visible) => setVisible(keys, visible)}
+                    />
+                  </div>
+                  {open
+                    ? models.map((model) => {
+                        const key = modelKey(model)
+                        const visible = enabled.has(key)
+                        const levels = model.thinkingLevels ?? []
+                        return (
+                          <div
+                            key={key}
+                            className="flex h-10 items-center justify-between gap-4 pr-4 pl-9 transition-colors hover:bg-muted/15"
+                          >
+                            <div
+                              className={cn(
+                                'flex min-w-0 items-baseline gap-2',
+                                !visible && 'opacity-50',
+                              )}
+                            >
+                              <span className="truncate text-[13px] text-foreground">
+                                {model.name}
+                              </span>
+                              {model.name !== model.id ? (
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                  {model.id}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 items-center gap-3">
+                              {levels.length > 1 ? (
+                                <LevelSelect
+                                  levels={levels}
+                                  value={settings.modelThinkingLevels[key] ?? DEFAULT_LEVEL}
+                                  onChange={(value) => setLevel(key, value)}
+                                  withDefault
+                                />
+                              ) : null}
+                              <Switch
+                                size="sm"
+                                aria-label={`Show ${model.name} in the model picker`}
+                                checked={visible}
+                                disabled={visible && enabled.size === 1}
+                                onCheckedChange={(next) => setVisible([key], next)}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })
+                    : null}
+                </SettingCard>
+              )
+            })}
           </div>
-        </SettingCard>
+        )}
       </SettingSection>
+
+      {staleOverrides.length > 0 ? (
+        <SettingSection
+          title="Other reasoning overrides"
+          description="For models that are not available right now"
+        >
+          <SettingCard>
+            {staleOverrides.map(([key, level]) => (
+              <SettingRow key={key} title={key}>
+                <span className="text-xs text-muted-foreground">
+                  {THINKING_LEVEL_LABELS[level]}
+                </span>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`Remove override for ${key}`}
+                  className="text-muted-foreground hover:text-destructive"
+                  onClick={() => setLevel(key, DEFAULT_LEVEL)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </SettingRow>
+            ))}
+          </SettingCard>
+        </SettingSection>
+      ) : null}
     </div>
   )
 }
 
-function AddThinkingOverride({
-  models,
-  existing,
-  onAdd,
+function LevelSelect({
+  levels,
+  value,
+  onChange,
+  withDefault = false,
 }: {
-  models: ModelInfo[]
-  existing: Record<string, ThinkingLevel>
-  onAdd: (key: string, level: ThinkingLevel) => void
+  levels: readonly ThinkingLevel[]
+  value: string
+  onChange: (value: string) => void
+  withDefault?: boolean
 }) {
-  const [key, setKey] = useState('')
-  const unused = models.filter((item) => !(modelKey(item) in existing))
-  const selectedModel = unused.find((item) => modelKey(item) === key)
-  const availableLevels = selectedModel?.thinkingLevels ?? THINKING_LEVELS
-  const [level, setLevel] = useState<ThinkingLevel>('high')
-  const resolvedLevel = availableLevels.includes(level)
-    ? level
-    : availableLevels.includes('high')
-      ? 'high'
-      : (availableLevels[0] ?? 'off')
-
+  const labels: Record<string, string> = { [DEFAULT_LEVEL]: 'Default', ...THINKING_LEVEL_LABELS }
   return (
-    <div className="flex items-center justify-between gap-4">
-      <ModelPickerDropdown
-        models={unused}
-        value={key}
-        onChange={(newKey) => setKey(newKey)}
-        placeholder={unused.length === 0 ? 'All models configured' : 'Select model…'}
-        disabled={unused.length === 0}
-      />
-      <div className="flex shrink-0 items-center gap-2">
-        <Select
-          value={resolvedLevel}
-          disabled={!key}
-          onValueChange={(value) => value && setLevel(value as ThinkingLevel)}
-        >
-          <SelectTrigger variant="ghost" size="sm" className="gap-1.5 px-2 text-xs font-normal">
-            <LabeledSelectValue labels={THINKING_LEVEL_LABELS} />
-          </SelectTrigger>
-          <SelectContent align="end" className="w-auto min-w-36 text-xs">
-            {availableLevels.map((item) => (
-              <SelectItem key={item} value={item}>
-                {THINKING_LEVEL_LABELS[item]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={!key || unused.length === 0}
-          onClick={() => {
-            if (!key) return
-            onAdd(key, resolvedLevel)
-            setKey('')
-          }}
-        >
-          <Plus className="size-3.5" />
-          Add override
-        </Button>
-      </div>
-    </div>
+    <Select value={value} onValueChange={(next) => next && onChange(next)}>
+      <SelectTrigger
+        variant="ghost"
+        size="sm"
+        aria-label="Reasoning effort"
+        className={cn(
+          'gap-1.5 px-2 text-xs font-normal',
+          value === DEFAULT_LEVEL && 'text-muted-foreground',
+        )}
+      >
+        <LabeledSelectValue labels={labels} />
+      </SelectTrigger>
+      <SelectContent align="end" className="w-auto min-w-28">
+        {withDefault ? (
+          <SelectItem value={DEFAULT_LEVEL} className="text-xs">
+            Default
+          </SelectItem>
+        ) : null}
+        {levels.map((level) => (
+          <SelectItem key={level} value={level} className="text-xs">
+            {THINKING_LEVEL_LABELS[level]}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   )
 }

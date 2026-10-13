@@ -1,5 +1,6 @@
 import type { AgentSession } from '@earendil-works/pi-coding-agent'
 import { clampThinkingLevel } from '@earendil-works/pi-ai'
+import { modelKey } from '@shared/protocol'
 
 const TITLE_TIMEOUT_MS = 15_000
 const MAX_INPUT_CHARS = 2000
@@ -14,12 +15,11 @@ const SYSTEM_PROMPT = [
 export async function generateSessionTitle(
   session: AgentSession,
   text: string,
-  modelKey: string,
+  key: string,
 ): Promise<string | undefined> {
   const runtime = session.modelRuntime
   const model =
-    runtime.getAvailableSnapshot().find((item) => `${item.provider}/${item.id}` === modelKey) ??
-    session.model
+    runtime.getAvailableSnapshot().find((item) => modelKey(item) === key) ?? session.model
   if (!model) return undefined
   // Models that cannot disable reasoning fall back to their lowest supported level.
   const level = clampThinkingLevel(model, 'off')

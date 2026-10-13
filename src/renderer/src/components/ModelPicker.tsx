@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ChevronDownIcon } from 'lucide-react'
-import type { ModelInfo } from '@shared/protocol'
+import { modelKey, type ModelInfo } from '@shared/protocol'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,10 +11,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
-
-export function modelKey(model: { provider: string; id: string }): string {
-  return `${model.provider}/${model.id}`
-}
 
 const itemType = "text-xs leading-4 [&_svg:not([class*='size-'])]:size-3"
 const radioItem = cn(itemType, 'py-1 pl-2')

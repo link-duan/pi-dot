@@ -7,7 +7,6 @@ import {
   parseModelsFile,
   patchModelForm,
   patchProviderForm,
-  providerJsonOffset,
   readModelForm,
   readProviderForm,
   removeModel,
@@ -160,9 +159,8 @@ describe('jsonc edits', () => {
 })
 
 describe('json view', () => {
-  it('pretty-prints and finds a provider key offset', () => {
+  it('pretty-prints', () => {
     const text = stringifyModelsFile({ providers: { ollama: { api: 'openai-completions' } } })
     expect(text.startsWith('{\n  "providers"')).toBe(true)
-    expect(providerJsonOffset(text, 'ollama')).toBeGreaterThan(0)
   })
 })

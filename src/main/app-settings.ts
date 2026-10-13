@@ -1,39 +1,40 @@
 import type { SettingsManager } from '@earendil-works/pi-coding-agent'
 import { asThinkingLevel, type ThinkingLevel } from '@shared/protocol'
-import type { AppSettings, SettingsPatch, TransportSetting } from '@shared/settings'
+import {
+  TRANSPORTS,
+  type GeneralSettings,
+  type ModelSettings,
+  type ModelSettingsPatch,
+  type TransportSetting,
+  type UserPatch,
+} from '@shared/settings'
 
-const TRANSPORTS: TransportSetting[] = ['sse', 'websocket', 'websocket-cached', 'auto']
+type ManagedSettings = Omit<
+  GeneralSettings,
+  'autoGenerateSessionTitleEnabled' | 'autoGenerateSessionTitleModel'
+>
 
-export function readAppSettings(
-  manager: SettingsManager,
-  hasProjectSettings: boolean,
-): Omit<AppSettings, 'autoGenerateSessionTitleEnabled' | 'autoGenerateSessionTitleModel'> {
+export function readGeneral(manager: SettingsManager): ManagedSettings {
   const transport = manager.getTransport()
-  const thinking = manager.getDefaultThinkingLevel()
   return {
     compactionEnabled: manager.getCompactionEnabled(),
-    autoResizeImages: manager.getImageAutoResize(),
-    blockImages: manager.getBlockImages(),
+    retryEnabled: manager.getRetryEnabled(),
+    enableSkillCommands: manager.getEnableSkillCommands(),
     hideThinking: manager.getHideThinkingBlock(),
     showCacheMissNotices: manager.getShowCacheMissNotices(),
+    autoResizeImages: manager.getImageAutoResize(),
+    blockImages: manager.getBlockImages(),
     steeringMode: manager.getSteeringMode(),
     followUpMode: manager.getFollowUpMode(),
     transport: TRANSPORTS.includes(transport as TransportSetting)
       ? (transport as TransportSetting)
       : 'auto',
     httpIdleTimeoutMs: manager.getHttpIdleTimeoutMs(),
-    retryEnabled: manager.getRetryEnabled(),
-    enableSkillCommands: manager.getEnableSkillCommands(),
     defaultProjectTrust: manager.getDefaultProjectTrust(),
-    defaultProvider: manager.getDefaultProvider() ?? '',
-    defaultModel: manager.getDefaultModel() ?? '',
-    defaultThinkingLevel: asThinkingLevel(thinking) ?? '',
-    modelThinkingLevels: pickThinkingLevels(manager.getAllModelThinkingLevels()),
-    hasProjectSettings,
   }
 }
 
-export function writeAppSettings(manager: SettingsManager, patch: SettingsPatch): void {
+export function writeGeneral(manager: SettingsManager, patch: UserPatch): void {
   if (patch.compactionEnabled !== undefined) manager.setCompactionEnabled(patch.compactionEnabled)
   if (patch.autoResizeImages !== undefined) manager.setImageAutoResize(patch.autoResizeImages)
   if (patch.blockImages !== undefined) manager.setBlockImages(patch.blockImages)
@@ -50,13 +51,28 @@ export function writeAppSettings(manager: SettingsManager, patch: SettingsPatch)
     manager.setEnableSkillCommands(patch.enableSkillCommands)
   if (patch.defaultProjectTrust !== undefined)
     manager.setDefaultProjectTrust(patch.defaultProjectTrust)
+}
+
+export function readModels(manager: SettingsManager): ModelSettings {
+  const enabled = manager.getEnabledModels()
+  return {
+    defaultProvider: manager.getDefaultProvider() ?? '',
+    defaultModel: manager.getDefaultModel() ?? '',
+    defaultThinkingLevel: asThinkingLevel(manager.getDefaultThinkingLevel()) ?? '',
+    modelThinkingLevels: pickThinkingLevels(manager.getAllModelThinkingLevels()),
+    enabledModels: enabled?.length ? [...enabled] : null,
+  }
+}
+
+export function writeModels(manager: SettingsManager, patch: ModelSettingsPatch): void {
   if (patch.defaultProvider !== undefined || patch.defaultModel !== undefined) {
     const provider = patch.defaultProvider ?? manager.getDefaultProvider() ?? ''
     const model = patch.defaultModel ?? manager.getDefaultModel() ?? ''
     if (provider && model) manager.setDefaultModelAndProvider(provider, model)
   }
-  if (patch.defaultThinkingLevel !== undefined) {
-    if (patch.defaultThinkingLevel) manager.setDefaultThinkingLevel(patch.defaultThinkingLevel)
+  if (patch.defaultThinkingLevel) manager.setDefaultThinkingLevel(patch.defaultThinkingLevel)
+  if (patch.enabledModels !== undefined) {
+    manager.setEnabledModels(patch.enabledModels?.length ? patch.enabledModels : undefined)
   }
   if (patch.modelThinkingLevels) {
     const current = manager.getAllModelThinkingLevels()

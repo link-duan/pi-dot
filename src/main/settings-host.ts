@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import {
   createAgentSessionServices,
@@ -10,8 +9,11 @@ import {
   SettingsManager,
 } from '@earendil-works/pi-coding-agent'
 import {
+  clampThinkingLevel,
   getSupportedThinkingLevels,
+  type Api,
   type AuthEvent,
+  type Model,
   type AuthInteraction,
   type AuthPrompt as SdkAuthPrompt,
   type AuthType,
@@ -21,27 +23,39 @@ import { shell, type WebContents } from 'electron'
 import { parseModelsFile } from '@shared/models-file'
 import { parseThinkingLevels, type ModelInfo } from '@shared/protocol'
 import type {
-  AppSettings,
   AuthNotify,
+  AuthSource,
   AuthPrompt,
+  GeneralChange,
+  GeneralSettingsState,
   LoginEvent,
+  ModelSettings,
+  ModelSettingsPatch,
   ModelsFileResult,
   ProviderAuthMethod,
   ProviderListItem,
+  ProviderTestResult,
   SettingsCatalog,
-  SettingsPatch,
 } from '@shared/settings'
-import { readAppSettings, writeAppSettings } from './app-settings'
+import { readGeneral, readModels, writeGeneral, writeModels } from './app-settings'
+import { readWorkspaceOverrides, writeWorkspaceOverrides } from './workspace-settings'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig, writeConfig } from './config'
 import { IPC } from '@shared/ipc'
 import { getWindows } from './window'
 
 const MODEL_REFRESH_MS = 15_000
+const TEST_TIMEOUT_MS = 30_000
 
 type LoginSession = {
   abort: AbortController
   prompts: Map<string, (value: string) => void>
+}
+
+/** The folder a Window is bound to, and whether its own settings load. */
+export interface SettingsFolder {
+  cwd: string
+  trusted: boolean
 }
 
 const logins = new Map<number, LoginSession>()
@@ -57,10 +71,6 @@ function modelsPath(): string {
 
 function globalManager(): SettingsManager {
   return SettingsManager.create(homedir(), agentDir(), { projectTrusted: false })
-}
-
-function hasProjectSettings(cwd?: string | null): boolean {
-  return !!cwd && existsSync(join(cwd, '.pi/settings.json'))
 }
 
 async function runtime(): Promise<ModelRuntime> {
@@ -91,32 +101,56 @@ async function runtime(): Promise<ModelRuntime> {
   return runtimePromise
 }
 
-export async function getSettings(cwd?: string | null): Promise<AppSettings> {
-  return readSettings(globalManager(), cwd)
-}
-
-function readSettings(manager: SettingsManager, cwd?: string | null): AppSettings {
+export function getGeneralSettings(folder: SettingsFolder | null): GeneralSettingsState {
   const { enabled, model } = readConfig().autoGenerateSessionTitle
   return {
-    ...readAppSettings(manager, hasProjectSettings(cwd)),
-    autoGenerateSessionTitleEnabled: enabled,
-    autoGenerateSessionTitleModel: model,
+    user: {
+      ...readGeneral(globalManager()),
+      autoGenerateSessionTitleEnabled: enabled,
+      autoGenerateSessionTitleModel: model,
+    },
+    workspace: folder
+      ? {
+          path: folder.cwd,
+          trusted: folder.trusted,
+          overrides: readWorkspaceOverrides(folder.cwd),
+        }
+      : null,
   }
 }
 
-export async function patchSettings(
-  cwd: string | null | undefined,
-  patch: SettingsPatch,
-): Promise<AppSettings> {
-  const settings = globalManager()
-  writeAppSettings(settings, patch)
-  await settings.flush()
-  const { autoGenerateSessionTitleEnabled: enabled, autoGenerateSessionTitleModel: model } = patch
-  if (enabled !== undefined || model !== undefined) {
-    writeConfig({ autoGenerateSessionTitle: { enabled, model } })
+export async function patchGeneralSettings(
+  folder: SettingsFolder | null,
+  change: GeneralChange,
+): Promise<GeneralSettingsState> {
+  if (change.scope === 'workspace') {
+    if (!folder) throw new Error('This window has no folder')
+    writeWorkspaceOverrides(folder.cwd, change.patch)
+  } else {
+    const settings = globalManager()
+    writeGeneral(settings, change.patch)
+    await settings.flush()
+    const { autoGenerateSessionTitleEnabled: enabled, autoGenerateSessionTitleModel: model } =
+      change.patch
+    if (enabled !== undefined || model !== undefined) {
+      writeConfig({ autoGenerateSessionTitle: { enabled, model } })
+    }
   }
   await reloadLiveSettings()
-  return readSettings(settings, cwd)
+  return getGeneralSettings(folder)
+}
+
+export function getModelSettings(): ModelSettings {
+  return readModels(globalManager())
+}
+
+export async function patchModelSettings(patch: ModelSettingsPatch): Promise<ModelSettings> {
+  const settings = globalManager()
+  writeModels(settings, patch)
+  await settings.flush()
+  await reloadLiveSettings()
+  if (patch.enabledModels !== undefined) notifyWindows('reloadSnapshot')
+  return readModels(settings)
 }
 
 export async function readModelsFileText(): Promise<ModelsFileResult> {
@@ -169,6 +203,9 @@ export async function getCatalog(): Promise<SettingsCatalog> {
     providers.filter((item) => models.hasConfiguredAuth(item.id)).map((item) => item.id),
   )
   const customSet = new Set(customIds)
+  const stored = new Map(
+    (await models.listCredentials().catch(() => [])).map((item) => [item.providerId, item.type]),
+  )
   const items = (item: Provider, kind: ProviderListItem['kind']): ProviderListItem => {
     const status = models.getProviderAuthStatus(item.id)
     return {
@@ -176,6 +213,7 @@ export async function getCatalog(): Promise<SettingsCatalog> {
       name: item.name || item.id,
       kind,
       configured: configured.has(item.id),
+      authSource: authSource(status, stored.get(item.id)),
       authLabel: status.label,
       methods: authMethods(item),
     }
@@ -192,6 +230,7 @@ export async function getCatalog(): Promise<SettingsCatalog> {
       name,
       kind: 'custom',
       configured: configured.has(id),
+      authSource: 'none',
       methods: [],
     }
   })
@@ -201,24 +240,88 @@ export async function getCatalog(): Promise<SettingsCatalog> {
   const addable = providers
     .filter((item) => !customSet.has(item.id))
     .map((item) => items(item, 'builtin'))
-  const rawModels = models.getModels()
-  const available: ModelInfo[] = [...rawModels]
+  const toInfo = (item: Model<Api>): ModelInfo => ({
+    id: item.id,
+    name: item.name || item.id,
+    provider: item.provider,
+    thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(item)),
+  })
+  const byName = (a: Model<Api>, b: Model<Api>) =>
+    a.provider.localeCompare(b.provider) || (a.name || a.id).localeCompare(b.name || b.id)
+  const available = [...models.getModels()]
     .sort((a, b) => {
       const aConfigured = configured.has(a.provider)
       const bConfigured = configured.has(b.provider)
-      if (aConfigured && !bConfigured) return -1
-      if (!aConfigured && bConfigured) return 1
-      const providerCmp = a.provider.localeCompare(b.provider)
-      if (providerCmp !== 0) return providerCmp
-      return (a.name || a.id).localeCompare(b.name || b.id)
+      if (aConfigured !== bConfigured) return aConfigured ? -1 : 1
+      return byName(a, b)
     })
-    .map((item) => ({
-      id: item.id,
-      name: item.name || item.id,
-      provider: item.provider,
-      thinkingLevels: parseThinkingLevels(getSupportedThinkingLevels(item)),
-    }))
-  return { providers: [...custom, ...builtin], available, addable }
+    .map(toInfo)
+  const usable = [...models.getAvailableSnapshot()].sort(byName).map(toInfo)
+  return { providers: [...custom, ...builtin], available, usable, addable }
+}
+
+export async function testProvider(providerId: string): Promise<ProviderTestResult> {
+  const models = await runtime()
+  if (!models.hasConfiguredAuth(providerId)) {
+    return { ok: false, message: 'No credentials are configured for this provider' }
+  }
+  const candidates = [...models.getModels(providerId)].sort((a, b) => price(a) - price(b))
+  const model = candidates[0]
+  if (!model) return { ok: false, message: 'Add a model to test this provider' }
+  const level = clampThinkingLevel(model, 'off')
+  const started = Date.now()
+  try {
+    const reply = await models.completeSimple(
+      model,
+      { messages: [{ role: 'user', content: 'Reply with OK.', timestamp: Date.now() }] },
+      {
+        ...(level === 'off' ? {} : { reasoning: level }),
+        maxTokens: 64,
+        signal: AbortSignal.timeout(TEST_TIMEOUT_MS),
+      },
+    )
+    if (reply.stopReason === 'error' || reply.stopReason === 'aborted') {
+      return {
+        ok: false,
+        model: model.id,
+        message: reply.errorMessage ?? `Request ${reply.stopReason}`,
+      }
+    }
+    return { ok: true, model: model.id, latencyMs: Date.now() - started }
+  } catch (error) {
+    return {
+      ok: false,
+      model: model.id,
+      message: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+function price(model: Model<Api>): number {
+  return (model.cost?.input ?? 0) + (model.cost?.output ?? 0)
+}
+
+function authSource(
+  status: ReturnType<ModelRuntime['getProviderAuthStatus']>,
+  credential: string | undefined,
+): AuthSource {
+  if (!status.configured) return 'none'
+  switch (status.source) {
+    case 'stored':
+      return credential === 'oauth' ? 'oauth' : 'api_key'
+    case 'runtime':
+      return 'runtime'
+    case 'environment':
+      return 'environment'
+    case 'models_json_key':
+      return 'models_json'
+    case 'models_json_command':
+      return 'command'
+    case 'fallback':
+      return 'extension'
+    default:
+      return 'none'
+  }
 }
 
 export async function startLogin(

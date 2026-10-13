@@ -35,6 +35,11 @@ export interface ModelInfo {
   thinkingLevels?: ThinkingLevel[]
 }
 
+/** The `provider/id` reference pi uses for a model. */
+export function modelKey(model: { provider: string; id: string }): string {
+  return `${model.provider}/${model.id}`
+}
+
 export interface SkillInfo {
   name: string
   description?: string

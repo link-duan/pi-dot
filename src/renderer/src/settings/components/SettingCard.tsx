@@ -90,7 +90,7 @@ export function StatusDot({
     status === 'online'
       ? 'bg-emerald-500'
       : status === 'warning'
-        ? 'bg-amber-500'
+        ? 'bg-warning'
         : 'bg-muted-foreground/40'
 
   return (

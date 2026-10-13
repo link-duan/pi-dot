@@ -1,11 +1,11 @@
 import { create } from 'zustand'
-import type { AppSettings } from '@shared/settings'
+import { effectiveSettings, type GeneralSettingsState } from '@shared/settings'
 
 interface SettingsUi {
   hideThinking: boolean
   generation: number
   catalogGeneration: number
-  apply: (settings: Pick<AppSettings, 'hideThinking'>) => void
+  apply: (state: GeneralSettingsState) => void
   bump: () => void
   bumpCatalog: () => void
 }
@@ -14,15 +14,15 @@ export const useSettings = create<SettingsUi>((set) => ({
   hideThinking: false,
   generation: 0,
   catalogGeneration: 0,
-  apply: (settings) => set({ hideThinking: settings.hideThinking }),
+  apply: (state) => set({ hideThinking: effectiveSettings(state).hideThinking }),
   bump: () => set((state) => ({ generation: state.generation + 1 })),
   bumpCatalog: () => set((state) => ({ catalogGeneration: state.catalogGeneration + 1 })),
 }))
 
 export async function loadSettings(): Promise<void> {
   try {
-    const settings = await window.pi.getSettings()
-    useSettings.getState().apply(settings)
+    const state = await window.pi.getGeneralSettings()
+    useSettings.getState().apply(state)
   } catch (error) {
     console.error('Failed to load settings', error)
   }

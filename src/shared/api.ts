@@ -11,11 +11,14 @@ import type {
   UiResponse,
 } from './protocol'
 import type {
-  AppSettings,
+  GeneralSettingsState,
   LoginEvent,
+  ModelSettings,
+  ModelSettingsPatch,
   ModelsFileResult,
+  ProviderTestResult,
   SettingsCatalog,
-  SettingsPatch,
+  GeneralChange,
 } from './settings'
 
 export interface ImagePreview {
@@ -70,8 +73,10 @@ export interface PiApi {
   saveClipboardImage(data: Uint8Array, mimeType: string): Promise<string>
   /** Downscaled data URL and original size of an image file-chip path, or null when unreadable. */
   imagePreview(path: string): Promise<ImagePreview | null>
-  getSettings(): Promise<AppSettings>
-  patchSettings(patch: SettingsPatch): Promise<AppSettings>
+  getGeneralSettings(): Promise<GeneralSettingsState>
+  patchGeneralSettings(change: GeneralChange): Promise<GeneralSettingsState>
+  getModelSettings(): Promise<ModelSettings>
+  patchModelSettings(patch: ModelSettingsPatch): Promise<ModelSettings>
   getModelsFile(): Promise<ModelsFileResult>
   setModelsFile(text: string): Promise<ModelsFileResult>
   getCatalog(): Promise<SettingsCatalog>
@@ -79,6 +84,7 @@ export interface PiApi {
   loginRespond(id: string, value: string): Promise<void>
   loginCancel(): Promise<void>
   logout(providerId: string): Promise<void>
+  testProvider(providerId: string): Promise<ProviderTestResult>
   onEvent(cb: (event: SessionEvent) => void): () => void
   onStatus(cb: (status: ConnectionStatus, error?: string) => void): () => void
   onCommand(cb: (command: string, arg?: string) => void): () => void

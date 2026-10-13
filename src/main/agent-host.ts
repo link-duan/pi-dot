@@ -21,6 +21,7 @@ import {
 import {
   asThinkingLevel,
   isAgentMessage,
+  modelKey,
   parseThinkingLevels,
   type AgentMessage,
   type AskReply,
@@ -45,6 +46,7 @@ import { readConfig } from './config'
 import { createPlanMode, type PlanMode } from './plan-mode'
 import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
+import { resolveEnabledModels } from '@shared/settings'
 
 const MODEL_REFRESH_MS = 15_000
 
@@ -464,7 +466,18 @@ export class AgentHost {
   }
 
   private getAvailableModels(): ModelInfo[] {
-    return this.session.modelRuntime.getAvailableSnapshot().map(toModelInfo)
+    const current = this.session.model
+    const available = this.session.modelRuntime.getAvailableSnapshot()
+    const patterns = this.session.settingsManager.getEnabledModels()
+    const enabled = patterns?.length ? resolveEnabledModels(patterns, available) : null
+    return available
+      .filter(
+        (item) =>
+          !enabled ||
+          enabled.has(modelKey(item)) ||
+          (item.provider === current?.provider && item.id === current.id),
+      )
+      .map(toModelInfo)
   }
 
   private getAvailableThinkingLevels(): ThinkingLevel[] {

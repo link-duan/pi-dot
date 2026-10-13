@@ -11,18 +11,13 @@ interface QueueItem {
   text: string
 }
 
-function syncQueueItems(prev: QueueItem[], queue: string[]): QueueItem[] {
-  if (prev.length === queue.length && prev.every((item, i) => item.text === queue[i])) {
-    return prev
-  }
-  const pool = [...prev]
+/** Ids stay stable across reorders: a text plus how many times it appeared before. */
+function queueItems(queue: string[]): QueueItem[] {
+  const seen = new Map<string, number>()
   return queue.map((text) => {
-    const idx = pool.findIndex((item) => item.text === text)
-    if (idx !== -1) {
-      const [found] = pool.splice(idx, 1)
-      return found!
-    }
-    return { id: Math.random().toString(36).slice(2, 9), text }
+    const count = seen.get(text) ?? 0
+    seen.set(text, count + 1)
+    return { id: `${count}:${text}`, text }
   })
 }
 
@@ -37,14 +32,16 @@ export function FollowUpQueue({
   const deleteFollowUp = useSession((state) => state.deleteFollowUp)
   const promoteFollowUpToSteer = useSession((state) => state.promoteFollowUpToSteer)
   const setFollowUpQueue = useSession((state) => state.setFollowUpQueue)
-  const [items, setItems] = useState<QueueItem[]>(() => syncQueueItems([], followUpQueue))
+  const [dragOrder, setDragOrder] = useState<string[] | null>(null)
 
   if (!followUpQueue || followUpQueue.length === 0) return null
 
-  const activeItems = syncQueueItems(items, followUpQueue)
-  if (activeItems !== items) {
-    setItems(activeItems)
-  }
+  const items = queueItems(followUpQueue)
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const ordered =
+    dragOrder?.length === items.length && dragOrder.every((id) => byId.has(id))
+      ? dragOrder.map((id) => byId.get(id)!)
+      : items
 
   const handleEdit = async (text: string, index: number) => {
     if (!onEdit || canEdit?.() === false) return
@@ -57,11 +54,13 @@ export function FollowUpQueue({
     onEdit(text, index)
   }
 
-  const handleReorder = (newItems: QueueItem[]) => {
-    setItems(newItems)
-    void setFollowUpQueue(newItems.map((item) => item.text)).catch((error: unknown) => {
-      console.error('Failed to reorder follow-up queue', error)
-    })
+  const commitOrder = () => {
+    if (!dragOrder) return
+    void setFollowUpQueue(ordered.map((item) => item.text))
+      .catch((error: unknown) => {
+        console.error('Failed to reorder follow-up queue', error)
+      })
+      .finally(() => setDragOrder(null))
   }
 
   return (
@@ -76,15 +75,16 @@ export function FollowUpQueue({
       <ScrollFade className="max-h-40">
         <Reorder.Group
           axis="y"
-          values={activeItems}
-          onReorder={handleReorder}
+          values={ordered.map((item) => item.id)}
+          onReorder={setDragOrder}
           className="flex flex-col gap-1 pr-1.5"
         >
-          {activeItems.map((item, index) => (
+          {ordered.map((item, index) => (
             <FollowUpRow
               key={item.id}
               item={item}
               index={index}
+              onDragEnd={commitOrder}
               canEdit={canEdit?.() !== false}
               onEdit={() => void handleEdit(item.text, index)}
               onPromote={() =>
@@ -112,6 +112,7 @@ function FollowUpRow({
   onEdit,
   onPromote,
   onDelete,
+  onDragEnd,
 }: {
   item: QueueItem
   index: number
@@ -119,14 +120,16 @@ function FollowUpRow({
   onEdit: () => void
   onPromote: () => void
   onDelete: () => void
+  onDragEnd: () => void
 }) {
   const dragControls = useDragControls()
 
   return (
     <Reorder.Item
-      value={item}
+      value={item.id}
       dragListener={false}
       dragControls={dragControls}
+      onDragEnd={onDragEnd}
       className="group flex items-center justify-between gap-1.5 rounded-lg border border-border/30 bg-muted/20 px-2 py-1 text-xs transition-colors select-none hover:bg-muted/40"
     >
       <div className="flex min-w-0 flex-1 items-center gap-1.5">

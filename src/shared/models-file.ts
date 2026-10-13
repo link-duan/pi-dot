@@ -281,12 +281,6 @@ export function patchModelForm(
   )
 }
 
-export function providerJsonOffset(text: string, providerId: string): number {
-  const token = `${JSON.stringify(providerId)}:`
-  const index = text.indexOf(token)
-  return index >= 0 ? index : 0
-}
-
 function applyImageInput(next: JsonObject, model: JsonObject, image: boolean): void {
   const current = Array.isArray(model.input) ? model.input : null
   const hadImage = !!current?.includes('image')

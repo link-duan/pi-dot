@@ -14,11 +14,14 @@ import type {
   UiResponse,
 } from '@shared/protocol'
 import type {
-  AppSettings,
+  GeneralSettingsState,
   LoginEvent,
+  ModelSettings,
+  ModelSettingsPatch,
   ModelsFileResult,
+  ProviderTestResult,
   SettingsCatalog,
-  SettingsPatch,
+  GeneralChange,
 } from '@shared/settings'
 
 const api: PiApi = {
@@ -85,9 +88,13 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.saveClipboardImage, data, mimeType) as Promise<string>,
   imagePreview: (path: string) =>
     ipcRenderer.invoke(IPC.imagePreview, path) as Promise<ImagePreview | null>,
-  getSettings: () => ipcRenderer.invoke(IPC.getSettings) as Promise<AppSettings>,
-  patchSettings: (patch: SettingsPatch) =>
-    ipcRenderer.invoke(IPC.patchSettings, patch) as Promise<AppSettings>,
+  getGeneralSettings: () =>
+    ipcRenderer.invoke(IPC.getGeneralSettings) as Promise<GeneralSettingsState>,
+  patchGeneralSettings: (change: GeneralChange) =>
+    ipcRenderer.invoke(IPC.patchGeneralSettings, change) as Promise<GeneralSettingsState>,
+  getModelSettings: () => ipcRenderer.invoke(IPC.getModelSettings) as Promise<ModelSettings>,
+  patchModelSettings: (patch: ModelSettingsPatch) =>
+    ipcRenderer.invoke(IPC.patchModelSettings, patch) as Promise<ModelSettings>,
   getModelsFile: () => ipcRenderer.invoke(IPC.getModelsFile) as Promise<ModelsFileResult>,
   setModelsFile: (text: string) =>
     ipcRenderer.invoke(IPC.setModelsFile, text) as Promise<ModelsFileResult>,
@@ -98,6 +105,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.loginRespond, id, value) as Promise<void>,
   loginCancel: () => ipcRenderer.invoke(IPC.loginCancel) as Promise<void>,
   logout: (providerId: string) => ipcRenderer.invoke(IPC.logout, providerId) as Promise<void>,
+  testProvider: (providerId: string) =>
+    ipcRenderer.invoke(IPC.testProvider, providerId) as Promise<ProviderTestResult>,
   onEvent: (cb: (event: SessionEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: SessionEvent) => cb(payload)
     ipcRenderer.on(IPC.event, listener)

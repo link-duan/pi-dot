@@ -148,12 +148,10 @@ function definePiThemes(): 'pi-light' | 'pi-dark' {
 
 export function ModelsJsonEditor({
   value,
-  offset,
   onChange,
   onBlur,
 }: {
   value: string
-  offset?: number
   onChange: (value: string) => void
   onBlur: () => void
 }) {
@@ -220,15 +218,6 @@ export function ModelsJsonEditor({
     if (!editor || editor.getValue() === value) return
     editor.setValue(value)
   }, [value])
-
-  useEffect(() => {
-    const editor = editorRef.current
-    const model = editor?.getModel()
-    if (!editor || !model || offset == null || offset < 0) return
-    const position = model.getPositionAt(offset)
-    editor.revealPositionInCenter(position)
-    editor.setPosition(position)
-  }, [offset])
 
   return (
     <div ref={rootRef} className="app-no-drag size-full min-h-0 overflow-hidden bg-background" />

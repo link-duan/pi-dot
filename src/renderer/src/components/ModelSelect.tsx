@@ -1,5 +1,10 @@
 import { ChevronDownIcon } from 'lucide-react'
-import { isThinkingLevel, THINKING_LEVEL_LABELS, type ThinkingLevel } from '@shared/protocol'
+import {
+  isThinkingLevel,
+  modelKey,
+  THINKING_LEVEL_LABELS,
+  type ThinkingLevel,
+} from '@shared/protocol'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
-import { ModelPickerContent, modelKey } from './ModelPicker'
+import { ModelPickerContent } from './ModelPicker'
 
 const itemType = "text-xs leading-4 [&_svg:not([class*='size-'])]:size-3"
 const subTrigger = cn(itemType, 'gap-2 px-2 py-1')

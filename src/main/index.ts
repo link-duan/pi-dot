@@ -13,7 +13,7 @@ import {
 } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { AskReply, StartResult, ThinkingLevel, UiResponse } from '@shared/protocol'
-import type { SettingsPatch } from '@shared/settings'
+import type { GeneralChange, ModelSettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
 import { applyAgentEnv } from './agent-env'
@@ -27,13 +27,17 @@ import { statPaths } from './stat-paths'
 import {
   cancelLogin,
   getCatalog,
-  getSettings,
+  getGeneralSettings,
+  getModelSettings,
   logoutProvider,
-  patchSettings,
+  patchGeneralSettings,
+  patchModelSettings,
   readModelsFileText,
   respondLogin,
   startLogin,
+  testProvider,
   writeModelsFileText,
+  type SettingsFolder,
 } from './settings-host'
 import { attach, clampCascade, from, getFocusedWindow, getWindows, onBeforeQuit } from './window'
 
@@ -55,6 +59,11 @@ function requireHost(event: Electron.IpcMainInvokeEvent) {
   const host = requireWindow(event).host
   if (!host) throw new Error('No active session')
   return host
+}
+
+function settingsFolder(sender: Electron.WebContents): SettingsFolder | null {
+  const host = from(sender)?.host
+  return host ? { cwd: host.cwd, trusted: host.trusted } : null
 }
 
 function focusAnyWindow(): void {
@@ -320,10 +329,23 @@ function registerIpc(): void {
     return { src, width, height }
   })
 
-  ipcMain.handle(IPC.getSettings, (event) => getSettings(from(event.sender)?.host?.cwd))
+  ipcMain.handle(IPC.getGeneralSettings, (event) =>
+    getGeneralSettings(settingsFolder(event.sender)),
+  )
 
-  ipcMain.handle(IPC.patchSettings, (event, patch: SettingsPatch) => {
-    return patchSettings(from(event.sender)?.host?.cwd, patch)
+  ipcMain.handle(IPC.patchGeneralSettings, (event, change: GeneralChange) => {
+    const { scope, patch } = change ?? {}
+    if ((scope !== 'user' && scope !== 'workspace') || !patch || typeof patch !== 'object') {
+      throw new Error('Invalid settings patch')
+    }
+    return patchGeneralSettings(settingsFolder(event.sender), change)
+  })
+
+  ipcMain.handle(IPC.getModelSettings, () => getModelSettings())
+
+  ipcMain.handle(IPC.patchModelSettings, (_event, patch: ModelSettingsPatch) => {
+    if (!patch || typeof patch !== 'object') throw new Error('Invalid settings patch')
+    return patchModelSettings(patch)
   })
 
   ipcMain.handle(IPC.getModelsFile, () => readModelsFileText())
@@ -354,6 +376,11 @@ function registerIpc(): void {
   ipcMain.handle(IPC.logout, async (_event, providerId: string) => {
     if (typeof providerId !== 'string') throw new Error('Invalid provider')
     await logoutProvider(providerId)
+  })
+
+  ipcMain.handle(IPC.testProvider, (_event, providerId: string) => {
+    if (typeof providerId !== 'string') throw new Error('Invalid provider')
+    return testProvider(providerId)
   })
 }
 
