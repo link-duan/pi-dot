@@ -38,6 +38,7 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.answerQuestion, sessionFile, toolCallId, reply) as Promise<void>,
   respondUi: (sessionFile: string, id: string, response: UiResponse) =>
     ipcRenderer.invoke(IPC.respondUi, sessionFile, id, response) as Promise<void>,
+  retrust: () => ipcRenderer.invoke(IPC.retrust) as Promise<StartResult>,
   editMessage: (sessionFile: string, timestamp: number) =>
     ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
   cancelEdit: (sessionFile: string, leafId: string) =>

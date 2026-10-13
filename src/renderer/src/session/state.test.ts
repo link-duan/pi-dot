@@ -53,6 +53,7 @@ function snapshot(file: string, extra: Partial<SessionSnapshot> = {}): SessionSn
     runningSessionFiles: [],
     skills: [],
     commands: [],
+    trusted: true,
     ui: { requests: [], state: { statuses: {}, widgets: [] } },
     ...extra,
   }

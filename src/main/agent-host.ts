@@ -8,9 +8,7 @@ import {
   createAgentSessionRuntime,
   createAgentSessionServices,
   getAgentDir,
-  hasTrustRequiringProjectResources,
   initTheme,
-  ProjectTrustStore,
   SessionManager,
   SettingsManager,
 } from '@earendil-works/pi-coding-agent'
@@ -49,14 +47,6 @@ import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
 
 const MODEL_REFRESH_MS = 15_000
-
-export function isProjectTrusted(cwd: string, agentDir: string): boolean {
-  if (!hasTrustRequiringProjectResources(cwd)) return true
-  const saved = new ProjectTrustStore(agentDir).get(cwd)
-  if (saved !== null) return saved
-  const settings = SettingsManager.create(cwd, agentDir, { projectTrusted: false })
-  return settings.getDefaultProjectTrust() === 'always'
-}
 
 // pi's own theme, taken from a session's UI context before Pi Dot's replaces it.
 let piTheme: ExtensionUIContext['theme'] | undefined
@@ -97,7 +87,11 @@ export class AgentHost {
   private planModes = new WeakMap<SessionManager, PlanMode>()
   private askUsers = new WeakMap<SessionManager, AskUser>()
 
-  constructor(readonly cwd: string) {}
+  /** `trusted`: whether the project's own extensions, settings and skills load. */
+  constructor(
+    readonly cwd: string,
+    readonly trusted = true,
+  ) {}
 
   onEvent(listener: (event: SessionEvent) => void): () => void {
     this.listeners.push(listener)
@@ -123,8 +117,9 @@ export class AgentHost {
       if (this.active) throw new Error('Agent already started')
 
       const agentDir = getAgentDir()
-      const projectTrusted = isProjectTrusted(this.cwd, agentDir)
-      const settingsManager = SettingsManager.create(this.cwd, agentDir, { projectTrusted })
+      const settingsManager = SettingsManager.create(this.cwd, agentDir, {
+        projectTrusted: this.trusted,
+      })
       // As pi's CLI does; extensions color their statuses and widgets with `ctx.ui.theme`.
       // The theme is process-wide, so the last folder started picks it for every window.
       initTheme(settingsManager.getTheme())
@@ -136,7 +131,6 @@ export class AgentHost {
         sessionManager,
         sessionStartEvent,
       }) => {
-        const trusted = isProjectTrusted(cwd, nextAgentDir)
         const planMode = createPlanMode()
         this.planModes.set(sessionManager, planMode)
         const askUser = createAskUser()
@@ -144,7 +138,9 @@ export class AgentHost {
         const services = await createAgentSessionServices({
           cwd,
           agentDir: nextAgentDir,
-          settingsManager: SettingsManager.create(cwd, nextAgentDir, { projectTrusted: trusted }),
+          settingsManager: SettingsManager.create(cwd, nextAgentDir, {
+            projectTrusted: this.trusted,
+          }),
           modelRuntimeSignal: AbortSignal.timeout(MODEL_REFRESH_MS),
           resourceLoaderOptions: {
             extensionFactories: [
@@ -487,6 +483,7 @@ export class AgentHost {
       runningSessionFiles: this.runningSessionFiles(),
       skills: this.getSkills(),
       commands: this.getCommands(),
+      trusted: this.trusted,
       ui: this.requireActive().ui.snapshot(),
       contextUsage: this.getContextUsage(),
       steeringQueue: [...this.session.getSteeringMessages()],

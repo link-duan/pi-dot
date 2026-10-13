@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { ShieldOff } from 'lucide-react'
 import { useShallow } from 'zustand/react/shallow'
 import type { UiWidget, WidgetPlacement } from '@shared/protocol'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ansiStyleToCss, parseAnsi } from '@/lib/ansi'
 import { cn } from '@/lib/utils'
-import { useChat } from '@/session/store'
+import { useChat, useSession } from '@/session/store'
 
 const WIDGET_LINES = 10
 
@@ -52,11 +54,32 @@ function Widget({ widget }: { widget: UiWidget }) {
   )
 }
 
-/** The Composer footer's extension statuses. */
+/** The Composer footer's extension statuses, and the mark of an untrusted folder. */
 export function ExtensionStatuses() {
   const statuses = Object.entries(useChat((chat) => chat.ui.statuses))
+  const trusted = useSession((state) => state.trusted)
+  const retrust = useSession((state) => state.retrust)
   return (
     <>
+      {trusted ? null : (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                onClick={() => void retrust()}
+                className="inline-flex h-6 shrink-0 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              />
+            }
+          >
+            <ShieldOff className="size-3" />
+            Untrusted
+          </TooltipTrigger>
+          <TooltipContent>
+            Project extensions, settings and skills are not loaded. Click to trust this folder.
+          </TooltipContent>
+        </Tooltip>
+      )}
       {statuses.length > 0 ? (
         <span
           className="ml-1 flex min-w-0 items-center gap-2 overflow-hidden text-xs whitespace-nowrap text-muted-foreground select-none"

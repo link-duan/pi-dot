@@ -253,6 +253,8 @@ export interface SessionSnapshot {
   runningSessionFiles: string[]
   skills: SkillInfo[]
   commands: CommandInfo[]
+  /** False when the user declined to trust the project's own resources. */
+  trusted: boolean
   ui: { requests: UiRequest[]; state: UiState }
   contextUsage?: ContextUsage | null
   steeringQueue?: string[]

@@ -231,6 +231,7 @@ function registerIpc(): void {
   handleHost(IPC.respondUi, (host, sessionFile: string, id: string, response: UiResponse) =>
     host.respondUi(sessionFile, id, response),
   )
+  ipcMain.handle(IPC.retrust, (event) => requireWindow(event).retrust())
   handleHost(IPC.editMessage, (host, sessionFile: string, timestamp: number) =>
     host.editMessage(sessionFile, timestamp),
   )

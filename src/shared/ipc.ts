@@ -9,6 +9,7 @@ export const IPC = {
   approvePlan: 'pi:approvePlan',
   answerQuestion: 'pi:answerQuestion',
   respondUi: 'pi:respondUi',
+  retrust: 'pi:retrust',
   editMessage: 'pi:editMessage',
   cancelEdit: 'pi:cancelEdit',
   forkMessage: 'pi:forkMessage',

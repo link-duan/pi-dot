@@ -34,6 +34,8 @@ interface SessionStore extends WindowState {
   /** Replies to the active session's `ask_user` call `toolCallId`. */
   answerQuestion: (toolCallId: string, reply: AskReply) => Promise<void>
   respondUi: (id: string, response: UiResponse) => Promise<void>
+  /** Asks again whether to trust the folder, reloading it if the answer changed. */
+  retrust: () => Promise<void>
   /** Rewinds to before the user message sent at `timestamp` and puts it in the Composer. */
   editMessage: (timestamp: number) => Promise<void>
   /** Leaves an edit, back to the branch it rewound from. */
@@ -175,6 +177,17 @@ export const useSession = create<SessionStore>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
       throw error
+    }
+  },
+
+  retrust: async () => {
+    try {
+      const result = await window.pi.retrust()
+      if (result.kind === 'started') {
+        set((state) => applySnapshot({ ...state, chats: {} }, result.snapshot))
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
 

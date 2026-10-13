@@ -1,9 +1,11 @@
+import { getAgentDir, ProjectTrustStore } from '@earendil-works/pi-coding-agent'
 import { app, BrowserWindow, dialog } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { ConnectionStatus, StartResult } from '@shared/protocol'
 import { AgentHost } from './agent-host'
 import { projectCwd, withCwdLock } from './cwd'
 import { addRecentProject } from './recent-projects'
+import { trustDecision, trustResources } from './trust'
 import { SerialQueue } from '@shared/queue'
 
 type ConfirmKind = 'close' | 'quit' | 'change-folder'
@@ -12,6 +14,8 @@ export type AppWindow = {
   readonly window: BrowserWindow
   bind(cwd: string): Promise<StartResult>
   leave(): Promise<{ cancelled: boolean }>
+  /** Asks again whether to trust the bound folder; rebinds it if the answer changed. */
+  retrust(): Promise<StartResult>
   readonly host: AgentHost | null
   send(command: string): void
   focus(): void
@@ -97,6 +101,16 @@ class HostedWindow implements AppWindow {
     return this.ops.enqueue(() => this.leaveOp())
   }
 
+  retrust(): Promise<StartResult> {
+    return this.ops.enqueue(async () => {
+      const host = this.host
+      if (!host || !this.live()) return { kind: 'cancelled' }
+      const trusted = await askTrust(this.window, host.cwd)
+      if (trusted === host.trusted || this.host !== host) return { kind: 'cancelled' }
+      return this.bindOp(host.cwd, trusted)
+    })
+  }
+
   send(command: string): void {
     if (this.window.isDestroyed()) return
     this.window.webContents.send(IPC.command, command)
@@ -170,7 +184,7 @@ class HostedWindow implements AppWindow {
     return { cancelled: false }
   }
 
-  private async bindOp(cwd: string): Promise<StartResult> {
+  private async bindOp(cwd: string, trust?: boolean): Promise<StartResult> {
     if (!this.live()) return { kind: 'cancelled' }
     const key = await projectCwd(cwd)
     if (!this.live()) return { kind: 'cancelled' }
@@ -186,6 +200,11 @@ class HostedWindow implements AppWindow {
     }
     if (!this.live()) return { kind: 'cancelled' }
 
+    const decision = trust === undefined ? trustDecision(key, getAgentDir()) : null
+    const trusted =
+      trust ?? (decision === 'ask' ? await askTrust(this.window, key) : decision === 'trusted')
+    if (!this.live()) return { kind: 'cancelled' }
+
     return withCwdLock(key, async () => {
       if (!this.live()) return { kind: 'cancelled' }
       const taken = HostedWindow.owner(key)
@@ -195,7 +214,7 @@ class HostedWindow implements AppWindow {
       if (!this.live()) return { kind: 'cancelled' }
 
       this.sendStatus('connecting')
-      const next = new AgentHost(key)
+      const next = new AgentHost(key, trusted)
       next.onEvent((event) => this.sendTo(IPC.event, event))
       try {
         await next.start()
@@ -277,6 +296,28 @@ export function clampCascade(from: Rect, workArea: Rect, offset = 24): Rect {
     width,
     height,
   }
+}
+
+async function askTrust(window: BrowserWindow, cwd: string): Promise<boolean> {
+  const found = trustResources(cwd)
+  const result = await dialog.showMessageBox(window, {
+    type: 'warning',
+    buttons: ['Trust', "Don't Trust"],
+    defaultId: 1,
+    cancelId: 1,
+    message: 'Trust this folder?',
+    detail: [
+      `${cwd} contains project resources that run code:`,
+      ...(found.length > 0 ? [found.map((path) => `• ${path}`).join('   ')] : []),
+      '',
+      'Only trust folders you know.',
+    ].join('\n'),
+    checkboxLabel: 'Remember for this folder',
+    checkboxChecked: true,
+  })
+  const trusted = result.response === 0
+  if (result.checkboxChecked) new ProjectTrustStore(getAgentDir()).set(cwd, trusted)
+  return trusted
 }
 
 async function confirmStopRunning(

@@ -26,6 +26,8 @@ export type WindowState = {
   thinkingLevels: ThinkingLevel[]
   skills: SkillInfo[]
   commands: CommandInfo[]
+  /** False when the user declined to trust the project's own resources. */
+  trusted: boolean
   contextUsage: ContextUsage | null
   sessionId: string | null
   sessionFile: string | null
@@ -61,6 +63,7 @@ export function createWindowState(): WindowState {
     thinkingLevels: [],
     skills: [],
     commands: [],
+    trusted: true,
     contextUsage: null,
     sessionId: null,
     sessionFile: null,
@@ -145,6 +148,7 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     running: snapshot.runningSessionFiles,
     skills: snapshot.skills,
     commands: snapshot.commands,
+    trusted: snapshot.trusted,
     contextUsage: snapshot.contextUsage ?? null,
   }
 }

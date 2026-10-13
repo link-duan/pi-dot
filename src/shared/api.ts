@@ -36,6 +36,8 @@ export interface PiApi {
   approvePlan(sessionFile: string, message: string): Promise<void>
   answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void>
   respondUi(sessionFile: string, id: string, response: UiResponse): Promise<void>
+  /** Asks again whether to trust the folder; `started` when it was rebound. */
+  retrust(): Promise<StartResult>
   /** Rewinds to before the user message sent at `timestamp`; `leafId` undoes it. */
   editMessage(
     sessionFile: string,
