@@ -16,6 +16,7 @@ import { pendingQuestion } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import { FollowUpQueue } from './FollowUpQueue'
 import { ComposerActions } from './ComposerActions'
+import { CARD } from './composer-card'
 import { PlanReview } from './PlanReview'
 import { QuestionCard } from './QuestionCard'
 import { activateSession, draftText, rememberDraft } from './composer/drafts'
@@ -172,6 +173,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         <ExtensionDialogCard />
         <PlanReview />
         <ComposerActions />
+        <ExtensionWidgets placement="aboveEditor" className={cn(CARD, 'px-3 py-2')} />
       </div>
 
       <form
@@ -192,10 +194,6 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>
-        <ExtensionWidgets
-          placement="aboveEditor"
-          className="border-b border-border/60 px-1.5 pt-1 pb-1.5"
-        />
         <PromptEditorField
           id="prompt-input"
           placeholder={placeholder}

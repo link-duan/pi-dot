@@ -10,7 +10,10 @@ import { useChat, useSession } from '@/session/store'
 
 const WIDGET_LINES = 10
 
-/** Text widgets extensions set with `ctx.ui.setWidget`, inside the Composer around the editor. */
+/**
+ * Text widgets extensions set with `ctx.ui.setWidget`: above the editor as a card over the
+ * Composer, below it inside the Composer.
+ */
 export function ExtensionWidgets({
   placement,
   className,
