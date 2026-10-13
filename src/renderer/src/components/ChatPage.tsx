@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Plus } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { Navigate } from 'react-router'
 import { PATH } from '@/router'
 import { useChat, useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,6 @@ import { SessionSwitcher } from './SessionSwitcher'
 import { Transcript, type TranscriptHandle } from './transcript/Transcript'
 
 export function ChatPage() {
-  const navigate = useNavigate()
   const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const error = useSession((state) => state.error)
@@ -23,6 +22,9 @@ export function ChatPage() {
   const scrollerRef = useRef<HTMLDivElement>(null)
   const transcriptRef = useRef<TranscriptHandle>(null)
   const canCreate = connection === 'ready' && (chat.isStreaming || chat.messages.length > 0)
+
+  // Without a bound folder (left it, or a reload found no live agent) there is no session to show.
+  if (!cwd) return <Navigate to={PATH.launcher} replace />
 
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
@@ -81,11 +83,7 @@ export function ChatPage() {
             <button
               type="button"
               className="font-medium underline underline-offset-2 hover:opacity-80"
-              onClick={() => {
-                void leave().then((left) => {
-                  if (left) navigate(PATH.launcher, { replace: true })
-                })
-              }}
+              onClick={() => void leave()}
             >
               Change folder
             </button>

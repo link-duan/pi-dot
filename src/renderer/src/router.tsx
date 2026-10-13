@@ -1,4 +1,4 @@
-import { createMemoryRouter, Outlet, RouterProvider } from 'react-router'
+import { createHashRouter, Outlet, RouterProvider } from 'react-router'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 
@@ -20,7 +20,7 @@ function Shell() {
   )
 }
 
-export const router = createMemoryRouter([
+export const router = createHashRouter([
   {
     Component: Shell,
     children: [

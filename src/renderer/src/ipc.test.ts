@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import type { AssistantMessage, SessionEvent } from '@shared/protocol'
 import { createReplayBuffer, replayQueuedEvent, resolveQueuedStatus } from './ipc'

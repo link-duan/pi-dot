@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Folder, FolderOpen, Search, X } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { Navigate } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
@@ -12,11 +12,11 @@ import { useSession } from '@/session/store'
 import { PiLogo } from './PiIcon'
 
 export function ProjectLauncher() {
-  const navigate = useNavigate()
   const connection = useSession((state) => state.connection)
   const error = useSession((state) => state.error)
   const openFolder = useSession((state) => state.openFolder)
   const openCwd = useSession((state) => state.openCwd)
+  const cwd = useSession((state) => state.cwd)
   const busy = connection === 'connecting'
 
   const [recentProjects, setRecentProjects] = useState<string[]>([])
@@ -50,10 +50,6 @@ export function ProjectLauncher() {
     }
   }, [selectedIndex])
 
-  async function enter(open: () => Promise<boolean>): Promise<void> {
-    if (await open()) navigate(PATH.session, { replace: true })
-  }
-
   const removeProject = useCallback(async (event: React.MouseEvent, path: string) => {
     event.stopPropagation()
     await window.pi.removeRecentProject(path)
@@ -77,12 +73,15 @@ export function ProjectLauncher() {
     } else if (event.key === 'Enter') {
       event.preventDefault()
       const target = selectedIndex >= 0 ? filtered[selectedIndex] : filtered[0]
-      if (target) void enter(() => openCwd(target))
+      if (target) void openCwd(target)
     } else if (event.key === 'Escape' && query) {
       event.preventDefault()
       onQueryChange('')
     }
   }
+
+  // A Window bound to a folder shows its session, at startup or on reload.
+  if (cwd) return <Navigate to={PATH.session} replace />
 
   return (
     <main
@@ -111,7 +110,7 @@ export function ProjectLauncher() {
 
               <Button
                 disabled={busy}
-                onClick={() => void enter(openFolder)}
+                onClick={() => void openFolder()}
                 variant="outline"
                 size="sm"
                 className="gap-1.5 rounded-md text-xs font-medium shadow-none hover:bg-accent"
@@ -176,10 +175,10 @@ export function ProjectLauncher() {
                                 if (event.key !== 'Enter' && event.key !== ' ') return
                                 event.preventDefault()
                                 event.stopPropagation()
-                                if (!busy) void enter(() => openCwd(path))
+                                if (!busy) void openCwd(path)
                               }}
                               onClick={() => {
-                                if (!busy) void enter(() => openCwd(path))
+                                if (!busy) void openCwd(path)
                               }}
                               onMouseEnter={() => setSelectedIndex(index)}
                               onMouseLeave={() => setSelectedIndex(-1)}
@@ -247,7 +246,7 @@ export function ProjectLauncher() {
             <div className="mt-6 w-full max-w-64">
               <Button
                 disabled={busy}
-                onClick={() => void enter(openFolder)}
+                onClick={() => void openFolder()}
                 size="default"
                 className="w-full gap-2 rounded-md text-xs font-medium shadow-xs"
               >

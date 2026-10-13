@@ -164,7 +164,7 @@ function usePlaygroundSession(model: ChatState, plan = '') {
           }),
         )
       },
-      openFolder: async () => false,
+      openFolder: async () => {},
       setModel: async (provider, modelId) => {
         const next = playgroundModels.find(
           (item) => item.provider === provider && item.id === modelId,

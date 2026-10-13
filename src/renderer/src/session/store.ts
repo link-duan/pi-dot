@@ -26,9 +26,9 @@ import {
 } from './state'
 
 interface SessionStore extends WindowState {
-  openFolder: () => Promise<boolean>
-  openCwd: (cwd: string) => Promise<boolean>
-  leave: () => Promise<boolean>
+  openFolder: () => Promise<void>
+  openCwd: (cwd: string) => Promise<void>
+  leave: () => Promise<void>
   send: (text: string) => Promise<void>
   steer: (text: string) => Promise<void>
   /** Replies to the active session's `ask_user` call `toolCallId`. */
@@ -106,8 +106,7 @@ export const useSession = create<SessionStore>((set, get) => ({
 
   openFolder: async () => {
     const cwd = await window.pi.chooseFolder()
-    if (!cwd) return false
-    return get().openCwd(cwd)
+    if (cwd) await get().openCwd(cwd)
   },
 
   openCwd: async (cwd: string) => {
@@ -115,31 +114,25 @@ export const useSession = create<SessionStore>((set, get) => ({
     set({ connection: 'connecting', error: null })
     try {
       const result = await window.pi.start(cwd)
-      if (result.kind !== 'started') {
-        set(previous)
-        return false
-      }
-      set((state) => applySnapshot({ ...state, chats: {} }, result.snapshot))
-      return true
+      if (result.kind !== 'started') set(previous)
+      else set((state) => applySnapshot({ ...state, chats: {} }, result.snapshot))
     } catch (error) {
       set({
         cwd,
         connection: 'error',
         error: error instanceof Error ? error.message : String(error),
       })
-      return true
     }
   },
 
   leave: async () => {
     try {
       const result = await window.pi.stop()
-      if (result.cancelled) return false
+      if (result.cancelled) return
     } catch (error) {
       console.error('Failed to stop session', error)
     }
     set((state) => resetFolder(state))
-    return true
   },
 
   send: async (text: string) => {
