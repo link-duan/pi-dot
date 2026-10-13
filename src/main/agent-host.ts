@@ -2,12 +2,14 @@ import {
   type AgentSession,
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
+  type ExtensionUIContext,
   type SessionStartEvent,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
   createAgentSessionServices,
   getAgentDir,
   hasTrustRequiringProjectResources,
+  initTheme,
   ProjectTrustStore,
   SessionManager,
   SettingsManager,
@@ -24,18 +26,22 @@ import {
   parseThinkingLevels,
   type AgentMessage,
   type AskReply,
+  type CommandInfo,
   type ContextUsage,
   type ModelInfo,
   type ModelSelection,
   type SessionEvent,
+  type SessionEventBody,
   type SessionSnapshot,
   type SessionState,
   type SkillInfo,
   type ThinkingLevel,
+  type UiResponse,
 } from '@shared/protocol'
 import { alignPersistedAt, persistRecordsFromEntries } from '@shared/turns'
 import { toSessionEvent } from './agent-events'
 import { createAskUser, type AskUser } from './ask-user'
+import { createExtensionUi, type ExtensionUi } from './extension-ui'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
 import { createPlanMode, type PlanMode } from './plan-mode'
@@ -52,14 +58,23 @@ export function isProjectTrusted(cwd: string, agentDir: string): boolean {
   return settings.getDefaultProjectTrust() === 'always'
 }
 
+// pi's own theme, taken from a session's UI context before Pi Dot's replaces it.
+let piTheme: ExtensionUIContext['theme'] | undefined
+
 class LiveSession {
   unsubscribe: (() => void) | null = null
   promptRun: Promise<unknown> | null = null
   titled = false
+  readonly ui: ExtensionUi
   /** The `AgentHost.live` key; the runtime may replace the session (a fork) under it. */
   key: string
 
-  constructor(readonly runtime: AgentSessionRuntime) {
+  constructor(
+    readonly runtime: AgentSessionRuntime,
+    emit: (event: SessionEventBody) => void,
+  ) {
+    piTheme ??= runtime.session.extensionRunner.getUIContext().theme
+    this.ui = createExtensionUi(emit, () => piTheme!)
     this.key = this.sessionFile
   }
 
@@ -110,6 +125,9 @@ export class AgentHost {
       const agentDir = getAgentDir()
       const projectTrusted = isProjectTrusted(this.cwd, agentDir)
       const settingsManager = SettingsManager.create(this.cwd, agentDir, { projectTrusted })
+      // As pi's CLI does; extensions color their statuses and widgets with `ctx.ui.theme`.
+      // The theme is process-wide, so the last folder started picks it for every window.
+      initTheme(settingsManager.getTheme())
 
       this.agentDir = agentDir
       this.createRuntime = async ({
@@ -172,6 +190,12 @@ export class AgentHost {
   /** `message` is the user's approval, which may carry comments on the plan. */
   async approvePlan(sessionFile: string | undefined, message: string): Promise<void> {
     await this.prompt(message, sessionFile, false, true)
+  }
+
+  async respondUi(sessionFile: string, id: string, response: UiResponse): Promise<void> {
+    if (!this.requireActive(sessionFile).ui.respond(id, response)) {
+      throw new Error('No extension dialog is waiting')
+    }
   }
 
   async answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void> {
@@ -432,6 +456,22 @@ export class AgentHost {
     }))
   }
 
+  private getCommands(): CommandInfo[] {
+    const session = this.session
+    return [
+      ...session.extensionRunner.getRegisteredCommands().map((command): CommandInfo => ({
+        name: command.invocationName,
+        ...(command.description ? { description: command.description } : {}),
+        source: 'extension',
+      })),
+      ...session.promptTemplates.map((template): CommandInfo => ({
+        name: template.name,
+        ...(template.description ? { description: template.description } : {}),
+        source: 'prompt',
+      })),
+    ]
+  }
+
   private getContextUsage(): ContextUsage | null {
     return toContextUsage(this.session)
   }
@@ -446,6 +486,8 @@ export class AgentHost {
       thinkingLevels: this.getAvailableThinkingLevels(),
       runningSessionFiles: this.runningSessionFiles(),
       skills: this.getSkills(),
+      commands: this.getCommands(),
+      ui: this.requireActive().ui.snapshot(),
       contextUsage: this.getContextUsage(),
       steeringQueue: [...this.session.getSteeringMessages()],
       followUpQueue: [...this.session.getFollowUpMessages()],
@@ -574,7 +616,9 @@ export class AgentHost {
       throw new Error(errors.map((item) => item.message).join('\n'))
     }
 
-    const live = new LiveSession(runtime)
+    const live: LiveSession = new LiveSession(runtime, (body) =>
+      this.emit({ ...body, sessionFile: live.sessionFile } as SessionEvent),
+    )
     // A fork or an extension's session switch replaces the session inside the runtime.
     runtime.setRebindSession(async () => {
       if (this.live.get(live.key) === live) this.live.delete(live.key)
@@ -610,6 +654,7 @@ export class AgentHost {
   private async disposeLive(live: LiveSession): Promise<void> {
     live.unsubscribe?.()
     live.unsubscribe = null
+    live.ui.dispose()
     try {
       await live.runtime.session.abort()
     } catch (error) {
@@ -622,6 +667,7 @@ export class AgentHost {
     const session = live.session
     live.unsubscribe?.()
     await session.bindExtensions({
+      uiContext: live.ui.context,
       mode: 'rpc',
       commandContextActions: {
         waitForIdle: () => session.waitForIdle(),
@@ -642,6 +688,17 @@ export class AgentHost {
           return { cancelled: false }
         },
         reload: () => session.reload(),
+      },
+      // As pi's TUI does; otherwise an extension that throws fails silently. A handler that
+      // throws on every streamed update keeps one toast, not one per update.
+      onError: (error) => {
+        this.emit({
+          type: 'ui_notify',
+          sessionFile: live.sessionFile,
+          message: `Extension "${error.extensionPath}" error: ${error.error}`,
+          level: 'error',
+          id: `${error.extensionPath}:${error.event}`,
+        })
       },
     })
     const planMode = this.planModes.get(session.sessionManager)

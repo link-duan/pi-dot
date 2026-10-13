@@ -4,6 +4,7 @@ import {
   ASK_USER_TOOL,
   askQuestions,
   type AskQuestion,
+  type CommandInfo,
   type ConnectionStatus,
   type ContextUsage,
   type ModelInfo,
@@ -11,6 +12,7 @@ import {
   type SessionSnapshot,
   type SkillInfo,
   type ThinkingLevel,
+  type UiRequest,
 } from '@shared/protocol'
 
 export type WindowState = {
@@ -23,6 +25,7 @@ export type WindowState = {
   thinkingLevel: ThinkingLevel
   thinkingLevels: ThinkingLevel[]
   skills: SkillInfo[]
+  commands: CommandInfo[]
   contextUsage: ContextUsage | null
   sessionId: string | null
   sessionFile: string | null
@@ -57,6 +60,7 @@ export function createWindowState(): WindowState {
     thinkingLevel: 'off',
     thinkingLevels: [],
     skills: [],
+    commands: [],
     contextUsage: null,
     sessionId: null,
     sessionFile: null,
@@ -111,6 +115,13 @@ export function pendingQuestion(
   return null
 }
 
+/** The active session's oldest extension dialog, unless an `ask_user` call waits first. */
+export function pendingUiRequest(state: WindowState): { request: UiRequest; count: number } | null {
+  if (pendingQuestion(state)) return null
+  const requests = activeChat(state).uiRequests
+  return requests[0] ? { request: requests[0], count: requests.length } : null
+}
+
 export function activeChat(state: WindowState): ChatState {
   if (!state.sessionFile) return EMPTY_CHAT
   return state.chats[state.sessionFile] ?? EMPTY_CHAT
@@ -133,6 +144,7 @@ function snapshotMeta(snapshot: SessionSnapshot) {
     thinkingLevels: snapshot.thinkingLevels,
     running: snapshot.runningSessionFiles,
     skills: snapshot.skills,
+    commands: snapshot.commands,
     contextUsage: snapshot.contextUsage ?? null,
   }
 }
@@ -152,6 +164,8 @@ export function applySnapshot<T extends WindowState>(
         plan: snapshot.state.plan,
         steeringQueue: [...steeringQueue],
         followUpQueue: [...followUpQueue],
+        uiRequests: snapshot.ui.requests,
+        ui: snapshot.ui.state,
       }
     : hydrateMessages(snapshot.messages, {
         isStreaming: snapshot.state.isStreaming,
@@ -160,6 +174,7 @@ export function applySnapshot<T extends WindowState>(
         followUpQueue,
         planMode: snapshot.state.planMode,
         plan: snapshot.state.plan,
+        ui: snapshot.ui,
       })
   const chats = { ...state.chats }
   if (sessionFile) chats[sessionFile] = chat

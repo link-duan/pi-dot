@@ -1,3 +1,4 @@
+import { $getSelection, $isRangeSelection } from 'lexical'
 import type { SkillInfo } from '@shared/protocol'
 import { slashQuery, type SlashItem } from '@/lib/slash-query'
 import { $caretTextBefore, $insertInlineWithSpace, $replaceTriggerQuery } from './caret'
@@ -8,11 +9,19 @@ export function $slashQueryAtCaret(): string | null {
   return text == null ? null : slashQuery(text)
 }
 
-/** Skills become a chip; commands act instead, so their `/query` is just removed. */
+/**
+ * Skills become a chip; extension commands and templates become plain `/name ` text, for their
+ * arguments; built-in commands act instead, so their `/query` is just removed.
+ */
 export function $applySlashItem(item: SlashItem): boolean {
   if (item.kind === 'skill') return $replaceSlashQueryWithSkill(item.skill)
   const query = $slashQueryAtCaret()
-  return query != null && $replaceTriggerQuery(query, () => {})
+  if (query == null) return false
+  if (item.kind === 'command') return $replaceTriggerQuery(query, () => {})
+  return $replaceTriggerQuery(query, () => {
+    const selection = $getSelection()
+    if ($isRangeSelection(selection)) selection.insertText(`/${item.command.name} `)
+  })
 }
 
 export function $replaceSlashQueryWithSkill(skill: SkillInfo): boolean {

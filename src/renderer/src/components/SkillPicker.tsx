@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { SkillInfo } from '@shared/protocol'
+import type { CommandInfo, SkillInfo } from '@shared/protocol'
 import {
   Command,
   CommandEmpty,
@@ -12,24 +12,26 @@ import { filterSlashItems, type SlashItem } from '@/lib/slash-query'
 
 export function SkillPicker({
   skills,
+  commands,
   query,
   index,
-  withCommands = true,
   onHover,
   onSelect,
 }: {
   skills: SkillInfo[]
+  /** Extension commands and prompt templates; null lists skills only. */
+  commands: CommandInfo[] | null
   query: string
   index: number
-  withCommands?: boolean
   onHover: (index: number) => void
   onSelect: (item: SlashItem) => void
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const filtered = filterSlashItems(skills, query, withCommands)
+  const filtered = filterSlashItems(skills, query, commands)
   const selected = filtered[index] ? itemValue(filtered[index]) : ''
   const groups = [
     { heading: 'Commands', kind: 'command' },
+    { heading: 'Extensions', kind: 'extension' },
     { heading: 'Skills', kind: 'skill' },
   ] as const
 
@@ -52,7 +54,7 @@ export function SkillPicker({
             <CommandList className="overflow-visible p-0">
               {filtered.length === 0 ? (
                 <CommandEmpty className="py-4 text-xs">
-                  {withCommands ? 'No matching commands or skills' : 'No matching skills'}
+                  {commands ? 'No matching commands or skills' : 'No matching skills'}
                 </CommandEmpty>
               ) : (
                 groups.map(({ heading, kind }) => {
@@ -63,9 +65,7 @@ export function SkillPicker({
                   return (
                     <CommandGroup key={kind} heading={heading}>
                       {items.map(({ item, itemIndex }) => {
-                        const name = item.kind === 'command' ? `/${item.name}` : item.skill.name
-                        const description =
-                          item.kind === 'command' ? item.description : item.skill.description
+                        const { name, description, source } = itemLabel(item)
                         return (
                           <CommandItem
                             key={itemValue(item)}
@@ -76,9 +76,12 @@ export function SkillPicker({
                             onSelect={() => onSelect(item)}
                           >
                             <span className="shrink-0">{name}</span>
-                            {description ? (
-                              <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                                {description}
+                            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                              {description}
+                            </span>
+                            {source ? (
+                              <span className="shrink-0 rounded-full border border-border px-1.5 text-[11px] leading-4 text-muted-foreground">
+                                {source}
                               </span>
                             ) : null}
                           </CommandItem>
@@ -98,5 +101,16 @@ export function SkillPicker({
 }
 
 function itemValue(item: SlashItem): string {
-  return item.kind === 'command' ? `command:${item.name}` : `skill:${item.skill.name}`
+  if (item.kind === 'command') return `command:${item.name}`
+  if (item.kind === 'extension') return `extension:${item.command.name}`
+  return `skill:${item.skill.name}`
+}
+
+function itemLabel(item: SlashItem): { name: string; description?: string; source?: string } {
+  if (item.kind === 'command') return { name: `/${item.name}`, description: item.description }
+  if (item.kind === 'extension') {
+    const { name, description, source } = item.command
+    return { name: `/${name}`, description, source: source === 'extension' ? 'ext' : 'prompt' }
+  }
+  return { name: item.skill.name, description: item.skill.description }
 }

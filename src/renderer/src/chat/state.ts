@@ -4,6 +4,8 @@ import {
   type PlanRef,
   type SessionEventBody,
   type TextContent,
+  type UiRequest,
+  type UiState,
 } from '@shared/protocol'
 
 export interface ToolLiveState {
@@ -40,7 +42,12 @@ export interface ChatState {
   planActive: boolean
   /** The session's current Plan File, as main replayed it from the transcript. */
   plan: PlanRef
+  /** Extension dialogs waiting for the user, oldest first. */
+  uiRequests: UiRequest[]
+  ui: UiState
 }
+
+const EMPTY_UI: UiState = { statuses: {}, widgets: [] }
 
 export function createChatState(): ChatState {
   return {
@@ -58,6 +65,8 @@ export function createChatState(): ChatState {
     planMode: false,
     planActive: false,
     plan: null,
+    uiRequests: [],
+    ui: EMPTY_UI,
   }
 }
 
@@ -70,6 +79,7 @@ export function hydrateMessages(
     followUpQueue?: string[]
     planMode?: boolean
     plan?: PlanRef
+    ui?: { requests: UiRequest[]; state: UiState }
   },
 ): ChatState {
   const next = messages.filter(isAgentMessage)
@@ -93,6 +103,8 @@ export function hydrateMessages(
     planMode: Boolean(options?.planMode),
     planActive: Boolean(options?.planMode),
     plan: options?.plan ?? null,
+    uiRequests: options?.ui?.requests ?? [],
+    ui: options?.ui?.state ?? EMPTY_UI,
   }
 }
 
@@ -257,6 +269,19 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'auto_retry_end':
       return { ...state, retry: null }
+
+    case 'ui_request':
+      return { ...state, uiRequests: [...state.uiRequests, event.request] }
+
+    case 'ui_dismiss':
+      return { ...state, uiRequests: state.uiRequests.filter((item) => item.id !== event.id) }
+
+    case 'ui_state':
+      return { ...state, ui: event.state }
+
+    case 'ui_notify':
+    case 'ui_editor_text':
+      return state
 
     case 'tool_execution_end': {
       const toolCallId = String(event.toolCallId ?? '')

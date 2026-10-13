@@ -23,6 +23,8 @@ import { $clearEditor, PromptEditorField, promptEditorConfig } from './composer/
 import { serializeEditorState } from './composer/serialize'
 import { $setComposerText } from './composer/set-text'
 import { ContextUsageRing } from './ContextUsageRing'
+import { ExtensionStatuses, ExtensionWidgets } from './ExtensionChrome'
+import { ExtensionDialogCard } from './ExtensionDialogCard'
 import { ModelSelect } from './ModelSelect'
 
 const initialConfig = promptEditorConfig('pi-composer')
@@ -63,13 +65,17 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const planMode = useChat((state) => state.planMode)
   const setPlanMode = useSession((state) => state.setPlanMode)
   const togglePlanMode = useCallback(() => setPlanMode(!planMode), [planMode, setPlanMode])
+  const compact = useSession((state) => state.compact)
+  const newSession = useSession((state) => state.newSession)
   const editing = useSession((state) => state.editing?.sessionFile === state.sessionFile)
   const cancelEdit = useSession((state) => state.cancelEdit)
   const runCommand = useCallback(
     (name: string) => {
       if (name === 'plan') setPlanMode(true)
+      if (name === 'compact') void compact()
+      if (name === 'new') void newSession()
     },
-    [setPlanMode],
+    [compact, newSession, setPlanMode],
   )
   const hasDraft = draft.trim().length > 0
   const action: SendAction = questionId ? 'reply' : isStreaming ? 'steer' : 'send'
@@ -160,6 +166,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
       <div className="pointer-events-auto mx-auto max-w-3xl">
         <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
         <QuestionCard />
+        <ExtensionDialogCard />
         <PlanReview />
         <ComposerActions />
       </div>
@@ -182,6 +189,10 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         <label className="sr-only" htmlFor="prompt-input">
           Prompt
         </label>
+        <ExtensionWidgets
+          placement="aboveEditor"
+          className="border-b border-border/60 px-1.5 pt-1 pb-1.5"
+        />
         <PromptEditorField
           id="prompt-input"
           placeholder={placeholder}
@@ -196,6 +207,11 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
           isStreaming={isStreaming}
           onSubmit={submit}
           onTogglePlanMode={togglePlanMode}
+        />
+
+        <ExtensionWidgets
+          placement="belowEditor"
+          className="border-t border-border/60 px-1.5 pt-1.5 pb-1"
         />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
@@ -236,6 +252,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
                 <TooltipContent>{`Current folder: ${cwd} (click to change)`}</TooltipContent>
               </Tooltip>
             ) : null}
+            <ExtensionStatuses />
           </div>
 
           <div className="flex shrink-0 items-center gap-0.5">

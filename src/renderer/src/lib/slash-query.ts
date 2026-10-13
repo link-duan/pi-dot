@@ -1,4 +1,4 @@
-import type { SkillInfo } from '@shared/protocol'
+import type { CommandInfo, SkillInfo } from '@shared/protocol'
 import { tokenQuery } from './token-query'
 
 export function slashQuery(textBeforeCaret: string): string | null {
@@ -13,25 +13,54 @@ export interface SlashCommand {
 /** Built-in commands the Composer handles itself; they are never sent to the agent. */
 export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'plan', description: 'Plan before making changes' },
+  { name: 'compact', description: 'Summarize the conversation to free context' },
+  { name: 'new', description: 'Start a new session' },
 ]
 
-export type SlashItem = ({ kind: 'command' } & SlashCommand) | { kind: 'skill'; skill: SkillInfo }
+export type SlashItem =
+  | ({ kind: 'command' } & SlashCommand)
+  | { kind: 'extension'; command: CommandInfo }
+  | { kind: 'skill'; skill: SkillInfo }
 
-/** Commands first, then skills; a `skill:` query, or `withCommands: false`, lists skills only. */
+/**
+ * Built-in commands, then extension commands and prompt templates, then skills. A name taken by
+ * an earlier one is dropped, as pi resolves it. A `skill:` query, or `extensions: null`, lists
+ * skills only.
+ */
 export function filterSlashItems(
   skills: SkillInfo[],
   query: string,
-  withCommands = true,
+  extensions: CommandInfo[] | null = [],
 ): SlashItem[] {
   const needle = query.trim().toLowerCase()
-  const commands =
-    !withCommands || needle.startsWith('skill:')
-      ? []
-      : SLASH_COMMANDS.filter((command) => command.name.includes(needle))
+  const listCommands = extensions !== null && !needle.startsWith('skill:')
+  const builtins = listCommands
+    ? SLASH_COMMANDS.filter((command) => command.name.includes(needle))
+    : []
+  const taken = new Set(SLASH_COMMANDS.map((command) => command.name))
+  const others = listCommands
+    ? extensions!.filter((command) => {
+        if (taken.has(command.name)) return false
+        taken.add(command.name)
+        return (
+          command.name.toLowerCase().includes(needle) ||
+          (command.description?.toLowerCase().includes(needle) ?? false)
+        )
+      })
+    : []
   return [
-    ...commands.map((command): SlashItem => ({ kind: 'command', ...command })),
+    ...builtins.map((command): SlashItem => ({ kind: 'command', ...command })),
+    ...others.map((command): SlashItem => ({ kind: 'extension', command })),
     ...filterSkills(skills, query).map((skill): SlashItem => ({ kind: 'skill', skill })),
   ]
+}
+
+/** The extension command `text` runs, if any; it runs in main without a user message. */
+export function extensionCommand(text: string, commands: CommandInfo[]): CommandInfo | undefined {
+  const name = text.match(/^\/(\S+)/)?.[1]
+  return name
+    ? commands.find((command) => command.source === 'extension' && command.name === name)
+    : undefined
 }
 
 export function filterSkills(skills: SkillInfo[], query: string): SkillInfo[] {

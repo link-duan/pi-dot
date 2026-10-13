@@ -1,8 +1,9 @@
+import { toast } from 'sonner'
 import { PATH, router } from '@/router'
 import { loadSettings, useSettings } from '@/settings/store'
 import { applyLiveSnapshot, useSession } from '@/session/store'
 import { activeChat, applyEvent } from '@/session/state'
-import type { AgentMessage, ConnectionStatus, SessionEvent } from '@shared/protocol'
+import type { AgentMessage, ConnectionStatus, NotifyLevel, SessionEvent } from '@shared/protocol'
 
 let bound = false
 const pendingUpdates = new Map<string, SessionEvent>()
@@ -99,6 +100,10 @@ function onLiveEvent(event: SessionEvent): void {
   flushPending(event.sessionFile)
   dispatch(event)
   const session = useSession.getState()
+  if (event.sessionFile === session.sessionFile) {
+    if (event.type === 'ui_notify') notify(event.message, event.level, event.id)
+    if (event.type === 'ui_editor_text') session.fillComposer(event.text)
+  }
   // The agent may have just edited the plan; keep a viewer opened mid-run current.
   if (
     event.type === 'tool_execution_end' &&
@@ -115,6 +120,12 @@ function onLiveEvent(event: SessionEvent): void {
   ) {
     void session.refreshPlan(true)
   }
+}
+
+export function notify(message: string, level: NotifyLevel, id?: string): void {
+  if (level === 'error') toast.error(message, { id, duration: Infinity, closeButton: true })
+  else if (level === 'warning') toast.warning(message, { id, duration: 6000 })
+  else toast(message, { id, duration: 4000 })
 }
 
 function deliverQueued(item: Queued): void {

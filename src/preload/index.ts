@@ -11,6 +11,7 @@ import type {
   SessionSnapshot,
   StartResult,
   ThinkingLevel,
+  UiResponse,
 } from '@shared/protocol'
 import type {
   AppSettings,
@@ -35,6 +36,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.approvePlan, sessionFile, message) as Promise<void>,
   answerQuestion: (sessionFile: string, toolCallId: string, reply: AskReply) =>
     ipcRenderer.invoke(IPC.answerQuestion, sessionFile, toolCallId, reply) as Promise<void>,
+  respondUi: (sessionFile: string, id: string, response: UiResponse) =>
+    ipcRenderer.invoke(IPC.respondUi, sessionFile, id, response) as Promise<void>,
   editMessage: (sessionFile: string, timestamp: number) =>
     ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
   cancelEdit: (sessionFile: string, leafId: string) =>

@@ -59,3 +59,7 @@ _Avoid_: Plan document, todo list
 **Question**:
 A set of 1–4 multiple-choice questions the agent asks with its `ask_user` tool. The run waits until the user answers in a card above the Composer, picks an option or types their own answer per question, skips, or replies to all of them from the Composer. A pending Question is the running `ask_user` call, so it comes back with the Session.
 _Avoid_: Prompt, dialog, questionnaire
+
+**Extension Dialog**:
+A select, confirm, input or editor request a pi extension makes through `ctx.ui`, shown as a card above the Composer until the user answers or cancels it, or it times out. Extensions can also show text **Widgets** around the Composer and short statuses in its footer; UI drawn with pi-tui components is not shown.
+_Avoid_: Extension prompt, modal, popup

@@ -109,6 +109,42 @@ export function askQuestions(args: unknown): AskQuestion[] {
   return Array.isArray(questions) ? (questions as AskQuestion[]) : []
 }
 
+/** An extension dialog waiting for the user; `expiresAt` (epoch ms) when it has a timeout. */
+export type UiRequest = { id: string; title: string; expiresAt?: number } & (
+  | { method: 'select'; options: string[] }
+  | { method: 'confirm'; message: string }
+  | { method: 'input'; placeholder?: string }
+  | { method: 'editor'; prefill?: string }
+)
+
+export type UiResponse =
+  | { kind: 'cancel' }
+  | { kind: 'value'; value: string }
+  | { kind: 'confirm'; confirmed: boolean }
+
+export type WidgetPlacement = 'aboveEditor' | 'belowEditor'
+
+export interface UiWidget {
+  key: string
+  lines: string[]
+  placement: WidgetPlacement
+}
+
+/** What extensions show around the Composer: footer statuses and text widgets. */
+export interface UiState {
+  statuses: Record<string, string>
+  widgets: UiWidget[]
+}
+
+export type NotifyLevel = 'info' | 'warning' | 'error'
+
+/** A slash command from an extension or a prompt template; sending `/name args` runs it. */
+export interface CommandInfo {
+  name: string
+  description?: string
+  source: 'extension' | 'prompt'
+}
+
 export interface TextContent {
   type: 'text'
   text: string
@@ -198,6 +234,12 @@ export type SessionEventBody =
   | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
   | { type: 'auto_retry_end' }
+  | { type: 'ui_request'; request: UiRequest }
+  | { type: 'ui_dismiss'; id: string }
+  | { type: 'ui_state'; state: UiState }
+  /** Notices with the same `id` replace each other instead of stacking. */
+  | { type: 'ui_notify'; message: string; level: NotifyLevel; id?: string }
+  | { type: 'ui_editor_text'; text: string }
 
 export type SessionEvent = SessionEventBody & { sessionFile: string }
 
@@ -210,6 +252,8 @@ export interface SessionSnapshot {
   thinkingLevels: ThinkingLevel[]
   runningSessionFiles: string[]
   skills: SkillInfo[]
+  commands: CommandInfo[]
+  ui: { requests: UiRequest[]; state: UiState }
   contextUsage?: ContextUsage | null
   steeringQueue?: string[]
   followUpQueue?: string[]

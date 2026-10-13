@@ -1,4 +1,5 @@
 import type { ChatState } from '@/chat/state'
+import { extensionCommand } from '@/lib/slash-query'
 import { formatApproval, formatPlanFeedback, reanchor, type PlanComment } from '@/lib/plan-feedback'
 import { parsePlan } from '@shared/plan-file'
 import type {
@@ -8,6 +9,7 @@ import type {
   SessionListItem,
   SessionSnapshot,
   ThinkingLevel,
+  UiResponse,
 } from '@shared/protocol'
 import { SerialQueue } from '@shared/queue'
 import { create } from 'zustand'
@@ -31,6 +33,7 @@ interface SessionStore extends WindowState {
   steer: (text: string) => Promise<void>
   /** Replies to the active session's `ask_user` call `toolCallId`. */
   answerQuestion: (toolCallId: string, reply: AskReply) => Promise<void>
+  respondUi: (id: string, response: UiResponse) => Promise<void>
   /** Rewinds to before the user message sent at `timestamp` and puts it in the Composer. */
   editMessage: (timestamp: number) => Promise<void>
   /** Leaves an edit, back to the branch it rewound from. */
@@ -142,6 +145,14 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return
     set({ editing: null })
     const planMode = get().chats[file]?.planMode ?? false
+    // An extension command runs in main and adds no user message of its own.
+    // It may wait on its own dialogs, so the Composer does not wait for it.
+    if (extensionCommand(text, get().commands)) {
+      void window.pi.prompt(text, file, planMode).catch((error: unknown) => {
+        set({ error: error instanceof Error ? error.message : String(error) })
+      })
+      return
+    }
     await submitPrompt(file, text, () => window.pi.prompt(text, file, planMode))
   },
 
@@ -150,6 +161,17 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return
     try {
       await window.pi.answerQuestion(file, toolCallId, reply)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      throw error
+    }
+  },
+
+  respondUi: async (id: string, response: UiResponse) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.respondUi(file, id, response)
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
       throw error

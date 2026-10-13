@@ -67,6 +67,7 @@ export function PromptEditorField({
   const [editor] = useLexicalComposerContext()
   const cwd = useSession((state) => state.cwd)
   const skills = useSession((state) => state.skills)
+  const commands = useSession((state) => state.commands)
   const [picker, setPicker] = useState<SkillPickerState | null>(null)
   const [filePicker, setFilePicker] = useState<FilePickerState | null>(null)
   const [fileResults, setFileResults] = useState<{ query: string; hits: FileHit[] }>({
@@ -130,9 +131,9 @@ export function PromptEditorField({
       ) : picker ? (
         <SkillPicker
           skills={skills}
+          commands={onCommand ? commands : null}
           query={picker.query}
           index={picker.index}
-          withCommands={!!onCommand}
           onHover={(index) => setPicker((prev) => (prev ? { ...prev, index } : prev))}
           onSelect={insertPicked}
         />
@@ -160,6 +161,7 @@ export function PromptEditorField({
       ) : null}
       <SlashSkillPlugin
         skills={skills}
+        commands={commands}
         picker={picker}
         setPicker={setPicker}
         onCommand={onCommand}

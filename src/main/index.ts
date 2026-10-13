@@ -12,7 +12,7 @@ import {
   shell,
 } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AskReply, StartResult, ThinkingLevel } from '@shared/protocol'
+import type { AskReply, StartResult, ThinkingLevel, UiResponse } from '@shared/protocol'
 import type { SettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
@@ -227,6 +227,9 @@ function registerIpc(): void {
   )
   handleHost(IPC.answerQuestion, (host, sessionFile: string, toolCallId: string, reply: AskReply) =>
     host.answerQuestion(sessionFile, toolCallId, reply),
+  )
+  handleHost(IPC.respondUi, (host, sessionFile: string, id: string, response: UiResponse) =>
+    host.respondUi(sessionFile, id, response),
   )
   handleHost(IPC.editMessage, (host, sessionFile: string, timestamp: number) =>
     host.editMessage(sessionFile, timestamp),

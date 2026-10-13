@@ -25,6 +25,8 @@ const snapshot: SessionSnapshot = {
   thinkingLevels: ['off', 'high'],
   runningSessionFiles: ['/tmp/project/session.jsonl', '/tmp/project/other.jsonl'],
   skills: [{ name: 'tdd', description: 'Test-driven development' }],
+  commands: [],
+  ui: { requests: [], state: { statuses: {}, widgets: [] } },
   contextUsage: {
     tokens: 42_500,
     contextWindow: 256_000,

@@ -8,6 +8,7 @@ import type {
   SessionSnapshot,
   StartResult,
   ThinkingLevel,
+  UiResponse,
 } from './protocol'
 import type {
   AppSettings,
@@ -34,6 +35,7 @@ export interface PiApi {
   prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
   approvePlan(sessionFile: string, message: string): Promise<void>
   answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void>
+  respondUi(sessionFile: string, id: string, response: UiResponse): Promise<void>
   /** Rewinds to before the user message sent at `timestamp`; `leafId` undoes it. */
   editMessage(
     sessionFile: string,

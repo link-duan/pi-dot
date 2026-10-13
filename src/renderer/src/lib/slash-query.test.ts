@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterSkills, filterSlashItems, slashQuery } from './slash-query'
+import { extensionCommand, filterSkills, filterSlashItems, slashQuery } from './slash-query'
 
 describe('slashQuery', () => {
   it('reads a slash token at the start', () => {
@@ -55,16 +55,49 @@ describe('filterSlashItems', () => {
     )
 
   it('lists skills only when commands are off', () => {
-    expect(filterSlashItems(skills, 'pl', false).map((item) => item.kind)).toEqual(['skill'])
+    expect(filterSlashItems(skills, 'pl', null).map((item) => item.kind)).toEqual(['skill'])
   })
 
   it('lists commands before skills', () => {
-    expect(names('')).toEqual(['/plan', 'planner', 'tdd'])
+    expect(names('')).toEqual(['/plan', '/compact', '/new', 'planner', 'tdd'])
     expect(names('pl')).toEqual(['/plan', 'planner'])
     expect(names('td')).toEqual(['tdd'])
   })
 
   it('lists only skills for a skill: query', () => {
     expect(names('skill:pl')).toEqual(['planner'])
+  })
+
+  it('lists extension commands and prompt templates after built-ins, dropping taken names', () => {
+    const commands = [
+      { name: 'deploy', description: 'Ship it', source: 'extension' as const },
+      { name: 'plan', source: 'extension' as const },
+      { name: 'deploy', source: 'prompt' as const },
+      { name: 'review', description: 'Review staged changes', source: 'prompt' as const },
+    ]
+    const items = filterSlashItems([], '', commands)
+    expect(items.map((item) => (item.kind === 'extension' ? item.command : item.kind))).toEqual([
+      'command',
+      'command',
+      'command',
+      commands[0],
+      commands[3],
+    ])
+    expect(filterSlashItems([], 'staged', commands)).toEqual([
+      { kind: 'extension', command: commands[3] },
+    ])
+  })
+})
+
+describe('extensionCommand', () => {
+  const commands = [
+    { name: 'deploy', source: 'extension' as const },
+    { name: 'review', source: 'prompt' as const },
+  ]
+
+  it('finds the extension command a message runs', () => {
+    expect(extensionCommand('/deploy staging', commands)).toBe(commands[0])
+    expect(extensionCommand('/review', commands)).toBeUndefined()
+    expect(extensionCommand('deploy', commands)).toBeUndefined()
   })
 })

@@ -7,14 +7,10 @@ import { splitRecommended } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { pendingQuestion } from '@/session/state'
 import { useSession } from '@/session/store'
+import { BUTTON_RADIUS, CARD, ROW, RowNumber } from './composer-card'
 
 /** Delay before a single-choice pick turns to the next question, so the pick is seen. */
 const ADVANCE_MS = 150
-
-const BUTTON_RADIUS = 'rounded-[calc(var(--radius-2xl)-5px)]'
-
-const ROW =
-  'flex w-full items-baseline gap-2.5 rounded-lg px-2 py-1.5 text-left text-sm transition-colors outline-none hover:bg-muted/50'
 
 function isAnswered(answer: AskAnswer): boolean {
   return answer.selected.length > 0 || Boolean(answer.other?.trim())
@@ -142,7 +138,7 @@ function QuestionForm({ toolCallId, questions }: { toolCallId: string; questions
       tabIndex={-1}
       aria-label="Questions from the agent"
       onKeyDown={onKeyDown}
-      className="mb-2 w-full animate-in rounded-2xl border border-border bg-card/90 p-1.5 backdrop-blur-md duration-200 ease-out outline-none fade-in dark:bg-card/95"
+      className={CARD}
     >
       <div className="flex items-baseline gap-2 px-2 pt-1 pb-1.5">
         <p className="min-w-0 flex-1 text-sm font-medium text-foreground">
@@ -261,8 +257,4 @@ function QuestionForm({ toolCallId, questions }: { toolCallId: string; questions
       </div>
     </div>
   )
-}
-
-function RowNumber({ value }: { value: number }) {
-  return <span className="w-3 shrink-0 text-xs text-muted-foreground tabular-nums">{value}</span>
 }

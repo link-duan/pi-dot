@@ -9,6 +9,7 @@ import {
   parkActive,
   patchChat,
   pendingQuestion,
+  pendingUiRequest,
   planCard,
   type WindowState,
 } from './state'
@@ -51,6 +52,8 @@ function snapshot(file: string, extra: Partial<SessionSnapshot> = {}): SessionSn
     thinkingLevels: ['off'],
     runningSessionFiles: [],
     skills: [],
+    commands: [],
+    ui: { requests: [], state: { statuses: {}, widgets: [] } },
     ...extra,
   }
 }
@@ -299,5 +302,28 @@ describe('pendingQuestion', () => {
       ask: { toolCallId: 'ask', toolName: 'ask_user', args: { questions }, status: 'done' },
     })
     expect(pendingQuestion(state)).toBeNull()
+  })
+})
+
+describe('pendingUiRequest', () => {
+  it('shows the oldest extension dialog after any waiting question', () => {
+    const file = '/tmp/project/session.jsonl'
+    let state = applySnapshot(windowWith({}), snapshot(file))
+    for (const id of ['a', 'b']) {
+      state = applyEvent(state, {
+        type: 'ui_request',
+        sessionFile: file,
+        request: { id, method: 'input', title: id },
+      })
+    }
+    expect(pendingUiRequest(state)).toMatchObject({ request: { id: 'a' }, count: 2 })
+    state = applyEvent(state, {
+      type: 'tool_execution_start',
+      sessionFile: file,
+      toolCallId: 'q',
+      toolName: 'ask_user',
+      args: { questions: [{ question: 'Q?', options: [{ label: 'x' }, { label: 'y' }] }] },
+    })
+    expect(pendingUiRequest(state)).toBeNull()
   })
 })
