@@ -2,6 +2,9 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+/* Streamdown ships Tailwind classes (paragraph spacing, list markers) that only exist if scanned */
+@source '../../../node_modules/streamdown/dist';
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -232,6 +235,113 @@
 [data-streamdown='heading-5'],
 [data-streamdown='heading-6'] {
   font-size: 1em;
+}
+
+/* Reading text (assistant replies, Plan documents): softer than headings, so long passages don't glare on black */
+[data-prose] {
+  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  text-wrap: pretty;
+}
+
+[data-prose] :is([data-streamdown^='heading'], strong) {
+  color: var(--foreground);
+}
+
+/* Hanging indent: a list item's wrapped lines align with its text, not its marker */
+[data-streamdown='unordered-list'],
+[data-streamdown='ordered-list'] {
+  padding-left: 1.25em;
+  list-style-position: outside;
+}
+
+/* Room for two-digit markers like "10." */
+[data-streamdown='ordered-list'] {
+  padding-left: 1.75em;
+}
+
+[data-streamdown='list-item']::marker {
+  color: var(--muted-foreground);
+}
+
+/* Plan documents read as a document, not a chat message */
+[data-plan-document] {
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+/* Spacing comes from the blocks' content below, not Streamdown's space-y */
+[data-plan-document] [data-plan-block] {
+  margin: 0;
+}
+
+/* Blocks are sibling divs, so these margins collapse across them like in a flat document */
+[data-plan-document] [data-plan-block] > :is(p, ul, ol, blockquote) {
+  margin-block: 1em;
+}
+
+/* A list is split into one block per item; keep its items together unless a comment sits between */
+[data-plan-document]
+  [data-plan-block]:has(> :is(ul, ol):last-child)
+  + [data-plan-block]
+  > :is(ul, ol) {
+  margin-top: -1em;
+}
+
+[data-plan-document] [data-streamdown^='heading'] {
+  margin: 2em 0 0.6em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+/* The heading's own bottom margin sets the gap to what follows */
+[data-plan-document]
+  [data-plan-block]:has(> [data-streamdown^='heading'])
+  + [data-plan-block]
+  > :first-child:not([data-streamdown^='heading']) {
+  margin-top: 0;
+}
+
+[data-plan-document] [data-streamdown='heading-1'] {
+  margin-top: 2.25em;
+  font-size: 1.5em;
+}
+
+[data-plan-document] [data-streamdown='heading-2'] {
+  margin-top: 2.25em;
+  font-size: 1.25em;
+}
+
+[data-plan-document] [data-streamdown='heading-3'] {
+  font-size: 1.075em;
+}
+
+[data-plan-document] [data-streamdown='heading-4'],
+[data-plan-document] [data-streamdown='heading-5'],
+[data-plan-document] [data-streamdown='heading-6'] {
+  color: var(--muted-foreground);
+}
+
+[data-plan-document] [data-plan-block]:first-child [data-streamdown^='heading']:first-child {
+  margin-top: 0;
+}
+
+[data-plan-document] [data-streamdown='list-item'] {
+  padding-block: 0.3em;
+}
+
+/* Wide content grows out of the text column, centered on it, and never scrolls vertically */
+[data-plan-document] [data-wide] {
+  width: max-content;
+  min-width: 100%;
+  max-width: calc(100vw - 4rem);
+  max-height: none;
+  margin-left: 50%;
+  translate: -50% 0;
+}
+
+[data-plan-document] [data-wide] [data-slot='scroll-area-viewport'] {
+  max-height: none;
 }
 
 [data-streamdown='code-block'] {

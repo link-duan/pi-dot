@@ -58,7 +58,7 @@ function MarkdownCode({
     return (
       <code
         className={cn(
-          'inline-block rounded bg-muted px-1.5 py-0.5 align-middle font-mono text-[0.85em] leading-none',
+          'rounded bg-muted box-decoration-clone px-1.5 py-0.5 font-mono text-[0.85em] dark:bg-muted/70',
           className,
         )}
         data-streamdown="inline-code"
@@ -105,7 +105,7 @@ export function MarkdownBody({
 } & Pick<StreamdownProps, 'BlockComponent' | 'parseMarkdownIntoBlocksFn'>) {
   return (
     <Streamdown
-      className={cn('leading-relaxed select-text', className)}
+      className={cn('leading-relaxed select-text [text-autospace:normal]', className)}
       animated={animation}
       isAnimating={streaming}
       caret={streaming ? 'block' : undefined}
@@ -131,6 +131,7 @@ function MarkdownTable({
   const reveal = useStreamReveal()
   return (
     <div
+      data-wide=""
       className={cn('my-4 max-h-[900px] overflow-auto rounded-lg border border-border p-2', reveal)}
     >
       <table className={cn('w-full divide-y divide-border', className)} {...props}>

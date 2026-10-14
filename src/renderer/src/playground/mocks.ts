@@ -612,9 +612,33 @@ overview: Every keystroke in the @ picker spawns a ripgrep walk, so large repos 
 ## Context
 Typing \`@src/comp\` fires 8 searches; on a 200k-file repo each takes ~300 ms and results arrive out of order.
 
+The walks also compete for the disk with the language server and the file watcher, so the whole window feels sluggish while the picker is open. Users work around it by typing the full path before pressing \`@\`, which defeats the point of fuzzy search. The fix has two halves: the renderer should only ask once the user pauses, and main should drop any walk whose answer nobody will read.
+
 ## Files to change
 - \`src/renderer/src/components/composer/AtFilePlugin.tsx\`: debounce the query by 120 ms.
 - \`src/main/search-files.ts\`: abort the previous walk when a new query arrives.
+
+### Cancelling stale walks
+\`\`\`ts
+let current: AbortController | null = null
+
+export async function searchProjectFiles(root: string, query: string): Promise<string[]> {
+  current?.abort()
+  const controller = (current = new AbortController())
+  const files: string[] = []
+  for await (const file of walk(root, { signal: controller.signal, ignore: ['node_modules', '.git'] })) {
+    if (fuzzyMatch(file, query)) files.push(file)
+    if (files.length >= 50) break
+  }
+  return files
+}
+\`\`\`
+
+### Timings
+| Repo | Files | Before (8 keystrokes) | After | Results out of order before | Notes |
+| --- | --- | --- | --- | --- | --- |
+| pi-dot | 1.2k | 40 ms | 12 ms | no | Already fast; debounce only trims redundant walks |
+| monorepo | 200k | 2.4 s | 310 ms | yes | Stale walks no longer compete for the disk |
 
 ## Existing code to reuse
 - \`SerialQueue\` in \`src/shared/queue.ts\` for ordering.

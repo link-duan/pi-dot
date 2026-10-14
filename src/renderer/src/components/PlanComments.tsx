@@ -119,7 +119,13 @@ export function PlanDocument({ body, readOnly = false }: { body: string; readOnl
 
   return (
     <Doc.Provider value={context}>
-      <div ref={rootRef} className="relative" onMouseUp={onMouseUp}>
+      <div
+        ref={rootRef}
+        data-plan-document=""
+        data-prose=""
+        className="relative"
+        onMouseUp={onMouseUp}
+      >
         {outdated.length > 0 ? (
           <div className="mb-8">
             <div className="text-xs font-medium text-muted-foreground">Outdated comments</div>

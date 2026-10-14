@@ -114,7 +114,7 @@ function TextBlock({
 }) {
   const [initialAnimate] = useState(() => animateIn)
   return (
-    <div className={cn('py-1.5', initialAnimate && 'animate-blur-reveal')}>
+    <div data-prose="" className={cn('py-1.5', initialAnimate && 'animate-blur-reveal')}>
       <MarkdownBody text={text} streaming={streaming} />
     </div>
   )

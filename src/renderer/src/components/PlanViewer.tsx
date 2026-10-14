@@ -31,14 +31,16 @@ export function PlanViewer() {
         <div className="app-drag absolute inset-x-0 top-0 z-10 h-9" />
         <ScrollArea className="flex-1">
           <ScrollAreaViewport>
-            <article className="mx-auto max-w-2xl px-6 pt-16 pb-32">
-              <DialogTitle className="text-2xl font-semibold tracking-tight">{name}</DialogTitle>
+            <article className="mx-auto max-w-2xl px-6 pt-20 pb-32 [text-autospace:normal]">
+              <DialogTitle className="text-[28px] leading-tight font-semibold tracking-tight">
+                {name}
+              </DialogTitle>
               {overview ? (
-                <DialogDescription className="mt-3 text-base leading-relaxed text-muted-foreground">
+                <DialogDescription className="mt-2 text-[15px] leading-relaxed text-foreground/70">
                   {overview}
                 </DialogDescription>
               ) : null}
-              <div className="my-8 border-t border-border" />
+              <div className="mt-6 mb-10 border-t border-border/60" />
               <PlanDocument body={body} readOnly={readOnly} />
             </article>
           </ScrollAreaViewport>
