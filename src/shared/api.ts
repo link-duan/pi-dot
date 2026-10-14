@@ -44,6 +44,7 @@ export interface PiApi {
   retrust(): Promise<StartResult>
   /** Rewinds to before the user message sent at `timestamp`, for its edit to be sent. */
   editMessage(sessionFile: string, timestamp: number): Promise<SessionSnapshot>
+  renameSession(sessionFile: string, name: string): Promise<void>
   /** Whether the user message sent at `timestamp` was sent in plan mode. */
   messagePlanMode(sessionFile: string, timestamp: number): Promise<boolean>
   /** Returns to `leafId`, undoing a rewind. */

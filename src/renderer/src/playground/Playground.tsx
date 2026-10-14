@@ -328,9 +328,10 @@ export function Playground() {
             ))}
           </SelectContent>
         </Select>
-        <div className="app-drag h-full min-w-0 flex-1" />
+        <div className="app-drag flex h-full min-w-0 flex-1 items-center justify-center">
+          <SessionSwitcher cwd="/Users/demo/pi-ui" />
+        </div>
         <div className="app-no-drag flex shrink-0 items-center gap-1">
-          <SessionSwitcher />
           <Button
             type="button"
             size="xs"

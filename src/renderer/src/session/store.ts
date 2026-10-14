@@ -40,6 +40,8 @@ interface SessionStore extends WindowState {
   /** Opens the user message sent at `timestamp` for editing in place, in the mode it was sent in. */
   startEdit: (timestamp: number) => Promise<void>
   closeEdit: () => void
+  /** Names the active session. */
+  renameSession: (name: string) => Promise<void>
   /** Rewinds to before the user message sent at `timestamp` and sends `text` instead. */
   editMessage: (timestamp: number, text: string, planMode: boolean) => Promise<boolean>
   /** Starts a new session before a user message (filling the Composer with it), or through a reply. */
@@ -205,6 +207,16 @@ export const useSession = create<SessionStore>((set, get) => ({
   },
 
   closeEdit: () => set({ editing: null }),
+
+  renameSession: async (name: string) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.renameSession(file, name)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+    }
+  },
 
   editMessage: async (timestamp: number, text: string, planMode: boolean) => {
     const file = get().sessionFile

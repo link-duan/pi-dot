@@ -357,6 +357,11 @@ export class AgentHost {
     })
   }
 
+  /** Names the session; the change reaches the renderer as a `session_name` event. */
+  renameSession(sessionFile: string, name: string): void {
+    this.requireActive(sessionFile).session.setSessionName(name)
+  }
+
   /** Whether the user message sent at `timestamp` was sent in plan mode. */
   messagePlanMode(sessionFile: string, timestamp: number): boolean {
     const branch = this.requireActive(sessionFile).session.sessionManager.getBranch()
@@ -482,6 +487,7 @@ export class AgentHost {
       isStreaming: session.isStreaming,
       sessionFile: session.sessionFile,
       sessionId: session.sessionId,
+      sessionName: session.sessionName,
       messageCount: session.messages.length,
       steeringQueue: [...session.getSteeringMessages()],
       followUpQueue: [...session.getFollowUpMessages()],

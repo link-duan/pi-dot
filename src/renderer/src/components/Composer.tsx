@@ -1,4 +1,4 @@
-import { ArrowUp, Folder, ListChecks, Square, X } from 'lucide-react'
+import { ArrowUp, ListChecks, Square, X } from 'lucide-react'
 import {
   useCallback,
   useEffect,
@@ -19,7 +19,6 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { displayPath } from '@/lib/path'
 import { cn } from '@/lib/utils'
 import { pendingQuestion } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
@@ -62,7 +61,6 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
   const sessionRef = useRef<string | null | undefined>(undefined)
   const focusNonce = useSession((state) => state.focusNonce)
   const focusAtMount = useRef(focusNonce)
-  const cwd = useSession((state) => state.cwd)
   const connection = useSession((state) => state.connection)
   const send = useSession((state) => state.send)
   const steer = useSession((state) => state.steer)
@@ -70,7 +68,6 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
   const answerQuestion = useSession((state) => state.answerQuestion)
   const questionId = useSession((state) => pendingQuestion(state)?.toolCallId ?? null)
   const abort = useSession((state) => state.abort)
-  const openFolder = useSession((state) => state.openFolder)
   const isStreaming = useChat((state) => state.isStreaming)
   const planMode = useChat((state) => state.planMode)
   const setPlanMode = useSession((state) => state.setPlanMode)
@@ -206,25 +203,6 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-1">
             {planMode ? <PlanBadge onExit={() => setPlanMode(false)} /> : null}
-            {cwd ? (
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="xs"
-                      onClick={() => void openFolder()}
-                      className="max-w-full min-w-0 text-xs text-muted-foreground"
-                    />
-                  }
-                >
-                  <Folder className="size-3 shrink-0" />
-                  <span className="truncate">{displayPath(cwd, null, window.pi.homedir)}</span>
-                </TooltipTrigger>
-                <TooltipContent>{`Current folder: ${cwd} (click to change)`}</TooltipContent>
-              </Tooltip>
-            ) : null}
             <ExtensionStatuses />
           </div>
 

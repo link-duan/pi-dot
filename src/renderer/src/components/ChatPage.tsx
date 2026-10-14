@@ -29,15 +29,20 @@ export function ChatPage() {
   return (
     <div className="relative flex h-full flex-col bg-background text-foreground">
       {/* Overlay: keep macOS traffic-light drag space without pushing transcript down */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex h-9 items-center select-none">
-        <div
-          className="app-drag pointer-events-auto h-full min-w-0 flex-1"
-          onWheel={(event) => {
-            scrollerRef.current?.scrollBy({ top: event.deltaY })
-          }}
-        />
-        <div className="app-no-drag pointer-events-auto mr-2.5 flex items-center">
-          <SessionSwitcher />
+      {/* The title sits centered; everything but its buttons drags the window. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 z-10 grid h-11 grid-cols-[1fr_auto_1fr] items-start bg-linear-to-b from-background from-60% to-transparent select-none"
+        onWheel={(event) => {
+          // React bubbles wheel events out of portals (the session list); only the bar itself scrolls the transcript.
+          if (!event.currentTarget.contains(event.target as Node)) return
+          scrollerRef.current?.scrollBy({ top: event.deltaY })
+        }}
+      >
+        <div className="app-drag pointer-events-auto h-9" />
+        <div className="app-drag pointer-events-auto flex h-9 max-w-[min(40rem,60vw)] min-w-0 items-center">
+          <SessionSwitcher cwd={cwd} />
+        </div>
+        <div className="app-drag pointer-events-auto flex h-9 items-center justify-end pr-2.5">
           <Tooltip>
             <TooltipTrigger
               render={

@@ -70,6 +70,8 @@ export interface SessionState {
   isStreaming: boolean
   sessionFile?: string
   sessionId?: string
+  /** Set by the auto title or an extension; unnamed sessions go by their first message. */
+  sessionName?: string
   messageCount: number
   steeringQueue?: string[]
   followUpQueue?: string[]
@@ -239,6 +241,7 @@ export type SessionEventBody =
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
   | { type: 'plan_mode'; active: boolean; plan: PlanRef }
+  | { type: 'session_name'; name?: string }
   | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
   | { type: 'auto_retry_end' }

@@ -15,6 +15,7 @@ export const IPC = {
   forkMessage: 'pi:forkMessage',
   rewindMessage: 'pi:rewindMessage',
   messagePlanMode: 'pi:messagePlanMode',
+  renameSession: 'pi:renameSession',
   steer: 'pi:steer',
   removeSteering: 'pi:removeSteering',
   followUp: 'pi:followUp',

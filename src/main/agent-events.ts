@@ -51,6 +51,8 @@ export function toSessionEvent(event: AgentSessionEvent, sessionFile: string): S
       }
     case 'auto_retry_end':
       return { type: 'auto_retry_end', sessionFile }
+    case 'session_info_changed':
+      return { type: 'session_name', sessionFile, name: event.name }
     case 'queue_update':
       return {
         type: 'queue_update',

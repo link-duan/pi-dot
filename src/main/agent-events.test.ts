@@ -89,6 +89,12 @@ describe('toSessionEvent', () => {
     })
   })
 
+  it('forwards a session name change', () => {
+    expect(
+      toSessionEvent({ type: 'session_info_changed', name: 'Fix the build' }, sessionFile),
+    ).toEqual({ type: 'session_name', sessionFile, name: 'Fix the build' })
+  })
+
   it('forwards auto retry events', () => {
     expect(
       toSessionEvent(

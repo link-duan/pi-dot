@@ -358,6 +358,14 @@ describe('AgentHost SDK compatibility', () => {
     expect(host.messagePlanMode(session.sessionFile!, 2)).toBe(true)
   })
 
+  it('reports the session name in the snapshot', () => {
+    host.renameSession(session.sessionFile!, 'Fix the build')
+    expect(host.snapshot().state.sessionName).toBe('Fix the build')
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: 'session_name', name: 'Fix the build' }),
+    )
+  })
+
   describe('rewindMessage', () => {
     beforeEach(() => {
       const manager = session.sessionManager

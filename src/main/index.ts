@@ -244,6 +244,9 @@ function registerIpc(): void {
   handleHost(IPC.editMessage, (host, sessionFile: string, timestamp: number) =>
     host.editMessage(sessionFile, timestamp),
   )
+  handleHost(IPC.renameSession, (host, sessionFile: string, name: string) =>
+    host.renameSession(sessionFile, name),
+  )
   handleHost(IPC.messagePlanMode, (host, sessionFile: string, timestamp: number) =>
     host.messagePlanMode(sessionFile, timestamp),
   )

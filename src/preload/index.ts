@@ -45,6 +45,8 @@ const api: PiApi = {
   retrust: () => ipcRenderer.invoke(IPC.retrust) as Promise<StartResult>,
   editMessage: (sessionFile: string, timestamp: number) =>
     ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
+  renameSession: (sessionFile: string, name: string) =>
+    ipcRenderer.invoke(IPC.renameSession, sessionFile, name) as Promise<void>,
   messagePlanMode: (sessionFile: string, timestamp: number) =>
     ipcRenderer.invoke(IPC.messagePlanMode, sessionFile, timestamp),
   restoreLeaf: (sessionFile: string, leafId: string) =>

@@ -168,6 +168,7 @@ export function applySnapshot<T extends WindowState>(
         ...cached,
         planActive: snapshot.state.planMode,
         plan: snapshot.state.plan,
+        sessionName: snapshot.state.sessionName,
         steeringQueue: [...steeringQueue],
         followUpQueue: [...followUpQueue],
         uiRequests: snapshot.ui.requests,
@@ -180,6 +181,7 @@ export function applySnapshot<T extends WindowState>(
         followUpQueue,
         planMode: snapshot.state.planMode,
         plan: snapshot.state.plan,
+        sessionName: snapshot.state.sessionName,
         ui: snapshot.ui,
       })
   const chats = { ...state.chats }

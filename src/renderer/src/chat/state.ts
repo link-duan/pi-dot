@@ -43,6 +43,8 @@ export interface ChatState {
   planActive: boolean
   /** The session's current Plan File, as main replayed it from the transcript. */
   plan: PlanRef
+  /** The session's name, once the auto title or an extension sets it. */
+  sessionName?: string
   /** Extension dialogs waiting for the user, oldest first. */
   uiRequests: UiRequest[]
   ui: UiState
@@ -102,6 +104,7 @@ export function hydrateMessages(
     followUpQueue?: string[]
     planMode?: boolean
     plan?: PlanRef
+    sessionName?: string
     ui?: { requests: UiRequest[]; state: UiState }
   },
 ): ChatState {
@@ -126,6 +129,7 @@ export function hydrateMessages(
     planMode: Boolean(options?.planMode),
     planActive: Boolean(options?.planMode),
     plan: options?.plan ?? null,
+    sessionName: options?.sessionName,
     uiRequests: options?.ui?.requests ?? [],
     ui: options?.ui?.state ?? EMPTY_UI,
     extensionLines: [],
@@ -239,6 +243,9 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'plan_mode':
       return { ...state, planActive: event.active, plan: event.plan }
+
+    case 'session_name':
+      return { ...state, sessionName: event.name }
 
     case 'message_start': {
       if (!event.message?.role) return state

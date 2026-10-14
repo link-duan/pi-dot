@@ -242,6 +242,16 @@ describe('plan mode', () => {
     expect(activeChat(state).plan).toEqual(built)
   })
 
+  it('takes the session name from the snapshot and session_name events', () => {
+    const named = snapshot(fileA)
+    named.state.sessionName = 'Fix the build'
+    let state = applySnapshot(createWindowState(), named, createChatState())
+    expect(activeChat(state).sessionName).toBe('Fix the build')
+
+    state = applyEvent(state, { type: 'session_name', sessionFile: fileA, name: 'Ship it' })
+    expect(activeChat(state).sessionName).toBe('Ship it')
+  })
+
   it('shows the review card for a plan under review, and the read-only pill once built or while revising', () => {
     const base = applySnapshot(createWindowState(), snapshot(fileA))
     const with_ = (planText: string, chat: Partial<ChatState>, planSource = '/plans/a_1.plan.md') =>
