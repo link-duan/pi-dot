@@ -18,13 +18,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { useSession } from '@/session/store'
+import { BUTTON_RADIUS } from './composer-card'
 import { ModelPickerContent } from './ModelPicker'
 
 const itemType = "text-xs leading-4 [&_svg:not([class*='size-'])]:size-3"
 const subTrigger = cn(itemType, 'gap-2 px-2 py-1')
 const radioItem = cn(itemType, 'py-1 pl-2')
 
-export function ModelSelect() {
+export function ModelSelect({ className }: { className?: string } = {}) {
   const models = useSession((state) => state.models)
   const model = useSession((state) => state.model)
   const thinkingLevel = useSession((state) => state.thinkingLevel)
@@ -41,7 +42,11 @@ export function ModelSelect() {
         size="sm"
         aria-label="Select model and thinking level"
         disabled={disabled}
-        className="h-7 max-w-64 gap-2 pr-1 pl-1.5 text-xs text-muted-foreground transition-colors duration-150 disabled:opacity-40"
+        className={cn(
+          BUTTON_RADIUS,
+          'h-7 max-w-64 min-w-0 gap-2 py-0 pr-1 pl-1.5 text-xs leading-4 text-muted-foreground transition-colors duration-150 disabled:opacity-40',
+          className,
+        )}
       >
         <span className="min-w-0 truncate text-muted-foreground capitalize">
           {model?.name ?? 'Select model'}

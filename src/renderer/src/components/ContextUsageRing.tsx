@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Spinner } from '@/components/ui/spinner'
 
-const SIZE = 14
+const SIZE = 16
 const STROKE = 1.5
 
 export function ContextUsageRing() {
@@ -38,7 +38,7 @@ export function ContextUsageRing() {
           <Button
             type="button"
             variant="ghost"
-            size="icon-xs"
+            size="icon-sm"
             aria-label={`${title}, ${usedLabel} of ${windowLabel} tokens`}
           />
         }
@@ -47,7 +47,7 @@ export function ContextUsageRing() {
           width={SIZE}
           height={SIZE}
           viewBox={`0 0 ${SIZE} ${SIZE}`}
-          className="size-[14px] -rotate-90"
+          className="size-4 -rotate-90"
           aria-hidden="true"
         >
           <circle

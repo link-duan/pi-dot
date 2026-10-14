@@ -201,10 +201,10 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
         />
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
-          <div className="flex min-w-0 flex-1 items-center gap-1">
-            <ContextUsageRing />
-            <ModelSelect />
+          <div className="flex min-w-0 flex-1 items-center gap-0.5">
             {planMode ? <PlanBadge onExit={() => setPlanMode(false)} /> : null}
+            <ModelSelect className={planMode ? undefined : '-ml-1'} />
+            <ContextUsageRing />
             <ExtensionStatuses />
           </div>
 
