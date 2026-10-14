@@ -361,7 +361,30 @@ export class AgentHost {
     })
   }
 
-  /** Returns from an edit to the branch it left. */
+  /**
+   * Rewinds the session to a user message, dropping what followed it, or through the end of the
+   * turn holding any other message. The old branch stays in the file; `leafId` returns there.
+   */
+  async rewindMessage(
+    sessionFile: string,
+    message: MessageRef,
+  ): Promise<{ snapshot: SessionSnapshot; leafId: string | null }> {
+    return this.ops.enqueue(async () => {
+      const session = this.requireIdle(sessionFile).session
+      const leafId = session.sessionManager.getLeafId()
+      if (message.role === 'user') {
+        // `navigateTree` would stop before a user message, handing its text to the Composer.
+        session.sessionManager.branch(messageEntryId(session, message))
+        session.refreshContext()
+      } else {
+        const result = await session.navigateTree(turnEndEntryId(session, message))
+        if (result.cancelled) throw new Error('An extension cancelled the rewind')
+      }
+      return { snapshot: this.snapshot(), leafId }
+    })
+  }
+
+  /** Returns from an edit or a rewind to the branch it left. */
   async cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot> {
     return this.ops.enqueue(async () => {
       await this.requireIdle(sessionFile).session.navigateTree(leafId)

@@ -9,7 +9,7 @@ import { formatMessageTime } from '@/lib/format'
 import { keyedUserSegments } from '@/lib/user-message'
 import { useChat, useSession } from '@/session/store'
 import type { UserMessage } from '@shared/protocol'
-import { CopyAction, MessageAction } from '../MessageActions'
+import { CopyAction, MessageAction, RewindAction } from '../MessageActions'
 import { UserBubble } from './UserBubble'
 
 export const UserRow = memo(function UserRow({ message }: { message: UserMessage }) {
@@ -42,6 +42,7 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
                 })
               }
             />
+            <RewindAction message={{ role: 'user', timestamp: message.timestamp }} />
           </div>
           {sentAt ? (
             <time

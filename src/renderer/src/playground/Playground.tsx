@@ -142,6 +142,7 @@ function usePlaygroundSession(model: ChatState, plan = '', session?: Partial<Win
         useSession.getState().fillComposer(userText(message))
         return true
       },
+      rewindMessage: async () => async () => {},
       steer: async (text) => {
         useSession.setState((state) => {
           const chat = state.chats[PLAYGROUND_FILE]

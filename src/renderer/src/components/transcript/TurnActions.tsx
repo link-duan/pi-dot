@@ -3,9 +3,9 @@ import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { AgentMessage, MessageRef } from '@shared/protocol'
 import { useChat, useSession } from '@/session/store'
-import { CopyAction, MessageAction } from './MessageActions'
+import { CopyAction, MessageAction, RewindAction } from './MessageActions'
 
-/** Copy and Fork for a finished turn, before its status (`children`). */
+/** Copy, Fork and Rewind for a finished turn, before its status (`children`). */
 export function TurnActions({
   messages,
   children,
@@ -30,16 +30,19 @@ export function TurnActions({
         <div className="-ml-1 flex shrink-0 items-center gap-0.5">
           {hasText ? <CopyAction text={() => replyText(messages)} label="Copy response" /> : null}
           {reply ? (
-            <MessageAction
-              icon={GitBranch}
-              label={busy ? 'Available when the run ends' : 'Fork into a new session'}
-              disabled={busy}
-              onClick={() =>
-                void forkMessage(reply).then((forked) => {
-                  if (forked) toast('Forked into a new session')
-                })
-              }
-            />
+            <>
+              <MessageAction
+                icon={GitBranch}
+                label={busy ? 'Available when the run ends' : 'Fork into a new session'}
+                disabled={busy}
+                onClick={() =>
+                  void forkMessage(reply).then((forked) => {
+                    if (forked) toast('Forked into a new session')
+                  })
+                }
+              />
+              <RewindAction message={reply} />
+            </>
           ) : null}
         </div>
       ) : null}

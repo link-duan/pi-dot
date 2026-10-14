@@ -250,6 +250,9 @@ function registerIpc(): void {
   handleHost(IPC.forkMessage, (host, sessionFile: string, message: MessageRef) =>
     host.forkMessage(sessionFile, message),
   )
+  handleHost(IPC.rewindMessage, (host, sessionFile: string, message: MessageRef) =>
+    host.rewindMessage(sessionFile, message),
+  )
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>
     host.removeSteering(index, sessionFile),

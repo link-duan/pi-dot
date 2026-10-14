@@ -49,6 +49,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.cancelEdit, sessionFile, leafId),
   forkMessage: (sessionFile: string, message: MessageRef) =>
     ipcRenderer.invoke(IPC.forkMessage, sessionFile, message),
+  rewindMessage: (sessionFile: string, message: MessageRef) =>
+    ipcRenderer.invoke(IPC.rewindMessage, sessionFile, message),
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>

@@ -1,7 +1,10 @@
 import { useState, type ReactNode } from 'react'
-import { Check, Copy, type LucideIcon } from 'lucide-react'
+import { Check, Copy, History, type LucideIcon } from 'lucide-react'
+import { toast } from 'sonner'
+import type { MessageRef } from '@shared/protocol'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { useChat, useSession } from '@/session/store'
 
 /** A ghost icon button with a tooltip, for the actions under a message or a turn. */
 export function MessageAction({
@@ -50,6 +53,24 @@ export function CopyAction({ text, label = 'Copy' }: { text: () => string; label
           setTimeout(() => setCopied(false), 1500)
         })
       }}
+    />
+  )
+}
+
+/** Rewinds the conversation to `message`, with an Undo in the toast. */
+export function RewindAction({ message }: { message: MessageRef }) {
+  const busy = useChat((chat) => chat.isStreaming)
+  const rewindMessage = useSession((state) => state.rewindMessage)
+  return (
+    <MessageAction
+      icon={History}
+      label={busy ? 'Available when the run ends' : 'Rewind the conversation to here'}
+      disabled={busy}
+      onClick={() =>
+        void rewindMessage(message).then((undo) => {
+          if (undo) toast('Rewound the conversation', { action: { label: 'Undo', onClick: undo } })
+        })
+      }
     />
   )
 }

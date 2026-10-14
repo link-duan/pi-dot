@@ -349,6 +349,39 @@ describe('AgentHost SDK compatibility', () => {
     })
   })
 
+  describe('rewindMessage', () => {
+    beforeEach(() => {
+      const manager = session.sessionManager
+      manager.appendMessage({ role: 'user', content: 'first', timestamp: 1 })
+      manager.appendMessage({
+        role: 'bashExecution',
+        command: 'ls',
+        output: '',
+        exitCode: 0,
+        cancelled: false,
+        truncated: false,
+        timestamp: 2,
+      })
+      manager.appendMessage({ role: 'user', content: 'second', timestamp: 3 })
+      manager.appendMessage({ role: 'user', content: 'third', timestamp: 4 })
+      session.refreshContext()
+    })
+
+    const roles = () => session.messages.map((message) => message.role)
+
+    it('stops on a user message, dropping what followed it', async () => {
+      const leaf = session.sessionManager.getLeafId()
+      const result = await host.rewindMessage(session.sessionFile!, { role: 'user', timestamp: 3 })
+      expect(roles()).toEqual(['user', 'bashExecution', 'user'])
+      expect(result.leafId).toBe(leaf)
+    })
+
+    it('rewinds through the end of a reply’s turn', async () => {
+      await host.rewindMessage(session.sessionFile!, { role: 'bashExecution', timestamp: 2 })
+      expect(roles()).toEqual(['user', 'bashExecution'])
+    })
+  })
+
   it('restores follow-ups when promotion fails', async () => {
     vi.spyOn(session, 'isStreaming', 'get').mockReturnValue(true)
     await host.followUp('first')

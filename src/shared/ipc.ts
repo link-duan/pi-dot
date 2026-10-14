@@ -13,6 +13,7 @@ export const IPC = {
   editMessage: 'pi:editMessage',
   cancelEdit: 'pi:cancelEdit',
   forkMessage: 'pi:forkMessage',
+  rewindMessage: 'pi:rewindMessage',
   steer: 'pi:steer',
   removeSteering: 'pi:removeSteering',
   followUp: 'pi:followUp',

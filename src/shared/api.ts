@@ -53,6 +53,11 @@ export interface PiApi {
     sessionFile: string,
     message: MessageRef,
   ): Promise<{ snapshot: SessionSnapshot; text: string }>
+  /** Rewinds to a user message, or through a reply's turn; `leafId` undoes it. */
+  rewindMessage(
+    sessionFile: string,
+    message: MessageRef,
+  ): Promise<{ snapshot: SessionSnapshot; leafId: string | null }>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>
   followUp(text: string, sessionFile: string): Promise<void>

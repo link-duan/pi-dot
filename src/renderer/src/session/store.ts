@@ -43,6 +43,8 @@ interface SessionStore extends WindowState {
   cancelEdit: () => Promise<void>
   /** Starts a new session before a user message (filling the Composer with it), or through a reply. */
   forkMessage: (message: MessageRef) => Promise<boolean>
+  /** Rewinds to a user message, or through a reply's turn; resolves to its undo, if it worked. */
+  rewindMessage: (message: MessageRef) => Promise<(() => Promise<void>) | null>
   fillComposer: (text: string) => void
   removeSteering: (index: number) => Promise<void>
   followUp: (text: string) => Promise<void>
@@ -235,6 +237,27 @@ export const useSession = create<SessionStore>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
       return false
+    }
+  },
+
+  rewindMessage: async (message: MessageRef) => {
+    const file = get().sessionFile
+    if (!file) return null
+    try {
+      const { snapshot, leafId } = await window.pi.rewindMessage(file, message)
+      set((state) => applySnapshot(state, snapshot))
+      if (!leafId) return null
+      return async () => {
+        try {
+          const snapshot = await window.pi.cancelEdit(file, leafId)
+          set((state) => applySnapshot(state, snapshot))
+        } catch (error) {
+          set({ error: error instanceof Error ? error.message : String(error) })
+        }
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      return null
     }
   },
 
