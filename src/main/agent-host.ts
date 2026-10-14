@@ -46,7 +46,7 @@ import { createAskUser, type AskUser } from './ask-user'
 import { createExtensionUi, type ExtensionUi } from './extension-ui'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
-import { createPlanMode, type PlanMode } from './plan-mode'
+import { createPlanMode, replayPlan, type PlanMode } from './plan-mode'
 import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
 import { resolveEnabledModels } from '@shared/settings'
@@ -343,22 +343,26 @@ export class AgentHost {
   }
 
   /**
-   * Rewinds the session to just before the user message sent at `timestamp`, keeping the old
-   * branch in the file. `leafId` returns there; `text` is the message, for the Composer.
+   * Rewinds the session to just before the user message sent at `timestamp`, for its edit to be
+   * sent instead. The old branch stays in the file.
    */
-  async editMessage(
-    sessionFile: string,
-    timestamp: number,
-  ): Promise<{ snapshot: SessionSnapshot; text: string; leafId: string | null }> {
+  async editMessage(sessionFile: string, timestamp: number): Promise<SessionSnapshot> {
     return this.ops.enqueue(async () => {
       const session = this.requireIdle(sessionFile).session
-      const leafId = session.sessionManager.getLeafId()
       const result = await session.navigateTree(
         messageEntryId(session, { role: 'user', timestamp }),
       )
       if (result.cancelled) throw new Error('An extension cancelled the edit')
-      return { snapshot: this.snapshot(), text: result.editorText ?? '', leafId }
+      return this.snapshot()
     })
+  }
+
+  /** Whether the user message sent at `timestamp` was sent in plan mode. */
+  messagePlanMode(sessionFile: string, timestamp: number): boolean {
+    const branch = this.requireActive(sessionFile).session.sessionManager.getBranch()
+    // A run's mode entry lands before its user message, and only when the mode changes.
+    return replayPlan(branch.slice(0, messageEntryIndex(branch, { role: 'user', timestamp })))
+      .active
   }
 
   /**
@@ -384,8 +388,8 @@ export class AgentHost {
     })
   }
 
-  /** Returns from an edit or a rewind to the branch it left. */
-  async cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot> {
+  /** Returns from a rewind to the branch it left. */
+  async restoreLeaf(sessionFile: string, leafId: string): Promise<SessionSnapshot> {
     return this.ops.enqueue(async () => {
       await this.requireIdle(sessionFile).session.navigateTree(leafId)
       return this.snapshot()

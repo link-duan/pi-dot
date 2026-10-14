@@ -29,7 +29,7 @@ The mark on a Session that finished, or waits for the user (a Question or an Ext
 _Avoid_: Unread, badge, alert
 
 **Fork**:
-A new Session holding the history before one of the user's messages, with that message back in the Composer. Editing a message instead rewinds the same Session to before it; the old branch stays in its file.
+A new Session holding the history before one of the user's messages, with that message back in the Composer. Editing a message opens the Composer in place in the Transcript, in the Plan Mode the message was sent in; sending the edit rewinds the same Session to before the message, and the old branch stays in its file.
 _Avoid_: Clone, branch, copy
 
 **Skill**:

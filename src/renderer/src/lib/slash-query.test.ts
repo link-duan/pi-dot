@@ -87,6 +87,24 @@ describe('filterSlashItems', () => {
       { kind: 'extension', command: commands[3] },
     ])
   })
+
+  it('lists only what shapes a message in the message scope', () => {
+    const commands = [
+      { name: 'deploy', source: 'extension' as const },
+      { name: 'deploy', source: 'prompt' as const },
+      { name: 'review', source: 'prompt' as const },
+    ]
+    const items = filterSlashItems(skills, '', commands, 'message')
+    expect(
+      items.map((item) =>
+        item.kind === 'command'
+          ? `/${item.name}`
+          : item.kind === 'extension'
+            ? `${item.command.source}:${item.command.name}`
+            : item.skill.name,
+      ),
+    ).toEqual(['/plan', 'prompt:review', 'planner', 'tdd'])
+  })
 })
 
 describe('extensionCommand', () => {

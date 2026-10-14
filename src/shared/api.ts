@@ -42,12 +42,12 @@ export interface PiApi {
   respondUi(sessionFile: string, id: string, response: UiResponse): Promise<void>
   /** Asks again whether to trust the folder; `started` when it was rebound. */
   retrust(): Promise<StartResult>
-  /** Rewinds to before the user message sent at `timestamp`; `leafId` undoes it. */
-  editMessage(
-    sessionFile: string,
-    timestamp: number,
-  ): Promise<{ snapshot: SessionSnapshot; text: string; leafId: string | null }>
-  cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot>
+  /** Rewinds to before the user message sent at `timestamp`, for its edit to be sent. */
+  editMessage(sessionFile: string, timestamp: number): Promise<SessionSnapshot>
+  /** Whether the user message sent at `timestamp` was sent in plan mode. */
+  messagePlanMode(sessionFile: string, timestamp: number): Promise<boolean>
+  /** Returns to `leafId`, undoing a rewind. */
+  restoreLeaf(sessionFile: string, leafId: string): Promise<SessionSnapshot>
   /** Starts a new session before a user message, or through a reply. */
   forkMessage(
     sessionFile: string,

@@ -20,7 +20,6 @@ import { useChat, useSession } from '@/session/store'
 import {
   catalogModel,
   codemodeModel,
-  editingFill,
   editingModel,
   emptyModel,
   extensionModel,
@@ -70,11 +69,14 @@ const TABS: Tab[] = [
   { title: 'Plan built', model: planBuiltModel, plan: playgroundPlanText },
   { title: 'Extensions', model: extensionModel, session: { trusted: false } },
   {
-    title: 'Editing',
+    title: 'Editing (plan)',
     model: editingModel,
     session: {
-      editing: { sessionFile: PLAYGROUND_FILE, leafId: 'playground-leaf' },
-      composerFill: { text: editingFill },
+      editing: {
+        sessionFile: PLAYGROUND_FILE,
+        timestamp: editingModel.messages[0]!.timestamp,
+        planMode: true,
+      },
     },
   },
   { title: 'No models', model: emptyModel, session: { models: [], model: null } },
@@ -87,7 +89,7 @@ const TAB_DEFAULTS: Partial<WindowState> = {
   model: playgroundModel,
   trusted: true,
   editing: null,
-  // Each tab opens with an empty Composer; Editing fills it instead.
+  // Each tab opens with an empty Composer.
   composerFill: { text: '' },
 }
 
@@ -120,19 +122,14 @@ function usePlaygroundSession(model: ChatState, plan = '', session?: Partial<Win
       retrust: async () => {
         useSession.setState({ trusted: true })
       },
-      editMessage: async (timestamp) => {
-        const message = activeChat(useSession.getState()).messages.find(
-          (item) => item.role === 'user' && item.timestamp === timestamp,
-        )
-        if (message?.role !== 'user') return
+      startEdit: async (timestamp) => {
         useSession.setState({
-          editing: { sessionFile: PLAYGROUND_FILE, leafId: 'playground-leaf' },
+          editing: { sessionFile: PLAYGROUND_FILE, timestamp, planMode: false },
         })
-        useSession.getState().fillComposer(userText(message))
       },
-      cancelEdit: async () => {
+      editMessage: async () => {
         useSession.setState({ editing: null })
-        useSession.getState().fillComposer('')
+        return true
       },
       forkMessage: async ({ role, timestamp }) => {
         const message = activeChat(useSession.getState()).messages.find(

@@ -16,7 +16,7 @@ import { LexicalErrorBoundary } from '@lexical/react/LexicalErrorBoundary'
 import { OnChangePlugin } from '@lexical/react/LexicalOnChangePlugin'
 import { RichTextPlugin } from '@lexical/react/LexicalRichTextPlugin'
 import type { FileHit } from '@shared/protocol'
-import type { SlashItem } from '@/lib/slash-query'
+import type { SlashItem, SlashScope } from '@/lib/slash-query'
 import { useSession } from '@/session/store'
 import { FilePicker } from '../FilePicker'
 import { SkillPicker } from '../SkillPicker'
@@ -58,12 +58,15 @@ export function PromptEditorField({
   className,
   onChange,
   onCommand,
+  scope,
 }: {
   id?: string
   placeholder: string
   className?: string
   onChange?: (text: string, state: EditorState) => void
   onCommand?: (name: string) => void
+  /** `message` leaves session-level commands out of the `/` picker; see `SlashScope`. */
+  scope?: SlashScope
 }) {
   const [editor] = useLexicalComposerContext()
   const cwd = useSession((state) => state.cwd)
@@ -133,6 +136,7 @@ export function PromptEditorField({
         <SkillPicker
           skills={skills}
           commands={onCommand ? commands : null}
+          scope={scope}
           query={picker.query}
           index={picker.index}
           onHover={(index) => setPicker((prev) => (prev ? { ...prev, index } : prev))}
@@ -166,8 +170,10 @@ export function PromptEditorField({
         picker={picker}
         setPicker={setPicker}
         onCommand={onCommand}
+        scope={scope}
       />
-      {onCommand ? <CommandHighlightPlugin commands={commands} /> : null}
+      {/* It highlights extension commands only, which the message scope leaves out. */}
+      {onCommand && scope !== 'message' ? <CommandHighlightPlugin commands={commands} /> : null}
       <AtFilePlugin hits={fileHits} picker={filePicker} setPicker={setFilePicker} />
       <ComposerPastePlugin cwd={cwd} />
     </>

@@ -244,8 +244,11 @@ function registerIpc(): void {
   handleHost(IPC.editMessage, (host, sessionFile: string, timestamp: number) =>
     host.editMessage(sessionFile, timestamp),
   )
-  handleHost(IPC.cancelEdit, (host, sessionFile: string, leafId: string) =>
-    host.cancelEdit(sessionFile, leafId),
+  handleHost(IPC.messagePlanMode, (host, sessionFile: string, timestamp: number) =>
+    host.messagePlanMode(sessionFile, timestamp),
+  )
+  handleHost(IPC.restoreLeaf, (host, sessionFile: string, leafId: string) =>
+    host.restoreLeaf(sessionFile, leafId),
   )
   handleHost(IPC.forkMessage, (host, sessionFile: string, message: MessageRef) =>
     host.forkMessage(sessionFile, message),

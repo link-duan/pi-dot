@@ -8,7 +8,7 @@ import {
   CommandList,
 } from '@/components/ui/command'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
-import { filterSlashItems, type SlashItem } from '@/lib/slash-query'
+import { filterSlashItems, type SlashItem, type SlashScope } from '@/lib/slash-query'
 
 export function SkillPicker({
   skills,
@@ -17,6 +17,7 @@ export function SkillPicker({
   index,
   onHover,
   onSelect,
+  scope,
 }: {
   skills: SkillInfo[]
   /** Extension commands and prompt templates; null lists skills only. */
@@ -25,9 +26,10 @@ export function SkillPicker({
   index: number
   onHover: (index: number) => void
   onSelect: (item: SlashItem) => void
+  scope?: SlashScope
 }) {
   const listRef = useRef<HTMLDivElement>(null)
-  const filtered = filterSlashItems(skills, query, commands)
+  const filtered = filterSlashItems(skills, query, commands, scope)
   const selected = filtered[index] ? itemValue(filtered[index]) : ''
   const groups = [
     { heading: 'Commands', kind: 'command' },

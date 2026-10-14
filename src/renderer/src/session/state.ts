@@ -44,9 +44,9 @@ export type WindowState = {
   running: string[]
   /** Sessions that finished (`done`) or wait for the user (`input`) while not shown. */
   attention: Record<string, Attention>
-  /** The active session was rewound to edit a message; `leafId` returns to where it was. */
-  editing: { sessionFile: string; leafId: string | null } | null
-  /** Text for the Composer to take once, e.g. the message being edited. */
+  /** The user message being edited in place, with the plan mode its edit is sent in. */
+  editing: { sessionFile: string; timestamp: number; planMode: boolean } | null
+  /** Text for the Composer to take once, e.g. a forked message. */
   composerFill: { text: string } | null
   chats: Record<string, ChatState>
 }

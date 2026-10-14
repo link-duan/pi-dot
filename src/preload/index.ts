@@ -45,8 +45,10 @@ const api: PiApi = {
   retrust: () => ipcRenderer.invoke(IPC.retrust) as Promise<StartResult>,
   editMessage: (sessionFile: string, timestamp: number) =>
     ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
-  cancelEdit: (sessionFile: string, leafId: string) =>
-    ipcRenderer.invoke(IPC.cancelEdit, sessionFile, leafId),
+  messagePlanMode: (sessionFile: string, timestamp: number) =>
+    ipcRenderer.invoke(IPC.messagePlanMode, sessionFile, timestamp),
+  restoreLeaf: (sessionFile: string, leafId: string) =>
+    ipcRenderer.invoke(IPC.restoreLeaf, sessionFile, leafId),
   forkMessage: (sessionFile: string, message: MessageRef) =>
     ipcRenderer.invoke(IPC.forkMessage, sessionFile, message),
   rewindMessage: (sessionFile: string, message: MessageRef) =>

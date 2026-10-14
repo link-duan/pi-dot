@@ -5,16 +5,23 @@ export function slashQuery(textBeforeCaret: string): string | null {
   return tokenQuery(textBeforeCaret, '/')
 }
 
+/**
+ * What a slash item acts on: `message` items shape the message being written, `session` items act
+ * on the session (or run in main without a user message), so a message being edited offers none.
+ */
+export type SlashScope = 'message' | 'session'
+
 export interface SlashCommand {
   name: string
   description: string
+  scope: SlashScope
 }
 
 /** Built-in commands the Composer handles itself; they are never sent to the agent. */
 export const SLASH_COMMANDS: SlashCommand[] = [
-  { name: 'plan', description: 'Plan before making changes' },
-  { name: 'compact', description: 'Summarize the conversation to free context' },
-  { name: 'new', description: 'Start a new session' },
+  { name: 'plan', description: 'Plan before making changes', scope: 'message' },
+  { name: 'compact', description: 'Summarize the conversation to free context', scope: 'session' },
+  { name: 'new', description: 'Start a new session', scope: 'session' },
 ]
 
 export type SlashItem =
@@ -25,17 +32,21 @@ export type SlashItem =
 /**
  * Built-in commands, then extension commands and prompt templates, then skills. A name taken by
  * an earlier one is dropped, as pi resolves it. A `skill:` query, or `extensions: null`, lists
- * skills only.
+ * skills only. The `message` scope leaves out session commands and extension commands.
  */
 export function filterSlashItems(
   skills: SkillInfo[],
   query: string,
   extensions: CommandInfo[] | null = [],
+  scope: SlashScope = 'session',
 ): SlashItem[] {
   const needle = query.trim().toLowerCase()
   const listCommands = extensions !== null && !needle.startsWith('skill:')
   const builtins = listCommands
-    ? SLASH_COMMANDS.filter((command) => command.name.includes(needle))
+    ? SLASH_COMMANDS.filter(
+        (command) =>
+          command.name.includes(needle) && (scope === 'session' || command.scope === 'message'),
+      )
     : []
   const taken = new Set(SLASH_COMMANDS.map((command) => command.name))
   const others = listCommands
@@ -43,8 +54,9 @@ export function filterSlashItems(
         if (taken.has(command.name)) return false
         taken.add(command.name)
         return (
-          command.name.toLowerCase().includes(needle) ||
-          (command.description?.toLowerCase().includes(needle) ?? false)
+          (scope === 'session' || command.source === 'prompt') &&
+          (command.name.toLowerCase().includes(needle) ||
+            (command.description?.toLowerCase().includes(needle) ?? false))
         )
       })
     : []

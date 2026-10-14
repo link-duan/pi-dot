@@ -349,6 +349,15 @@ describe('AgentHost SDK compatibility', () => {
     })
   })
 
+  it('tells whether a user message was sent in plan mode', () => {
+    const manager = session.sessionManager
+    manager.appendMessage({ role: 'user', content: 'before', timestamp: 1 })
+    manager.appendCustomEntry('pi-dot-plan', { kind: 'mode', active: true })
+    manager.appendMessage({ role: 'user', content: 'planned', timestamp: 2 })
+    expect(host.messagePlanMode(session.sessionFile!, 1)).toBe(false)
+    expect(host.messagePlanMode(session.sessionFile!, 2)).toBe(true)
+  })
+
   describe('rewindMessage', () => {
     beforeEach(() => {
       const manager = session.sessionManager

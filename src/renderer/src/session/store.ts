@@ -37,10 +37,11 @@ interface SessionStore extends WindowState {
   respondUi: (id: string, response: UiResponse) => Promise<void>
   /** Asks again whether to trust the folder, reloading it if the answer changed. */
   retrust: () => Promise<void>
-  /** Rewinds to before the user message sent at `timestamp` and puts it in the Composer. */
-  editMessage: (timestamp: number) => Promise<void>
-  /** Leaves an edit, back to the branch it rewound from. */
-  cancelEdit: () => Promise<void>
+  /** Opens the user message sent at `timestamp` for editing in place, in the mode it was sent in. */
+  startEdit: (timestamp: number) => Promise<void>
+  closeEdit: () => void
+  /** Rewinds to before the user message sent at `timestamp` and sends `text` instead. */
+  editMessage: (timestamp: number, text: string, planMode: boolean) => Promise<boolean>
   /** Starts a new session before a user message (filling the Composer with it), or through a reply. */
   forkMessage: (message: MessageRef) => Promise<boolean>
   /** Rewinds to a user message, or through a reply's turn; resolves to its undo, if it worked. */
@@ -139,7 +140,6 @@ export const useSession = create<SessionStore>((set, get) => ({
   send: async (text: string) => {
     const file = get().sessionFile
     if (!file) return
-    set({ editing: null })
     const planMode = get().chats[file]?.planMode ?? false
     // An extension command runs in main and adds no user message of its own, so the Transcript
     // shows it as a line, above what the extension says. It may wait on its own dialogs, so the
@@ -193,33 +193,33 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
   },
 
-  editMessage: async (timestamp: number) => {
+  startEdit: async (timestamp: number) => {
     const file = get().sessionFile
     if (!file) return
     try {
-      const { snapshot, text, leafId } = await window.pi.editMessage(file, timestamp)
-      set((state) => ({
-        ...applySnapshot(state, snapshot),
-        editing: { sessionFile: file, leafId },
-      }))
-      get().fillComposer(text)
+      const planMode = await window.pi.messagePlanMode(file, timestamp)
+      if (get().sessionFile === file) set({ editing: { sessionFile: file, timestamp, planMode } })
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
 
-  cancelEdit: async () => {
-    const editing = get().editing
-    if (!editing || editing.sessionFile !== get().sessionFile) return
-    set({ editing: null })
-    if (!editing.leafId) return
+  closeEdit: () => set({ editing: null }),
+
+  editMessage: async (timestamp: number, text: string, planMode: boolean) => {
+    const file = get().sessionFile
+    if (!file) return false
     try {
-      const snapshot = await window.pi.cancelEdit(editing.sessionFile, editing.leafId)
+      const snapshot = await window.pi.editMessage(file, timestamp)
       set((state) => applySnapshot(state, snapshot))
-      get().fillComposer('')
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
+      return false
     }
+    set({ editing: null })
+    get().setPlanMode(planMode)
+    await get().send(text)
+    return true
   },
 
   forkMessage: async (message: MessageRef) => {
@@ -245,12 +245,13 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return null
     try {
       const { snapshot, leafId } = await window.pi.rewindMessage(file, message)
-      set((state) => applySnapshot(state, snapshot))
+      // The message being edited may be gone, or come back with an undo.
+      set((state) => ({ ...applySnapshot(state, snapshot), editing: null }))
       if (!leafId) return null
       return async () => {
         try {
-          const snapshot = await window.pi.cancelEdit(file, leafId)
-          set((state) => applySnapshot(state, snapshot))
+          const snapshot = await window.pi.restoreLeaf(file, leafId)
+          set((state) => ({ ...applySnapshot(state, snapshot), editing: null }))
         } catch (error) {
           set({ error: error instanceof Error ? error.message : String(error) })
         }

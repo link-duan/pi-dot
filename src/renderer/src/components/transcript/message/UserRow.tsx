@@ -11,14 +11,33 @@ import { useChat, useSession } from '@/session/store'
 import type { UserMessage } from '@shared/protocol'
 import { CopyAction, MessageAction, RewindAction } from '../MessageActions'
 import { UserBubble } from './UserBubble'
+import { MessageEditor } from './MessageEditor'
 
 export const UserRow = memo(function UserRow({ message }: { message: UserMessage }) {
   const segments = useMemo(() => keyedUserSegments(userText(message)), [message])
   const sentAt = useMemo(() => formatMessageTime(message.timestamp), [message.timestamp])
   const busy = useChat((chat) => chat.isStreaming)
-  const editMessage = useSession((state) => state.editMessage)
   const forkMessage = useSession((state) => state.forkMessage)
+  const startEdit = useSession((state) => state.startEdit)
+  const editing = useSession((state) =>
+    state.editing?.sessionFile === state.sessionFile &&
+    state.editing.timestamp === message.timestamp
+      ? state.editing
+      : null,
+  )
   const idleOnly = 'Available when the run ends'
+
+  if (editing) {
+    return (
+      <div className="mt-6 mb-2 group-first/turn:mt-2 first:mt-2">
+        <MessageEditor
+          timestamp={message.timestamp}
+          text={userText(message)}
+          planMode={editing.planMode}
+        />
+      </div>
+    )
+  }
 
   return (
     <UserBubble
@@ -30,7 +49,7 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
               icon={Pencil}
               label={busy ? idleOnly : 'Edit and resend'}
               disabled={busy}
-              onClick={() => void editMessage(message.timestamp)}
+              onClick={() => void startEdit(message.timestamp)}
             />
             <MessageAction
               icon={GitBranch}

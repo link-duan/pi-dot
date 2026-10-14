@@ -1,6 +1,15 @@
 import { ArrowUp, Folder, ListChecks, Square, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from 'react'
+import {
+  $getRoot,
   COMMAND_PRIORITY_NORMAL,
   INSERT_LINE_BREAK_COMMAND,
   KEY_ENTER_COMMAND,
@@ -42,12 +51,12 @@ const SEND_LABELS: Record<SendAction, { label: string; tooltip: string }> = {
 export function Composer({ onSend }: { onSend?: () => void } = {}) {
   return (
     <LexicalComposer initialConfig={initialConfig}>
-      <ComposerForm onSend={onSend} />
+      <SessionComposer onSend={onSend} />
     </LexicalComposer>
   )
 }
 
-function ComposerForm({ onSend }: { onSend?: () => void }) {
+function SessionComposer({ onSend }: { onSend?: () => void }) {
   const [editor] = useLexicalComposerContext()
   const [draft, setDraft] = useState(() => draftText(useSession.getState().sessionFile))
   const sessionRef = useRef<string | null | undefined>(undefined)
@@ -65,12 +74,9 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const isStreaming = useChat((state) => state.isStreaming)
   const planMode = useChat((state) => state.planMode)
   const setPlanMode = useSession((state) => state.setPlanMode)
-  const togglePlanMode = useCallback(() => setPlanMode(!planMode), [planMode, setPlanMode])
   const compact = useSession((state) => state.compact)
   const newSession = useSession((state) => state.newSession)
   const noModels = useSession((state) => state.connection === 'ready' && state.models.length === 0)
-  const editing = useSession((state) => state.editing?.sessionFile === state.sessionFile)
-  const cancelEdit = useSession((state) => state.cancelEdit)
   const runCommand = useCallback(
     (name: string) => {
       if (name === 'plan') setPlanMode(true)
@@ -91,9 +97,8 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
   const canSend = connection === 'ready' && hasDraft && !noModels
 
   const submit = useCallback(
-    async (mode?: 'steer' | 'followUp') => {
-      const next = serializeEditorState(editor.getEditorState()).trim()
-      if (!next || connection !== 'ready') return
+    async (next: string, mode?: 'followUp') => {
+      if (connection !== 'ready') return
       try {
         // A waiting question blocks the run, so a steer would only land after it is answered.
         if (questionId) {
@@ -156,7 +161,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
     [editor],
   )
 
-  // Text main or the store hands over: a message being edited, or an extension's setEditorText.
+  // Text main or the store hands over: a forked message, or an extension's setEditorText.
   const composerFill = useSession((state) => state.composerFill)
   useEffect(() => {
     if (!composerFill) return
@@ -176,40 +181,23 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
         <ExtensionWidgets placement="aboveEditor" className={cn(CARD, 'px-3 py-2')} />
       </div>
 
-      <form
-        className={cn(
-          'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 backdrop-blur-md dark:bg-card/95',
-          planMode ? 'border-plan/50' : 'border-border',
-        )}
-        onSubmit={(event) => {
-          event.preventDefault()
-          submit(isStreaming ? 'steer' : undefined)
+      <label className="sr-only" htmlFor="prompt-input">
+        Prompt
+      </label>
+      <ComposerCard
+        id="prompt-input"
+        scope="session"
+        placeholder={placeholder}
+        planMode={planMode}
+        onPlanModeChange={setPlanMode}
+        onChange={(text, state) => {
+          setDraft(text)
+          rememberDraft(sessionRef.current ?? null, state)
         }}
-        onKeyDown={(event) => {
-          if (event.key !== 'Escape' || !editing || event.defaultPrevented) return
-          event.preventDefault()
-          void cancelEdit()
-        }}
+        onCommand={runCommand}
+        onSubmit={(text) => void submit(text)}
+        onFollowUp={isStreaming ? (text) => void submit(text, 'followUp') : undefined}
       >
-        <label className="sr-only" htmlFor="prompt-input">
-          Prompt
-        </label>
-        <PromptEditorField
-          id="prompt-input"
-          placeholder={placeholder}
-          className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
-          onChange={(text, state) => {
-            setDraft(text)
-            rememberDraft(sessionRef.current ?? null, state)
-          }}
-          onCommand={runCommand}
-        />
-        <ComposerKeyPlugin
-          isStreaming={isStreaming}
-          onSubmit={submit}
-          onTogglePlanMode={togglePlanMode}
-        />
-
         <ExtensionWidgets
           placement="belowEditor"
           className="border-t border-border/60 px-1.5 pt-1.5 pb-1"
@@ -217,23 +205,7 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
 
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-1">
-            {planMode ? (
-              <span
-                className="-ml-0.5 inline-flex h-6 shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-7px)] bg-plan/10 pr-0.5 pl-1.5 text-xs font-medium text-plan"
-                title={`Plan mode · Shift+Tab to exit${isStreaming ? ' · applies to the next message' : ''}`}
-              >
-                <ListChecks className="size-3" />
-                Plan
-                <button
-                  type="button"
-                  aria-label="Exit plan mode"
-                  onClick={() => setPlanMode(false)}
-                  className="flex size-4 cursor-pointer items-center justify-center rounded-sm hover:bg-plan/15"
-                >
-                  <X className="size-3" />
-                </button>
-              </span>
-            ) : null}
+            {planMode ? <PlanBadge onExit={() => setPlanMode(false)} /> : null}
             {cwd ? (
               <Tooltip>
                 <TooltipTrigger
@@ -301,18 +273,112 @@ function ComposerForm({ onSend }: { onSend?: () => void }) {
             )}
           </div>
         </div>
-      </form>
+      </ComposerCard>
     </div>
   )
 }
 
-function ComposerKeyPlugin({
-  isStreaming,
+/**
+ * The prompt box: the editor, its keys and its Plan Mode border, inside a `LexicalComposer`.
+ * Submitting hands over the trimmed text; what goes below the editor is `children`.
+ */
+export function ComposerCard({
+  planMode,
+  onPlanModeChange,
   onSubmit,
+  onFollowUp,
+  onEscape,
+  autoFocus,
+  children,
+  ...field
+}: Pick<
+  ComponentProps<typeof PromptEditorField>,
+  'id' | 'scope' | 'placeholder' | 'onChange' | 'onCommand'
+> & {
+  planMode: boolean
+  onPlanModeChange: (on: boolean) => void
+  onSubmit: (text: string) => void
+  /** Alt+Enter, e.g. queueing a follow-up while the run streams. */
+  onFollowUp?: (text: string) => void
+  onEscape?: () => void
+  /** Focuses the editor once mounted, with the caret at the end. */
+  autoFocus?: boolean
+  children: ReactNode
+}) {
+  const [editor] = useLexicalComposerContext()
+  const take = useCallback(
+    (handler: (text: string) => void) => {
+      const text = serializeEditorState(editor.getEditorState()).trim()
+      if (text) handler(text)
+    },
+    [editor],
+  )
+
+  useEffect(() => {
+    if (!autoFocus) return
+    // An initial editor state drops its selection, so the caret goes to the end here.
+    editor.update(() => $getRoot().selectEnd())
+    editor.focus()
+  }, [autoFocus, editor])
+
+  return (
+    <form
+      className={cn(
+        'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 backdrop-blur-md dark:bg-card/95',
+        planMode ? 'border-plan/50' : 'border-border',
+      )}
+      onSubmit={(event) => {
+        event.preventDefault()
+        take(onSubmit)
+      }}
+      onKeyDown={(event) => {
+        if (!onEscape || event.key !== 'Escape' || event.defaultPrevented) return
+        event.preventDefault()
+        onEscape()
+      }}
+    >
+      <PromptEditorField
+        {...field}
+        className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
+      />
+      <ComposerKeyPlugin
+        onSubmit={() => take(onSubmit)}
+        onFollowUp={onFollowUp ? () => take(onFollowUp) : undefined}
+        onTogglePlanMode={() => onPlanModeChange(!planMode)}
+      />
+      {children}
+    </form>
+  )
+}
+
+export function PlanBadge({ onExit }: { onExit: () => void }) {
+  const isStreaming = useChat((state) => state.isStreaming)
+  return (
+    <span
+      className="-ml-0.5 inline-flex h-6 shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-7px)] bg-plan/10 pr-0.5 pl-1.5 text-xs font-medium text-plan"
+      title={`Plan mode · Shift+Tab to exit${isStreaming ? ' · applies to the next message' : ''}`}
+    >
+      <ListChecks className="size-3" />
+      Plan
+      <button
+        type="button"
+        aria-label="Exit plan mode"
+        onClick={onExit}
+        className="flex size-4 cursor-pointer items-center justify-center rounded-sm hover:bg-plan/15"
+      >
+        <X className="size-3" />
+      </button>
+    </span>
+  )
+}
+
+function ComposerKeyPlugin({
+  onSubmit,
+  onFollowUp,
   onTogglePlanMode,
 }: {
-  isStreaming: boolean
-  onSubmit: (mode?: 'steer' | 'followUp') => void
+  onSubmit: () => void
+  onFollowUp?: () => void
   onTogglePlanMode: () => void
 }) {
   const [editor] = useLexicalComposerContext()
@@ -340,20 +406,18 @@ function ComposerKeyPlugin({
           return true
         }
         if (event?.altKey) {
-          if (isStreaming) {
-            event?.preventDefault()
-            onSubmit('followUp')
-            return true
-          }
-          return false
+          if (!onFollowUp) return false
+          event.preventDefault()
+          onFollowUp()
+          return true
         }
         event?.preventDefault()
-        onSubmit(isStreaming ? 'steer' : undefined)
+        onSubmit()
         return true
       },
       COMMAND_PRIORITY_NORMAL,
     )
-  }, [editor, isStreaming, onSubmit])
+  }, [editor, onFollowUp, onSubmit])
 
   return null
 }

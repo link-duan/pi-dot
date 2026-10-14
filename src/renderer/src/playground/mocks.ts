@@ -765,13 +765,11 @@ export const extensionModel = chat(
   },
 )
 
+/** A message sent in plan mode, being edited in place. */
 export const editingModel = chat([
-  user('What does formatMessageTime do?'),
-  assistant([{ type: 'text', text: 'It formats a message timestamp as a short local time.' }]),
+  user('Plan how to split the session store.'),
+  assistant([{ type: 'text', text: 'Here is a plan for splitting it by concern.' }]),
 ])
-
-/** The rewound message, back in the Composer. */
-export const editingFill = 'Rename the helper to formatTime and update its callers.'
 
 export const noModelsChatModel = chat([
   user('Explain the session store.'),
