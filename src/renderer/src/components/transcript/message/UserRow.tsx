@@ -25,7 +25,6 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
       ? state.editing
       : null,
   )
-  const idleOnly = 'Available when the run ends'
 
   if (editing) {
     return (
@@ -47,14 +46,12 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
             <CopyAction text={() => userText(message)} />
             <MessageAction
               icon={Pencil}
-              label={busy ? idleOnly : 'Edit and resend'}
-              disabled={busy}
+              label="Edit and resend"
               onClick={() => void startEdit(message.timestamp)}
             />
             <MessageAction
               icon={GitBranch}
-              label={busy ? idleOnly : 'Fork into a new session'}
-              disabled={busy}
+              label={busy ? 'Stop and fork into a new session' : 'Fork into a new session'}
               onClick={() =>
                 void forkMessage({ role: 'user', timestamp: message.timestamp }).then((forked) => {
                   if (forked) toast('Forked into a new session')

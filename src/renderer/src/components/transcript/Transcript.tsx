@@ -172,7 +172,10 @@ export function Transcript({
                         {isLast && isStreaming ? (
                           status && <TurnStatus {...status} />
                         ) : (
-                          <TurnActions messages={messages.slice(turn.start, turn.end + 1)}>
+                          <TurnActions
+                            messages={messages.slice(turn.start, turn.end + 1)}
+                            isLast={isLast}
+                          >
                             {status ? <TurnStatus {...status} /> : null}
                           </TurnActions>
                         )}

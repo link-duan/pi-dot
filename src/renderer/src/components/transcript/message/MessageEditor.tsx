@@ -30,10 +30,8 @@ export function MessageEditor({
   const [planMode, setPlanMode] = useState(sentInPlanMode)
   const editMessage = useSession((state) => state.editMessage)
   const closeEdit = useSession((state) => state.closeEdit)
-  // An edit rewinds the session, so it waits for the run to end.
-  const canRun = useSession((state) => state.connection === 'ready' && state.models.length > 0)
+  const ready = useSession((state) => state.connection === 'ready' && state.models.length > 0)
   const isStreaming = useChat((state) => state.isStreaming)
-  const ready = canRun && !isStreaming
 
   return (
     <LexicalComposer initialConfig={config}>
@@ -68,7 +66,7 @@ export function MessageEditor({
               className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] transition-opacity"
               disabled={!ready || !draft.trim()}
               aria-label="Send"
-              title={isStreaming ? 'Available when the run ends' : 'Send'}
+              title={isStreaming ? 'Stop and send' : 'Send'}
             >
               <ArrowUp className="size-3.5" />
             </Button>

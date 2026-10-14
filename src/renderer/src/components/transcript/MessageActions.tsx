@@ -10,12 +10,10 @@ import { useChat, useSession } from '@/session/store'
 export function MessageAction({
   icon: Icon,
   label,
-  disabled,
   onClick,
 }: {
   icon: LucideIcon
   label: ReactNode
-  disabled?: boolean
   onClick: () => void
 }) {
   return (
@@ -27,10 +25,8 @@ export function MessageAction({
             variant="ghost"
             size="icon-xs"
             aria-label={typeof label === 'string' ? label : undefined}
-            // A disabled button gets no hover, so its tooltip could not say why.
-            aria-disabled={disabled}
-            onClick={disabled ? undefined : onClick}
-            className="text-muted-foreground hover:text-foreground aria-disabled:opacity-50 aria-disabled:hover:bg-transparent aria-disabled:hover:text-muted-foreground"
+            onClick={onClick}
+            className="text-muted-foreground hover:text-foreground"
           />
         }
       >
@@ -64,8 +60,7 @@ export function RewindAction({ message }: { message: MessageRef }) {
   return (
     <MessageAction
       icon={Undo2}
-      label={busy ? 'Available when the run ends' : 'Rewind the conversation to here'}
-      disabled={busy}
+      label={busy ? 'Stop and rewind to here' : 'Rewind the conversation to here'}
       onClick={() =>
         void rewindMessage(message).then((undo) => {
           if (undo) toast('Rewound the conversation', { action: { label: 'Undo', onClick: undo } })

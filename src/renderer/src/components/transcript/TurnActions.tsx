@@ -8,9 +8,12 @@ import { CopyAction, MessageAction, RewindAction } from './MessageActions'
 /** Copy, Fork and Rewind for a finished turn, before its status (`children`). */
 export function TurnActions({
   messages,
+  isLast,
   children,
 }: {
   messages: AgentMessage[]
+  /** The session already ends at the last turn, so rewinding to it would do nothing. */
+  isLast: boolean
   children?: ReactNode
 }) {
   const busy = useChat((chat) => chat.isStreaming)
@@ -33,15 +36,14 @@ export function TurnActions({
             <>
               <MessageAction
                 icon={GitBranch}
-                label={busy ? 'Available when the run ends' : 'Fork into a new session'}
-                disabled={busy}
+                label={busy ? 'Stop and fork into a new session' : 'Fork into a new session'}
                 onClick={() =>
                   void forkMessage(reply).then((forked) => {
                     if (forked) toast('Forked into a new session')
                   })
                 }
               />
-              <RewindAction message={reply} />
+              {isLast ? null : <RewindAction message={reply} />}
             </>
           ) : null}
         </div>

@@ -335,11 +335,18 @@ export class AgentHost {
   }
 
   async abort(sessionFile?: string): Promise<void> {
-    await this.ops.enqueue(async () => {
+    const live = await this.ops.enqueue(async () => {
       const live = this.requireActive(sessionFile)
       live.session.clearQueue()
       await live.session.abort()
+      return live
     })
+    // The run settles a few ticks after the agent idles, so an action right after would still see
+    // it running. Wait outside `ops`: a run that queues its own op there would deadlock inside.
+    const run = live.promptRun
+    if (!run) return
+    await run.catch(() => {})
+    if (live.promptRun === run) live.promptRun = null
   }
 
   /**

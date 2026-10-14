@@ -222,6 +222,8 @@ export const useSession = create<SessionStore>((set, get) => ({
     const file = get().sessionFile
     if (!file) return false
     try {
+      // Main refuses these mid-run; stopping an idle session is a no-op.
+      await get().abort()
       const snapshot = await window.pi.editMessage(file, timestamp)
       set((state) => applySnapshot(state, snapshot))
     } catch (error) {
@@ -238,6 +240,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     const file = get().sessionFile
     if (!file) return false
     try {
+      await get().abort()
       let text = ''
       await activateSession(async () => {
         const result = await window.pi.forkMessage(file, message)
@@ -256,6 +259,7 @@ export const useSession = create<SessionStore>((set, get) => ({
     const file = get().sessionFile
     if (!file) return null
     try {
+      await get().abort()
       const { snapshot, leafId } = await window.pi.rewindMessage(file, message)
       // The message being edited may be gone, or come back with an undo.
       set((state) => ({ ...applySnapshot(state, snapshot), editing: null }))
