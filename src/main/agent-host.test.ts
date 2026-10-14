@@ -92,9 +92,10 @@ describe('AgentHost SDK compatibility', () => {
       session.sessionManager,
     )
     planMode?.setNext(true)
-    const result = await session.extensionRunner.emitBeforeAgentStart('plan it', undefined, {
-      cwd: host.cwd,
-    } as never)
+    const result = await session.extensionRunner.emitBeforeAgentStart(
+      { messageType: 'user', prompt: 'plan it' },
+      { cwd: host.cwd },
+    )
     expect(result.messages[0]?.content).toContain('Plan mode is active.')
     expect(host.snapshot().state.planMode).toBe(true)
     expect(host.snapshot().state.plan).toBeNull()
