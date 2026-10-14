@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Check, Copy, History, type LucideIcon } from 'lucide-react'
+import { Check, Copy, Undo2, type LucideIcon } from 'lucide-react'
 import { toast } from 'sonner'
 import type { MessageRef } from '@shared/protocol'
 import { Button } from '@/components/ui/button'
@@ -63,7 +63,7 @@ export function RewindAction({ message }: { message: MessageRef }) {
   const rewindMessage = useSession((state) => state.rewindMessage)
   return (
     <MessageAction
-      icon={History}
+      icon={Undo2}
       label={busy ? 'Available when the run ends' : 'Rewind the conversation to here'}
       disabled={busy}
       onClick={() =>
