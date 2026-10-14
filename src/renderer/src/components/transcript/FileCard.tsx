@@ -22,15 +22,17 @@ export function FileCard({
   path,
   stats,
   copy,
+  className,
   children,
 }: {
   path: string
   stats?: DiffStats | null
   copy: string
+  className?: string
   children: ReactNode
 }) {
   return (
-    <div className="mt-2 w-full rounded-xl border border-border pt-2">
+    <div className={cn('mt-2 w-full rounded-xl border border-border pt-2', className)}>
       <div className="flex items-center gap-2 px-2">
         <span className="flex min-w-0 flex-1 items-baseline gap-2">
           {path ? (

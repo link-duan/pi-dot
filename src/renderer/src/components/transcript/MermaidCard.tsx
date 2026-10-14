@@ -28,9 +28,11 @@ function hashString(str: string): number {
 export function MermaidCard({
   code,
   isIncomplete = false,
+  className,
 }: {
   code: string
   isIncomplete?: boolean
+  className?: string
 }) {
   const isDark = useIsDark()
   const rawId = useId()
@@ -106,7 +108,7 @@ export function MermaidCard({
   const showCode = mode === 'code' || (!activeSvg && (isIncomplete || error !== null))
 
   return (
-    <div className="mt-2 w-full rounded-xl border border-border pt-2">
+    <div className={cn('mt-2 w-full rounded-xl border border-border pt-2', className)}>
       <div className="flex items-center justify-between gap-3 border-b border-border px-3 pb-2">
         <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
           <GitGraph className="size-3.5" />

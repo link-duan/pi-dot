@@ -1,6 +1,11 @@
-import { isValidElement, type ComponentProps, type ReactNode } from 'react'
+import { isValidElement, useContext, useState, type ComponentProps, type ReactNode } from 'react'
 import { createMathPlugin } from '@streamdown/math'
-import { Streamdown, useIsCodeFenceIncomplete, type StreamdownProps } from 'streamdown'
+import {
+  Streamdown,
+  StreamdownContext,
+  useIsCodeFenceIncomplete,
+  type StreamdownProps,
+} from 'streamdown'
 import { citationLabel, languageFromPath, parseCodeCitation } from '@/lib/code-citation'
 import { cn } from '@/lib/utils'
 import { FileCard, HighlightedCode } from './FileCard'
@@ -9,6 +14,12 @@ import 'katex/dist/katex.min.css'
 import 'streamdown/styles.css'
 
 const linkSafety = { enabled: false }
+const animation = {
+  animation: 'blurReveal',
+  duration: 420,
+  easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+  sep: 'word',
+} as const
 const mathPlugin = createMathPlugin({ singleDollarTextMath: true })
 const plugins = { math: mathPlugin }
 const components = { table: MarkdownTable, code: MarkdownCode }
@@ -28,6 +39,13 @@ function fenceCode(children: ReactNode): string {
   return typeof children === 'string' ? children : ''
 }
 
+/** Word animation only reaches text, so cards mounted mid-stream reveal themselves. */
+function useStreamReveal(): string | undefined {
+  const { isAnimating } = useContext(StreamdownContext)
+  const [reveal] = useState(() => isAnimating)
+  return reveal ? 'animate-blur-reveal' : undefined
+}
+
 function MarkdownCode({
   className,
   children,
@@ -35,6 +53,7 @@ function MarkdownCode({
   ...props
 }: ComponentProps<'code'> & { node?: unknown }) {
   const isIncomplete = useIsCodeFenceIncomplete()
+  const reveal = useStreamReveal()
   if (!('data-block' in props)) {
     return (
       <code
@@ -54,12 +73,16 @@ function MarkdownCode({
   const source = fenceCode(children)
 
   if (info === 'mermaid') {
-    return <MermaidCard code={source} isIncomplete={isIncomplete} />
+    return <MermaidCard code={source} isIncomplete={isIncomplete} className={reveal} />
   }
 
   const citation = parseCodeCitation(info)
   return (
-    <FileCard path={citation ? citationLabel(citation) : info || 'code'} copy={source}>
+    <FileCard
+      path={citation ? citationLabel(citation) : info || 'code'}
+      copy={source}
+      className={reveal}
+    >
       <HighlightedCode
         source={source}
         language={citation ? languageFromPath(citation.path) : info}
@@ -83,7 +106,7 @@ export function MarkdownBody({
   return (
     <Streamdown
       className={cn('leading-relaxed select-text', className)}
-      animated
+      animated={animation}
       isAnimating={streaming}
       caret={streaming ? 'block' : undefined}
       lineNumbers={false}
@@ -105,8 +128,11 @@ function MarkdownTable({
   node: _node,
   ...props
 }: ComponentProps<'table'> & { node?: unknown }) {
+  const reveal = useStreamReveal()
   return (
-    <div className="my-4 max-h-[900px] overflow-auto rounded-lg border border-border p-2">
+    <div
+      className={cn('my-4 max-h-[900px] overflow-auto rounded-lg border border-border p-2', reveal)}
+    >
       <table className={cn('w-full divide-y divide-border', className)} {...props}>
         {children}
       </table>

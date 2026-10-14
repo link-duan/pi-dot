@@ -348,3 +348,25 @@
 .katex-display .katex {
   font-size: 1.05em;
 }
+
+/* Assistant output reveals from blur to sharp. Streamdown resolves `animation: 'blurReveal'` to this name. */
+@keyframes sd-blurReveal {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+}
+
+@utility animate-blur-reveal {
+  animation: sd-blurReveal 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-sd-animate] {
+    animation: none;
+  }
+}

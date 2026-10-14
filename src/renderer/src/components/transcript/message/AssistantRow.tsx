@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { CircleStop } from 'lucide-react'
 import type { ToolLiveState } from '@/chat/state'
 import type { AssistantMessage, ContentBlock, ToolResultMessage } from '@shared/protocol'
 import { useSettings } from '@/settings/store'
+import { cn } from '@/lib/utils'
 import { ActivityRow } from '../ActivityRow'
 import { MarkdownBody } from '../MarkdownBody'
 import { ToolCard } from '../tool/ToolCard'
@@ -81,11 +83,7 @@ function ContentBlockView({
     case 'text': {
       const text = block.text
       if (!text?.trim()) return null
-      return (
-        <div className="py-1.5">
-          <MarkdownBody text={text} streaming={isLatest} />
-        </div>
-      )
+      return <TextBlock text={text} streaming={isLatest} animateIn={isLive} />
     }
 
     case 'toolCall':
@@ -103,4 +101,21 @@ function ContentBlockView({
     default:
       return null
   }
+}
+
+function TextBlock({
+  text,
+  streaming,
+  animateIn,
+}: {
+  text: string
+  streaming: boolean
+  animateIn: boolean
+}) {
+  const [initialAnimate] = useState(() => animateIn)
+  return (
+    <div className={cn('py-1.5', initialAnimate && 'animate-blur-reveal')}>
+      <MarkdownBody text={text} streaming={streaming} />
+    </div>
+  )
 }

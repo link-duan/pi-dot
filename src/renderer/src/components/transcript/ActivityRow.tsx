@@ -101,7 +101,7 @@ export function ActivityRow({
   )
 
   return (
-    <div className={cn('py-1.5', initialAnimate && 'animate-in duration-200 ease-out fade-in')}>
+    <div className={cn('py-1.5', initialAnimate && 'animate-blur-reveal')}>
       {!expandable ? (
         <div className="inline-flex max-w-full items-center gap-2">
           {iconSlot}
