@@ -2,6 +2,7 @@ import type {
   AskReply,
   ConnectionStatus,
   FileHit,
+  MessageRef,
   ModelSelection,
   SessionEvent,
   SessionListItem,
@@ -47,9 +48,10 @@ export interface PiApi {
     timestamp: number,
   ): Promise<{ snapshot: SessionSnapshot; text: string; leafId: string | null }>
   cancelEdit(sessionFile: string, leafId: string): Promise<SessionSnapshot>
+  /** Starts a new session before a user message, or through a reply. */
   forkMessage(
     sessionFile: string,
-    timestamp: number,
+    message: MessageRef,
   ): Promise<{ snapshot: SessionSnapshot; text: string }>
   steer(text: string, sessionFile: string): Promise<void>
   removeSteering(index: number, sessionFile: string): Promise<void>

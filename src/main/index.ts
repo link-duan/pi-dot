@@ -12,7 +12,7 @@ import {
   shell,
 } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { AskReply, StartResult, ThinkingLevel, UiResponse } from '@shared/protocol'
+import type { AskReply, MessageRef, StartResult, ThinkingLevel, UiResponse } from '@shared/protocol'
 import type { GeneralChange, ModelSettingsPatch } from '@shared/settings'
 import appIcon from '../../resources/icon-dock.png?asset'
 import type { AgentHost } from './agent-host'
@@ -247,8 +247,8 @@ function registerIpc(): void {
   handleHost(IPC.cancelEdit, (host, sessionFile: string, leafId: string) =>
     host.cancelEdit(sessionFile, leafId),
   )
-  handleHost(IPC.forkMessage, (host, sessionFile: string, timestamp: number) =>
-    host.forkMessage(sessionFile, timestamp),
+  handleHost(IPC.forkMessage, (host, sessionFile: string, message: MessageRef) =>
+    host.forkMessage(sessionFile, message),
   )
   handleHost(IPC.steer, (host, text: string, sessionFile: string) => host.steer(text, sessionFile))
   handleHost(IPC.removeSteering, (host, index: number, sessionFile: string) =>

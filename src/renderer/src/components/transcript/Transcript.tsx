@@ -168,15 +168,13 @@ export function Transcript({
                           </Fragment>
                         )
                       })}
-                      <div className="flex items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                          {status ? <TurnStatus {...status} /> : null}
-                        </div>
-                        {isLast && isStreaming ? null : (
-                          <TurnActions
-                            messages={messages.slice(turn.start, turn.end + 1)}
-                            canRetry={isLast && !isStreaming}
-                          />
+                      <div className="mt-1 mb-3 flex items-center gap-2">
+                        {isLast && isStreaming ? (
+                          status && <TurnStatus {...status} />
+                        ) : (
+                          <TurnActions messages={messages.slice(turn.start, turn.end + 1)}>
+                            {status ? <TurnStatus {...status} /> : null}
+                          </TurnActions>
                         )}
                       </div>
                     </div>
@@ -185,14 +183,16 @@ export function Transcript({
                 )
               })}
               {isStreaming && turns.length === 0 && turnStartedAt != null ? (
-                <TurnStatus
-                  kind={retry ? 'retrying' : 'waiting'}
-                  startedAt={turnStartedAt}
-                  endedAt={null}
-                  attempt={retry?.attempt}
-                  maxAttempts={retry?.maxAttempts}
-                  retryAt={retry?.retryAt}
-                />
+                <div className="mt-1 mb-3">
+                  <TurnStatus
+                    kind={retry ? 'retrying' : 'waiting'}
+                    startedAt={turnStartedAt}
+                    endedAt={null}
+                    attempt={retry?.attempt}
+                    maxAttempts={retry?.maxAttempts}
+                    retryAt={retry?.retryAt}
+                  />
+                </div>
               ) : null}
               {steeringQueue.map((text, i) => (
                 <SteeringRow

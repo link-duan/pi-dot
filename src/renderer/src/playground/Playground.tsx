@@ -134,14 +134,14 @@ function usePlaygroundSession(model: ChatState, plan = '', session?: Partial<Win
         useSession.setState({ editing: null })
         useSession.getState().fillComposer('')
       },
-      forkMessage: async (timestamp) => {
+      forkMessage: async ({ role, timestamp }) => {
         const message = activeChat(useSession.getState()).messages.find(
-          (item) => item.role === 'user' && item.timestamp === timestamp,
+          (item) => item.role === role && item.timestamp === timestamp,
         )
-        if (message?.role === 'user') useSession.getState().fillComposer(userText(message))
+        if (message?.role !== 'user') return false
+        useSession.getState().fillComposer(userText(message))
         return true
       },
-      retryLast: async () => {},
       steer: async (text) => {
         useSession.setState((state) => {
           const chat = state.chats[PLAYGROUND_FILE]

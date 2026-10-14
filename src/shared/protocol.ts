@@ -213,6 +213,9 @@ export type AgentMessage =
   | ToolResultMessage
   | CompactionSummaryMessage
 
+/** Finds a message in the session's branch. */
+export type MessageRef = Pick<AgentMessage, 'role' | 'timestamp'>
+
 export type SessionEventBody =
   | { type: 'agent_start' }
   | { type: 'agent_end'; willRetry?: boolean }

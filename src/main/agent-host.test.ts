@@ -274,6 +274,81 @@ describe('AgentHost SDK compatibility', () => {
     expect(host.snapshot().steeringQueue).toEqual(['first', 'second'])
   })
 
+  describe('forkMessage', () => {
+    const usage = {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+      totalTokens: 0,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    }
+
+    beforeEach(() => {
+      const manager = session.sessionManager
+      manager.appendMessage({ role: 'user', content: 'first', timestamp: 1 })
+      manager.appendMessage({
+        role: 'assistant',
+        api: 'openai-completions',
+        provider: 'fixture',
+        model: 'fixture',
+        content: [{ type: 'text', text: 'reply' }],
+        usage,
+        stopReason: 'stop',
+        timestamp: 2,
+      })
+      manager.appendMessage({
+        role: 'bashExecution',
+        command: 'ls',
+        output: '',
+        exitCode: 0,
+        cancelled: false,
+        truncated: false,
+        timestamp: 3,
+      })
+      manager.appendMessage({ role: 'user', content: 'second', timestamp: 4 })
+      session.refreshContext()
+    })
+
+    const current = () => (host as unknown as { session: AgentSession }).session
+    const branch = () =>
+      current()
+        .sessionManager.getBranch()
+        .flatMap((entry) => (entry.type === 'message' ? [entry.message.role] : []))
+
+    it('forks through the end of a reply’s turn, keeping its unshown entries', async () => {
+      const file = session.sessionFile!
+      const result = await host.forkMessage(file, { role: 'assistant', timestamp: 2 })
+      expect(current().sessionFile).not.toBe(file)
+      expect(result.text).toBe('')
+      expect(branch()).toEqual(['user', 'assistant', 'bashExecution'])
+    })
+
+    it('forks before a user message and returns its text', async () => {
+      const result = await host.forkMessage(session.sessionFile!, { role: 'user', timestamp: 4 })
+      expect(result.text).toBe('second')
+      expect(branch()).toEqual(['user', 'assistant', 'bashExecution'])
+    })
+
+    it('finds a compaction summary', async () => {
+      const firstKept = session.sessionManager.getBranch()[0]!.id
+      session.sessionManager.appendCompaction('summary', firstKept, 0)
+      const compaction = session.sessionManager.getBranch().at(-1)!
+      const result = await host.forkMessage(session.sessionFile!, {
+        role: 'compactionSummary',
+        timestamp: new Date(compaction.timestamp).getTime(),
+      })
+      expect(result.text).toBe('')
+      expect(current().sessionManager.getBranch().at(-1)?.type).toBe('compaction')
+    })
+
+    it('rejects a message missing from the branch', async () => {
+      await expect(
+        host.forkMessage(session.sessionFile!, { role: 'assistant', timestamp: 99 }),
+      ).rejects.toThrow('Message not found')
+    })
+  })
+
   it('restores follow-ups when promotion fails', async () => {
     vi.spyOn(session, 'isStreaming', 'get').mockReturnValue(true)
     await host.followUp('first')

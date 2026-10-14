@@ -40,7 +40,7 @@ export function TurnStatus({
           : `Worked for ${clock}`
 
   return (
-    <div className="mt-1 mb-3 flex items-center gap-2 text-muted-foreground select-none">
+    <div className="flex items-center gap-2 text-muted-foreground select-none">
       {live ? (
         <span className="flex size-4 shrink-0 items-center justify-center">
           <Spinner className="size-3.5" />

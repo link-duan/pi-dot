@@ -3,6 +3,7 @@ import {
   type AgentSessionRuntime,
   type CreateAgentSessionRuntimeFactory,
   type ExtensionUIContext,
+  type SessionEntry,
   type SessionStartEvent,
   createAgentSessionFromServices,
   createAgentSessionRuntime,
@@ -11,6 +12,7 @@ import {
   initTheme,
   SessionManager,
   SettingsManager,
+  sessionEntryToContextMessages,
 } from '@earendil-works/pi-coding-agent'
 import {
   getSupportedThinkingLevels,
@@ -27,6 +29,7 @@ import {
   type AskReply,
   type CommandInfo,
   type ContextUsage,
+  type MessageRef,
   type ModelInfo,
   type ModelSelection,
   type SessionEvent,
@@ -350,7 +353,9 @@ export class AgentHost {
     return this.ops.enqueue(async () => {
       const session = this.requireIdle(sessionFile).session
       const leafId = session.sessionManager.getLeafId()
-      const result = await session.navigateTree(userEntryId(session, timestamp))
+      const result = await session.navigateTree(
+        messageEntryId(session, { role: 'user', timestamp }),
+      )
       if (result.cancelled) throw new Error('An extension cancelled the edit')
       return { snapshot: this.snapshot(), text: result.editorText ?? '', leafId }
     })
@@ -364,15 +369,20 @@ export class AgentHost {
     })
   }
 
-  /** Starts a new session with the history before the user message sent at `timestamp`. */
+  /**
+   * Starts a new session before a user message, whose text comes back for the Composer, or
+   * through the end of the turn holding any other message.
+   */
   async forkMessage(
     sessionFile: string,
-    timestamp: number,
+    message: MessageRef,
   ): Promise<{ snapshot: SessionSnapshot; text: string }> {
     return this.ops.enqueue(async () => {
       const live = this.requireIdle(sessionFile)
-      const id = userEntryId(live.session, timestamp)
-      const result = await live.runtime.fork(id, { position: 'before' })
+      const result =
+        message.role === 'user'
+          ? await live.runtime.fork(messageEntryId(live.session, message), { position: 'before' })
+          : await live.runtime.fork(turnEndEntryId(live.session, message), { position: 'at' })
       if (result.cancelled) throw new Error('An extension cancelled the fork')
       return { snapshot: this.snapshot(), text: result.selectedText ?? '' }
     })
@@ -822,15 +832,27 @@ function toModelInfo(model: Model<Api>): ModelInfo {
   }
 }
 
-function userEntryId(session: AgentSession, timestamp: number): string {
-  const entry = session.sessionManager
-    .getBranch()
-    .find(
-      (item) =>
-        item.type === 'message' &&
-        item.message.role === 'user' &&
-        item.message.timestamp === timestamp,
-    )
-  if (!entry) throw new Error('Message not found in this session')
-  return entry.id
+function messageEntryIndex(branch: SessionEntry[], { role, timestamp }: MessageRef): number {
+  const index = branch.findIndex((entry) =>
+    sessionEntryToContextMessages(entry).some(
+      (message) => message.role === role && message.timestamp === timestamp,
+    ),
+  )
+  if (index < 0) throw new Error('Message not found in this session')
+  return index
+}
+
+function messageEntryId(session: AgentSession, message: MessageRef): string {
+  const branch = session.sessionManager.getBranch()
+  return branch[messageEntryIndex(branch, message)]!.id
+}
+
+/** The last entry before the next user message, so the turn's unshown entries come along. */
+function turnEndEntryId(session: AgentSession, message: MessageRef): string {
+  const branch = session.sessionManager.getBranch()
+  const start = messageEntryIndex(branch, message)
+  const next = branch.findIndex(
+    (entry, index) => index > start && entry.type === 'message' && entry.message.role === 'user',
+  )
+  return branch[next < 0 ? branch.length - 1 : next - 1]!.id
 }

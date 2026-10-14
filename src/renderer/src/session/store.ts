@@ -5,6 +5,7 @@ import { parsePlan } from '@shared/plan-file'
 import type {
   AgentMessage,
   AskReply,
+  MessageRef,
   ModelSelection,
   SessionListItem,
   SessionSnapshot,
@@ -40,10 +41,8 @@ interface SessionStore extends WindowState {
   editMessage: (timestamp: number) => Promise<void>
   /** Leaves an edit, back to the branch it rewound from. */
   cancelEdit: () => Promise<void>
-  /** Starts a new session from before the user message sent at `timestamp`. */
-  forkMessage: (timestamp: number) => Promise<boolean>
-  /** Sends the last user message again, replacing its reply. */
-  retryLast: () => Promise<void>
+  /** Starts a new session before a user message (filling the Composer with it), or through a reply. */
+  forkMessage: (message: MessageRef) => Promise<boolean>
   fillComposer: (text: string) => void
   removeSteering: (index: number) => Promise<void>
   followUp: (text: string) => Promise<void>
@@ -221,13 +220,13 @@ export const useSession = create<SessionStore>((set, get) => ({
     }
   },
 
-  forkMessage: async (timestamp: number) => {
+  forkMessage: async (message: MessageRef) => {
     const file = get().sessionFile
     if (!file) return false
     try {
       let text = ''
       await activateSession(async () => {
-        const result = await window.pi.forkMessage(file, timestamp)
+        const result = await window.pi.forkMessage(file, message)
         text = result.text
         return result.snapshot
       })
@@ -236,21 +235,6 @@ export const useSession = create<SessionStore>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
       return false
-    }
-  },
-
-  retryLast: async () => {
-    const file = get().sessionFile
-    const last = activeChat(get())
-      .messages.filter((message) => message.role === 'user')
-      .at(-1)
-    if (!file || !last) return
-    try {
-      const { snapshot, text } = await window.pi.editMessage(file, last.timestamp)
-      set((state) => applySnapshot(state, snapshot))
-      await get().send(text)
-    } catch (error) {
-      set({ error: error instanceof Error ? error.message : String(error) })
     }
   },
 

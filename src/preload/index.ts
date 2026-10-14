@@ -6,6 +6,7 @@ import type {
   AskReply,
   ConnectionStatus,
   FileHit,
+  MessageRef,
   SessionEvent,
   SessionListItem,
   SessionSnapshot,
@@ -46,8 +47,8 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.editMessage, sessionFile, timestamp),
   cancelEdit: (sessionFile: string, leafId: string) =>
     ipcRenderer.invoke(IPC.cancelEdit, sessionFile, leafId),
-  forkMessage: (sessionFile: string, timestamp: number) =>
-    ipcRenderer.invoke(IPC.forkMessage, sessionFile, timestamp),
+  forkMessage: (sessionFile: string, message: MessageRef) =>
+    ipcRenderer.invoke(IPC.forkMessage, sessionFile, message),
   steer: (text: string, sessionFile: string) =>
     ipcRenderer.invoke(IPC.steer, text, sessionFile) as Promise<void>,
   removeSteering: (index: number, sessionFile: string) =>

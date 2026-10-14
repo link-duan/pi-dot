@@ -1,50 +1,60 @@
-import { RotateCcw } from 'lucide-react'
-import type { AgentMessage } from '@shared/protocol'
-import { Button } from '@/components/ui/button'
-import { useSession } from '@/session/store'
+import { GitBranch } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { toast } from 'sonner'
+import type { AgentMessage, MessageRef } from '@shared/protocol'
+import { useChat, useSession } from '@/session/store'
 import { CopyAction, MessageAction } from './MessageActions'
 
-/** Copy and Retry for a finished turn; shown on hover, and Retry always after an error. */
+/** Copy and Fork for a finished turn, before its status (`children`). */
 export function TurnActions({
   messages,
-  canRetry,
+  children,
 }: {
   messages: AgentMessage[]
-  canRetry: boolean
+  children?: ReactNode
 }) {
-  const retryLast = useSession((state) => state.retryLast)
+  const busy = useChat((chat) => chat.isStreaming)
+  const forkMessage = useSession((state) => state.forkMessage)
+  const hasText = messages.some(
+    (message) =>
+      message.role === 'assistant' &&
+      message.content.some((block) => block.type === 'text' && /\S/.test(block.text)),
+  )
   const last = messages.at(-1)
-  const failed = canRetry && last?.role === 'assistant' && last.stopReason === 'error'
-  const text = () =>
-    messages
-      .flatMap((message) =>
-        message.role === 'assistant'
-          ? message.content.flatMap((block) => (block.type === 'text' ? [block.text.trim()] : []))
-          : [],
-      )
-      .filter(Boolean)
-      .join('\n\n')
+  const reply: MessageRef | undefined =
+    last && last.role !== 'user' ? { role: last.role, timestamp: last.timestamp } : undefined
 
   return (
-    <div className="mt-0.5 flex shrink-0 items-center gap-0.5">
-      {failed ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="text-foreground"
-          onClick={() => void retryLast()}
-        >
-          <RotateCcw />
-          Retry
-        </Button>
+    <>
+      {hasText || reply ? (
+        <div className="-ml-1 flex shrink-0 items-center gap-0.5">
+          {hasText ? <CopyAction text={() => replyText(messages)} label="Copy response" /> : null}
+          {reply ? (
+            <MessageAction
+              icon={GitBranch}
+              label={busy ? 'Available when the run ends' : 'Fork into a new session'}
+              disabled={busy}
+              onClick={() =>
+                void forkMessage(reply).then((forked) => {
+                  if (forked) toast('Forked into a new session')
+                })
+              }
+            />
+          ) : null}
+        </div>
       ) : null}
-      <div className="flex items-center opacity-0 transition-opacity duration-150 group-hover/turn:opacity-100 focus-within:opacity-100">
-        <CopyAction text={text} label="Copy response" />
-        {canRetry && !failed ? (
-          <MessageAction icon={RotateCcw} label="Retry" onClick={() => void retryLast()} />
-        ) : null}
-      </div>
-    </div>
+      {children}
+    </>
   )
+}
+
+function replyText(messages: AgentMessage[]): string {
+  return messages
+    .flatMap((message) =>
+      message.role === 'assistant'
+        ? message.content.flatMap((block) => (block.type === 'text' ? [block.text.trim()] : []))
+        : [],
+    )
+    .filter(Boolean)
+    .join('\n\n')
 }

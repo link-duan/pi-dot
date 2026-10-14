@@ -37,7 +37,7 @@ export const UserRow = memo(function UserRow({ message }: { message: UserMessage
               label={busy ? idleOnly : 'Fork into a new session'}
               disabled={busy}
               onClick={() =>
-                void forkMessage(message.timestamp).then((forked) => {
+                void forkMessage({ role: 'user', timestamp: message.timestamp }).then((forked) => {
                   if (forked) toast('Forked into a new session')
                 })
               }
