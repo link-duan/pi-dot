@@ -2,7 +2,7 @@ import type { AgentSession } from '@earendil-works/pi-coding-agent'
 import { clampThinkingLevel } from '@earendil-works/pi-ai'
 import { modelKey } from '@shared/protocol'
 
-const TITLE_TIMEOUT_MS = 15_000
+const TITLE_TIMEOUT_MS = 60_000
 const MAX_INPUT_CHARS = 2000
 const MAX_TITLE_CHARS = 60
 
