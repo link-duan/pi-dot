@@ -238,17 +238,17 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
                               )}
                             </span>
                             <SessionItemTitle item={item} />
-                            {current || mark ? (
+                            {mark ? (
                               <span
                                 className={cn(
                                   'shrink-0 text-xs',
                                   mark === 'input' ? 'text-plan' : 'text-muted-foreground',
                                 )}
                               >
-                                {current ? 'current' : mark === 'input' ? 'needs input' : 'new'}
+                                {mark === 'input' ? 'needs input' : 'new'}
                               </span>
                             ) : null}
-                            <span className="w-8 shrink-0 text-right text-xs text-muted-foreground tabular-nums">
+                            <span className="min-w-8 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums">
                               {formatRelativeTime(item.modified)}
                             </span>
                           </CommandItem>
