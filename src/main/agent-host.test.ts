@@ -366,6 +366,58 @@ describe('AgentHost SDK compatibility', () => {
     )
   })
 
+  describe('deleteSession', () => {
+    const trash = vi.fn(async (_path: string) => {})
+    const activeFile = () => host.snapshot().state.sessionFile
+
+    beforeEach(() => {
+      trash.mockClear()
+      session.sessionManager.appendMessage({ role: 'user', content: 'first', timestamp: 1 })
+      session.refreshContext()
+    })
+
+    it('trashes another session and keeps the active one', async () => {
+      const file = session.sessionFile!
+      await host.newSession()
+      const active = activeFile()
+      await host.deleteSession(file, trash)
+      expect(trash).toHaveBeenCalledWith(file)
+      expect(activeFile()).toBe(active)
+    })
+
+    it('moves to a new session when deleting the active one', async () => {
+      const file = session.sessionFile!
+      const snapshot = await host.deleteSession(file, trash)
+      expect(trash).toHaveBeenCalledWith(file)
+      expect(snapshot.state.sessionFile).not.toBe(file)
+      expect(snapshot.messages).toEqual([])
+    })
+
+    it('stays on the active session when trashing fails', async () => {
+      const file = session.sessionFile!
+      trash.mockRejectedValueOnce(new Error('No trash'))
+      await expect(host.deleteSession(file, trash)).rejects.toThrow('No trash')
+      expect(activeFile()).toBe(file)
+    })
+
+    it('refuses a running session', async () => {
+      const file = session.sessionFile!
+      vi.spyOn(host, 'runningSessionFiles').mockReturnValue([file])
+      await expect(host.deleteSession(file, trash)).rejects.toThrow('Session is running')
+      expect(trash).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['outside the session directory', () => join(directory, 'other.jsonl')],
+      ['not a session file', () => session.sessionFile!.replace(/\.jsonl$/, '.txt')],
+    ])('refuses a path %s', async (_, path) => {
+      await expect(host.deleteSession(path(), trash)).rejects.toThrow(
+        'Not a session of this project',
+      )
+      expect(trash).not.toHaveBeenCalled()
+    })
+  })
+
   describe('rewindMessage', () => {
     beforeEach(() => {
       const manager = session.sessionManager

@@ -65,6 +65,8 @@ interface SessionStore extends WindowState {
   listSessions: () => Promise<SessionListItem[]>
   switchSession: (sessionPath: string) => Promise<void>
   newSession: () => Promise<void>
+  /** Trashes a session file; deleting the active session moves to a new one. Resolves whether it did. */
+  deleteSession: (sessionPath: string) => Promise<boolean>
   requestComposerFocus: () => void
   setPlanMode: (on: boolean) => void
   /** Leaves Plan Mode and asks the agent to implement the approved Plan File. */
@@ -540,6 +542,25 @@ export const useSession = create<SessionStore>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) })
     }
+  },
+
+  deleteSession: async (sessionPath: string) => {
+    try {
+      if (get().sessionFile === sessionPath) {
+        await activateSession(() => window.pi.deleteSession(sessionPath))
+      } else {
+        await window.pi.deleteSession(sessionPath)
+      }
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      return false
+    }
+    set((state) => {
+      const { [sessionPath]: _chat, ...chats } = state.chats
+      const { [sessionPath]: _mark, ...attention } = state.attention
+      return { chats, attention }
+    })
+    return true
   },
 
   requestComposerFocus: () => set((state) => ({ focusNonce: state.focusNonce + 1 })),

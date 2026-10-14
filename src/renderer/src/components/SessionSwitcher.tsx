@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Trash2 } from 'lucide-react'
 import type { SessionListItem } from '@shared/protocol'
 import { userText } from '@/chat/state'
 import { FileChip } from '@/components/composer/FileChip'
@@ -40,6 +40,8 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState('')
   const [items, setItems] = useState<SessionListItem[] | null>(null)
+  /** The row asking "Delete?": a second click, ⌘⌫ or Enter trashes it. */
+  const [confirming, setConfirming] = useState<string | null>(null)
   const sessionFile = useSession((state) => state.sessionFile)
   const connection = useSession((state) => state.connection)
   const runningFiles = useSession((state) => state.running)
@@ -47,6 +49,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
   const needsLook = Object.keys(attention).length > 0
   const listSessions = useSession((state) => state.listSessions)
   const switchSession = useSession((state) => state.switchSession)
+  const deleteSession = useSession((state) => state.deleteSession)
   const name = useChat((chat) => chat.sessionName)
   const firstMessage = useChat((chat) => {
     const first = chat.messages.find((message) => message.role === 'user')
@@ -57,6 +60,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
   const canSwitch = connection === 'ready'
   const folder = folderName(cwd)
   const barRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const returnToComposer = useRef(false)
 
@@ -65,6 +69,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
       if (next) {
         setSelected(sessionFile ?? '')
         setQuery('')
+        setConfirming(null)
       } else returnToComposer.current = true
       setOpen(next)
     },
@@ -96,6 +101,24 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
       cancelled = true
     }
   }, [open, listSessions])
+
+  const removeSession = async (path: string) => {
+    if (confirming !== path) {
+      setConfirming(path)
+      return
+    }
+    setConfirming(null)
+    // Move to the next visible row (else the previous) first: cmdk jumps to the top when the
+    // selected row unmounts.
+    const rows = [...(listRef.current?.querySelectorAll<HTMLElement>('[cmdk-item]') ?? [])]
+    const index = rows.findIndex((row) => row.dataset.value === path)
+    if (index >= 0) setSelected((rows[index + 1] ?? rows[index - 1])?.dataset.value ?? '')
+    if (!(await deleteSession(path))) {
+      setSelected(path)
+      return
+    }
+    setItems((current) => current?.filter((item) => item.path !== path) ?? current)
+  }
 
   return (
     <Popover open={open} onOpenChange={setListOpen}>
@@ -173,7 +196,23 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
       >
         <Command
           value={selected}
-          onValueChange={setSelected}
+          onValueChange={(value) => {
+            setSelected(value)
+            setConfirming(null)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Backspace' && event.metaKey) {
+              // With a query, ⌘⌫ keeps clearing the search field.
+              if (query || !canSwitch || !selected || runningFiles.includes(selected)) return
+              event.preventDefault()
+              void removeSession(selected)
+            } else if (event.key === 'Escape' && confirming) {
+              // Esc backs out of the confirmation, not the list.
+              event.preventDefault()
+              event.stopPropagation()
+              setConfirming(null)
+            }
+          }}
           className="[&_[data-slot=command-input-wrapper]]:border-border/60"
         >
           <CommandInput
@@ -187,7 +226,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
             className="max-h-[min(28rem,60vh)] overscroll-contain"
             scrollbarClassName="my-1"
           >
-            <CommandList className="overflow-visible px-1 py-1">
+            <CommandList ref={listRef} className="overflow-visible px-1 py-1">
               {items === null || items.length === 0 ? (
                 <div className="py-8 text-center text-xs text-muted-foreground">
                   {items === null ? 'Loading…' : 'No sessions yet'}
@@ -205,6 +244,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
                         const itemTitle = sessionTitle(item)
                         const current = item.path === sessionFile
                         const running = runningFiles.includes(item.path)
+                        const deletable = canSwitch && !running
                         const mark = current ? undefined : attention[item.path]
                         return (
                           <CommandItem
@@ -212,8 +252,15 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
                             value={item.path}
                             keywords={[itemTitle, item.firstMessage ?? '']}
                             disabled={!canSwitch && !current}
-                            className="h-8 gap-2 rounded-lg px-2.5 py-0 text-[13px]"
+                            className={cn(
+                              'h-8 gap-2 rounded-lg px-2.5 py-0 text-[13px]',
+                              confirming === item.path && 'data-selected:bg-destructive/10',
+                            )}
                             onSelect={() => {
+                              if (confirming === item.path) {
+                                void removeSession(item.path)
+                                return
+                              }
                               if (current || !canSwitch) {
                                 setListOpen(false)
                                 return
@@ -248,9 +295,49 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
                                 {mark === 'input' ? 'needs input' : 'new'}
                               </span>
                             ) : null}
-                            <span className="min-w-8 shrink-0 text-right text-xs whitespace-nowrap text-muted-foreground tabular-nums">
-                              {formatRelativeTime(item.modified)}
-                            </span>
+                            {confirming === item.path ? (
+                              <button
+                                type="button"
+                                className="flex shrink-0 items-center gap-1.5 text-xs text-destructive outline-none"
+                                onMouseDown={(event) => event.preventDefault()}
+                                onClick={(event) => {
+                                  event.stopPropagation()
+                                  void removeSession(item.path)
+                                }}
+                              >
+                                Delete
+                                <Kbd className="h-4 min-w-4 bg-destructive/10 px-1 text-[10px] text-destructive">
+                                  ↵
+                                </Kbd>
+                              </button>
+                            ) : (
+                              <span className="relative flex min-w-8 shrink-0 justify-end">
+                                <span
+                                  className={cn(
+                                    'text-xs whitespace-nowrap text-muted-foreground tabular-nums',
+                                    deletable && 'group-data-selected/command-item:invisible',
+                                  )}
+                                >
+                                  {formatRelativeTime(item.modified)}
+                                </span>
+                                {deletable ? (
+                                  <button
+                                    type="button"
+                                    className="absolute inset-y-0 right-0 hidden items-center text-muted-foreground/60 outline-none group-data-selected/command-item:flex hover:text-foreground"
+                                    aria-label="Delete session"
+                                    title="Delete session (⌘⌫)"
+                                    // Keep focus in the search field so the keys keep working.
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onClick={(event) => {
+                                      event.stopPropagation()
+                                      void removeSession(item.path)
+                                    }}
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                  </button>
+                                ) : null}
+                              </span>
+                            )}
                           </CommandItem>
                         )
                       })}
@@ -263,6 +350,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
           <div className="flex h-8 shrink-0 items-center gap-4 border-t border-border/60 px-4 text-[11px] text-muted-foreground/70">
             <span>↑↓ Select</span>
             <span>↵ Open</span>
+            <span>⌘⌫ Delete</span>
             <span>esc Close</span>
           </div>
         </Command>

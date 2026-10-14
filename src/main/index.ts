@@ -297,6 +297,9 @@ function registerIpc(): void {
 
   handleHost(IPC.switchSession, (host, sessionPath: string) => host.switchSession(sessionPath))
   handleHost(IPC.newSession, (host) => host.newSession())
+  handleHost(IPC.deleteSession, (host, sessionPath: string) =>
+    host.deleteSession(sessionPath, (path) => shell.trashItem(path)),
+  )
 
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return

@@ -30,6 +30,7 @@ export const IPC = {
   listSessions: 'pi:listSessions',
   switchSession: 'pi:switchSession',
   newSession: 'pi:newSession',
+  deleteSession: 'pi:deleteSession',
   openExternal: 'pi:openExternal',
   openPath: 'pi:openPath',
   readPlan: 'pi:readPlan',

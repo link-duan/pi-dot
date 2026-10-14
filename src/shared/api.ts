@@ -73,6 +73,7 @@ export interface PiApi {
   listSessions(cwd: string): Promise<SessionListItem[]>
   switchSession(sessionPath: string): Promise<SessionSnapshot>
   newSession(): Promise<SessionSnapshot>
+  deleteSession(sessionPath: string): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
   openPath(path: string): Promise<void>
   readPlan(path: string): Promise<string>

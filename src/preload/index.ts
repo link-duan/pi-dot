@@ -82,6 +82,8 @@ const api: PiApi = {
   switchSession: (sessionPath: string) =>
     ipcRenderer.invoke(IPC.switchSession, sessionPath) as Promise<SessionSnapshot>,
   newSession: () => ipcRenderer.invoke(IPC.newSession) as Promise<SessionSnapshot>,
+  deleteSession: (sessionPath: string) =>
+    ipcRenderer.invoke(IPC.deleteSession, sessionPath) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
   openPath: (path: string) => ipcRenderer.invoke(IPC.openPath, path) as Promise<void>,
   readPlan: (path: string) => ipcRenderer.invoke(IPC.readPlan, path) as Promise<string>,

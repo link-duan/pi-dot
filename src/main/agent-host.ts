@@ -1,3 +1,4 @@
+import { dirname, resolve } from 'node:path'
 import {
   type AgentSession,
   type AgentSessionRuntime,
@@ -638,22 +639,46 @@ export class AgentHost {
   async newSession(): Promise<SessionSnapshot> {
     return this.ops.enqueue(async () => {
       const previous = this.requireActive()
-      if (!previous.promptRun && previous.session.messages.length === 0) {
-        return this.snapshot()
-      }
-      const next = await this.createLive(
-        SessionManager.create(this.cwd, previous.session.sessionManager.getSessionDir()),
-        {
-          type: 'session_start',
-          reason: 'new',
-          previousSessionFile: previous.sessionFile,
-        },
-      )
-      this.live.set(next.key, next)
-      this.active = next
-      await this.discardIfUnused(previous)
+      if (previous.promptRun || previous.session.messages.length > 0) await this.startNew(previous)
       return this.snapshot()
     })
+  }
+
+  /** Moves an idle session's file to the trash; deleting the active session starts a new one. */
+  async deleteSession(
+    sessionPath: string,
+    trash: (path: string) => Promise<void>,
+  ): Promise<SessionSnapshot> {
+    return this.ops.enqueue(async () => {
+      const active = this.requireActive()
+      // The path comes from the renderer: only ever trash this project's session files.
+      if (
+        !sessionPath.endsWith('.jsonl') ||
+        resolve(dirname(sessionPath)) !== resolve(active.session.sessionManager.getSessionDir())
+      ) {
+        throw new Error('Not a session of this project')
+      }
+      if (this.runningSessionFiles().includes(sessionPath)) throw new Error('Session is running')
+      // Trash first: if it fails, the session stays exactly as it was.
+      await trash(sessionPath)
+      if (active.sessionFile === sessionPath) await this.startNew(active)
+      const live = this.live.get(sessionPath)
+      if (live) {
+        this.live.delete(live.key)
+        await this.disposeLive(live)
+      }
+      return this.snapshot()
+    })
+  }
+
+  private async startNew(previous: LiveSession): Promise<void> {
+    const next = await this.createLive(
+      SessionManager.create(this.cwd, previous.session.sessionManager.getSessionDir()),
+      { type: 'session_start', reason: 'new', previousSessionFile: previous.sessionFile },
+    )
+    this.live.set(next.key, next)
+    this.active = next
+    await this.discardIfUnused(previous)
   }
 
   private get session(): AgentSession {
