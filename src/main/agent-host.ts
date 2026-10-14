@@ -821,6 +821,10 @@ export class AgentHost {
       if (event.type === 'message_end' && event.message.role === 'user') {
         this.autoGenerateTitle(live, event.message.content)
       }
+      if (event.type === 'message_end') {
+        // The SDK tells listeners before it persists the message; read usage once it has.
+        queueMicrotask(() => this.emitContextUsage(live))
+      }
       if (
         event.type === 'agent_end' ||
         event.type === 'compaction_start' ||

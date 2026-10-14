@@ -366,6 +366,59 @@ describe('AgentHost SDK compatibility', () => {
     )
   })
 
+  describe('context usage', () => {
+    const usage = {
+      input: 1200,
+      output: 200,
+      cacheRead: 300,
+      cacheWrite: 0,
+      totalTokens: 1700,
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+    }
+    const handle = (event: AgentSessionEvent) =>
+      (
+        session as unknown as { _handleAgentEvent: (event: AgentSessionEvent) => Promise<void> }
+      )._handleAgentEvent(event)
+    const usageEvents = () => events.filter((event) => event.type === 'context_usage')
+
+    beforeEach(() => {
+      vi.spyOn(session, 'getContextUsage').mockImplementation(() => ({
+        // Stands in for the SDK's count, so the test sees what it was computed from.
+        tokens: session.sessionManager.getBranch().length,
+        contextWindow: 200_000,
+        percent: 0,
+      }))
+    })
+
+    it('reports usage after each message lands in the session', async () => {
+      const before = session.sessionManager.getBranch().length
+      await handle({
+        type: 'message_end',
+        message: { role: 'user', content: 'hi', timestamp: 1 },
+      })
+      await Promise.resolve()
+      expect(usageEvents().at(-1)).toMatchObject({ usage: { tokens: before + 1 } })
+    })
+
+    it('counts a reply in the session totals once it ends', async () => {
+      await handle({
+        type: 'message_end',
+        message: {
+          role: 'assistant',
+          api: 'openai-completions',
+          provider: 'fixture',
+          model: 'fixture',
+          content: [{ type: 'text', text: 'reply' }],
+          usage,
+          stopReason: 'stop',
+          timestamp: 2,
+        },
+      })
+      await Promise.resolve()
+      expect(usageEvents().at(-1)).toMatchObject({ usage: { session: { output: 200 } } })
+    })
+  })
+
   describe('deleteSession', () => {
     const trash = vi.fn(async (_path: string) => {})
     const activeFile = () => host.snapshot().state.sessionFile
