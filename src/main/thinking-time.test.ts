@@ -63,6 +63,14 @@ describe('createThinkingTime', () => {
     ).toMatchObject({ content: [{ durationMs: 400 }, {}] })
   })
 
+  it('leaves out a time it could not measure, when thinking arrives in one burst', () => {
+    const { reply, update, end } = setup()
+    update('thinking_start', 0)
+    update('thinking_end', 0)
+    const message = reply([{ type: 'thinking', thinking: 'a' }])
+    expect(end(message)).toBe(message)
+  })
+
   it('ends an aborted thinking block with the reply', () => {
     const { reply, update, end } = setup()
     update('thinking_start', 0)
