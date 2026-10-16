@@ -194,6 +194,8 @@ export interface TextContent {
 export interface ThinkingContent {
   type: 'thinking'
   thinking: string
+  /** How long the block took; written by Pi Dot's thinking-time extension, absent on older sessions. */
+  durationMs?: number
 }
 
 export interface ImageContent {

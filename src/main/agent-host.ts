@@ -51,6 +51,7 @@ import { readConfig } from './config'
 import { createLoop, type LoopControl } from './loop'
 import { createPlanMode, replayPlan, type PlanMode } from './plan-mode'
 import { generateSessionTitle } from './session-title'
+import { createThinkingTime, type ThinkingTime } from './thinking-time'
 import { SerialQueue } from '@shared/queue'
 import { resolveEnabledModels } from '@shared/settings'
 
@@ -95,6 +96,7 @@ export class AgentHost {
   private planModes = new WeakMap<SessionManager, PlanMode>()
   private askUsers = new WeakMap<SessionManager, AskUser>()
   private loops = new WeakMap<SessionManager, LoopControl>()
+  private thinkingTimes = new WeakMap<SessionManager, ThinkingTime>()
 
   /** `trusted`: whether the project's own extensions, settings and skills load. */
   constructor(
@@ -172,6 +174,8 @@ export class AgentHost {
         this.askUsers.set(sessionManager, askUser)
         const loop = createLoop()
         this.loops.set(sessionManager, loop)
+        const thinkingTime = createThinkingTime()
+        this.thinkingTimes.set(sessionManager, thinkingTime)
         const services = await createAgentSessionServices({
           cwd,
           agentDir: nextAgentDir,
@@ -185,6 +189,7 @@ export class AgentHost {
               { name: 'plan-mode', factory: planMode.extension, builtin: true },
               { name: 'ask-user', factory: askUser.extension, builtin: true },
               { name: 'loop', factory: loop.extension, builtin: true },
+              { name: 'thinking-time', factory: thinkingTime.extension, builtin: true },
             ],
           },
         })
@@ -837,8 +842,15 @@ export class AgentHost {
     const unsubscribeLoop = this.loops.get(session.sessionManager)?.onChange((loop) => {
       this.emit({ type: 'loop', sessionFile: live.sessionFile, loop })
     })
+    const thinkingTime = this.thinkingTimes.get(session.sessionManager)
     const unsubscribeSession = session.subscribe((event) => {
-      const mapped = toSessionEvent(event, live.sessionFile)
+      // Finished thinking blocks show their time before the reply ends and pi persists it.
+      const mapped = toSessionEvent(
+        event.type === 'message_update' && thinkingTime
+          ? { ...event, message: thinkingTime.stamp(event.message) }
+          : event,
+        live.sessionFile,
+      )
       if (mapped) this.emit(mapped)
       if (event.type === 'message_end' && event.message.role === 'user') {
         this.autoGenerateTitle(live, event.message.content)
