@@ -57,6 +57,7 @@ export function ToolCard({
       icon={model.icon}
       label={model.label}
       summary={model.summary}
+      summaryIsCode={model.summaryIsCode}
       meta={model.meta}
       stats={model.stats}
       running={model.running && !codemode}

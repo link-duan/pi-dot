@@ -48,7 +48,7 @@ export function ModelSelect({ className }: { className?: string } = {}) {
           className,
         )}
       >
-        <span className="min-w-0 truncate text-muted-foreground capitalize">
+        <span className="min-w-0 truncate text-muted-foreground">
           {model?.name ?? 'Select model'}
         </span>
         {model ? (

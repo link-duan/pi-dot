@@ -58,6 +58,7 @@
   --muted-foreground: oklch(0.45 0.016 285.938);
   /* Third text tier (timings, line numbers, placeholders): use this, not an alpha on muted-foreground; it holds 4.5:1 */
   --subtle-foreground: oklch(0.55 0.016 285.938);
+  --link: oklch(0.5 0.15 255);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -104,6 +105,7 @@
   --muted: oklch(0.29 0.006 286);
   --muted-foreground: oklch(0.705 0.015 286.067);
   --subtle-foreground: oklch(0.62 0.015 286.067);
+  --link: oklch(0.78 0.1 250);
   --accent: oklch(0.29 0.006 286);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.704 0.191 22.216);
@@ -253,6 +255,18 @@
 
 [data-prose] :is([data-streamdown^='heading'], strong) {
   color: var(--foreground);
+}
+
+/* Links take a hue and regular weight so they don't read as bold text; the underline firms up on hover */
+[data-prose] [data-streamdown='link'] {
+  color: var(--link);
+  font-weight: inherit;
+  text-decoration-color: color-mix(in oklch, currentColor 40%, transparent);
+  text-underline-offset: 3px;
+}
+
+[data-prose] [data-streamdown='link']:hover {
+  text-decoration-color: currentColor;
 }
 
 /* Hanging indent: a list item's wrapped lines align with its text, not its marker */

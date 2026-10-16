@@ -9,6 +9,7 @@ export function ActivityRow({
   icon: Icon,
   label,
   summary,
+  summaryIsCode = false,
   meta,
   stats,
   running,
@@ -23,6 +24,8 @@ export function ActivityRow({
   icon: LucideIcon
   label: string
   summary: string
+  /** Commands, paths and patterns: set in the code face, like inline code in prose. */
+  summaryIsCode?: boolean
   meta?: string
   stats?: DiffStats | null
   running?: boolean
@@ -68,7 +71,13 @@ export function ActivityRow({
           {label}
         </span>
         {showMeta && summary ? (
-          <span className={cn('min-w-0 truncate', !running && 'text-muted-foreground')}>
+          <span
+            className={cn(
+              'min-w-0 truncate',
+              summaryIsCode && 'font-mono text-[0.85em]',
+              !running && 'text-muted-foreground',
+            )}
+          >
             {summary}
           </span>
         ) : null}

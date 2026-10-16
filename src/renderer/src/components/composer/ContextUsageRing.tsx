@@ -55,7 +55,7 @@ export function ContextUsageRing() {
             cy={SIZE / 2}
             r={radius}
             fill="none"
-            className="stroke-border"
+            className="stroke-current opacity-30"
             strokeWidth={STROKE}
           />
           <circle

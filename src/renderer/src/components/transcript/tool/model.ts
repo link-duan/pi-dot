@@ -48,6 +48,8 @@ export interface ToolViewModel {
   icon: LucideIcon
   label: string
   summary: string
+  /** The summary is a command, path or pattern rather than prose. */
+  summaryIsCode: boolean
   /** Quiet trailing detail, e.g. codemode wall time. */
   meta: string
   stats: DiffStats | null
@@ -191,10 +193,15 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
     body && (body.kind === 'diff' || body.kind === 'code' || body.kind === 'images'),
   )
 
+  const lower = name.toLowerCase()
+  const summaryIsCode =
+    isShellTool(name) || ['read', 'write', 'edit', 'ls', 'grep', 'find'].includes(lower)
+
   return {
     icon,
     label,
     summary,
+    summaryIsCode,
     meta,
     stats,
     running: running && !collapsedAttempt,
