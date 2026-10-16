@@ -1,21 +1,9 @@
 import { AlertCircle, ChevronRight, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Collapsible as CollapsiblePrimitive } from '@base-ui/react/collapsible'
-import type { DiffStats } from './tool/diff'
+import type { DiffStats } from '@/components/transcript/tool/diff'
 import { cn } from '@/lib/utils'
-
-export function DiffStatsLabel({ stats }: { stats: DiffStats }) {
-  if (stats.added <= 0 && stats.removed <= 0) return null
-  return (
-    <span className="shrink-0 font-mono text-xs tabular-nums">
-      {stats.added > 0 ? (
-        <span className="text-emerald-600 dark:text-emerald-400">+{stats.added}</span>
-      ) : null}
-      {stats.added > 0 && stats.removed > 0 ? ' ' : null}
-      {stats.removed > 0 ? <span className="text-destructive">-{stats.removed}</span> : null}
-    </span>
-  )
-}
+import { DiffStatsLabel } from './DiffStatsLabel'
 
 export function ActivityRow({
   icon: Icon,

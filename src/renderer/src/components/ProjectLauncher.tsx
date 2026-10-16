@@ -9,7 +9,7 @@ import { displayPath, folderName } from '@/lib/path'
 import { cn } from '@/lib/utils'
 import { PATH } from '@/router'
 import { useSession } from '@/session/store'
-import { PiLogo } from './PiIcon'
+import { PiLogo } from './PiLogo'
 
 export function ProjectLauncher() {
   const connection = useSession((state) => state.connection)

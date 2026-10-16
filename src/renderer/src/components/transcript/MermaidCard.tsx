@@ -3,7 +3,7 @@ import { Code2, Eye, GitGraph, Loader2 } from 'lucide-react'
 import { CodeBlockCopyButton } from 'streamdown'
 import { ScrollFade } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
-import { HighlightedCode } from './FileCard'
+import { HighlightedCode } from './HighlightedCode'
 
 function useIsDark(): boolean {
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'))

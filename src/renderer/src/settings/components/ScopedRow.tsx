@@ -4,7 +4,7 @@ import type { SettingsScope } from '@shared/settings'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { SettingBadge } from './SettingCard'
+import { SettingBadge } from './SettingBadge'
 
 export function ScopedRow({
   title,

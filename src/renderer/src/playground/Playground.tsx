@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router'
 import { createChatState, userText, type ChatState } from '@/chat/state'
-import { Composer } from '@/components/Composer'
-import { SessionSwitcher } from '@/components/SessionSwitcher'
-import { PlanViewer } from '@/components/PlanViewer'
+import { Composer } from '@/components/composer/Composer'
+import { SessionSwitcher } from '@/components/pickers/SessionSwitcher'
+import { PlanViewer } from '@/components/plan/PlanViewer'
 import { Transcript, type TranscriptHandle } from '@/components/transcript/Transcript'
 import { Button } from '@/components/ui/button'
 import {

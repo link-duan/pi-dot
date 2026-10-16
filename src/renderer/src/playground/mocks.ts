@@ -615,7 +615,7 @@ Typing \`@src/comp\` fires 8 searches; on a 200k-file repo each takes ~300 ms an
 The walks also compete for the disk with the language server and the file watcher, so the whole window feels sluggish while the picker is open. Users work around it by typing the full path before pressing \`@\`, which defeats the point of fuzzy search. The fix has two halves: the renderer should only ask once the user pauses, and main should drop any walk whose answer nobody will read.
 
 ## Files to change
-- \`src/renderer/src/components/composer/AtFilePlugin.tsx\`: debounce the query by 120 ms.
+- \`src/renderer/src/components/composer/editor/AtFilePlugin.tsx\`: debounce the query by 120 ms.
 - \`src/main/search-files.ts\`: abort the previous walk when a new query arrives.
 
 ### Cancelling stale walks

@@ -11,13 +11,14 @@ import {
   type GeneralSettingsState,
   type SettingsScope,
 } from '@shared/settings'
-import { ModelPickerDropdown } from '@/components/ModelPicker'
+import { ModelPickerDropdown } from '@/components/pickers/ModelPickerDropdown'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { ScopedRow } from './components/ScopedRow'
-import { SettingCard, SettingSection } from './components/SettingCard'
+import { SettingCard } from './components/SettingCard'
+import { SettingSection } from '@/settings/components/SettingSection'
 import { LabeledSelectValue } from './fields'
 
 interface FieldUi {

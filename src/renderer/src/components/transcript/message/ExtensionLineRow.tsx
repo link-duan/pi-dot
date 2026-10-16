@@ -1,7 +1,7 @@
 import { OctagonX, TriangleAlert, type LucideIcon } from 'lucide-react'
 import type { ExtensionLine } from '@/chat/state'
 import type { NotifyLevel } from '@shared/protocol'
-import { AnsiText } from '@/components/AnsiText'
+import { AnsiText } from '@/components/extension/AnsiText'
 import { cn } from '@/lib/utils'
 import { CommandRow } from './CommandRow'
 

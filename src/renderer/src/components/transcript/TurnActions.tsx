@@ -3,7 +3,9 @@ import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { AgentMessage, MessageRef } from '@shared/protocol'
 import { useChat, useSession } from '@/session/store'
-import { CopyAction, MessageAction, RewindAction } from './MessageActions'
+import { MessageAction } from './MessageAction'
+import { RewindAction } from './RewindAction'
+import { CopyAction } from './CopyAction'
 
 /** Copy, Fork and Rewind for a finished turn, before its status (`children`). */
 export function TurnActions({

@@ -1,6 +1,7 @@
 import { citationLabel, languageFromPath } from '@/lib/code-citation'
 import type { ReadCodePreview } from '@/lib/format'
-import { FileCard, HighlightedCode } from '../FileCard'
+import { FileCard } from '../FileCard'
+import { HighlightedCode } from '@/components/transcript/HighlightedCode'
 
 function readEndLine(code: string, startLine: number): number {
   if (!code) return startLine

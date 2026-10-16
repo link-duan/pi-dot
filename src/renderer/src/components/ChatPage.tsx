@@ -6,9 +6,9 @@ import { useChat, useSession } from '@/session/store'
 import { Button } from '@/components/ui/button'
 import { Kbd, KbdGroup } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { Composer } from './Composer'
-import { PlanViewer } from './PlanViewer'
-import { SessionSwitcher } from './SessionSwitcher'
+import { Composer } from '@/components/composer/Composer'
+import { PlanViewer } from '@/components/plan/PlanViewer'
+import { SessionSwitcher } from '@/components/pickers/SessionSwitcher'
 import { Transcript, type TranscriptHandle } from './transcript/Transcript'
 
 export function ChatPage() {

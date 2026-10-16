@@ -14,13 +14,15 @@ import {
   type ModelSettingsPatch,
   type ProviderListItem,
 } from '@shared/settings'
-import { ModelPickerDropdown } from '@/components/ModelPicker'
+import { ModelPickerDropdown } from '@/components/pickers/ModelPickerDropdown'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { SettingCard, SettingRow, SettingSection } from './components/SettingCard'
+import { SettingCard } from './components/SettingCard'
+import { SettingRow } from '@/settings/components/SettingRow'
+import { SettingSection } from '@/settings/components/SettingSection'
 import { LabeledSelectValue } from './fields'
 
 const DEFAULT_LEVEL = 'default'

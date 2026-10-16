@@ -1,6 +1,7 @@
 import { languageFromPath } from '@/lib/code-citation'
 import { formatDiffCopy, type DiffLine, type DiffStats } from './diff'
-import { FileCard, HighlightedDiff } from '../FileCard'
+import { FileCard } from '../FileCard'
+import { HighlightedDiff } from '@/components/transcript/HighlightedDiff'
 
 export function EditDiff({
   path,
