@@ -59,7 +59,7 @@ function MarkdownCode({
     return (
       <code
         className={cn(
-          'rounded bg-muted box-decoration-clone px-1.5 py-px font-mono text-[0.85em] dark:bg-muted/55',
+          'rounded-[0.3em] border border-border/60 bg-muted box-decoration-clone px-[0.3em] font-mono text-[0.85em] text-code dark:bg-muted/40',
           className,
         )}
         data-streamdown="inline-code"

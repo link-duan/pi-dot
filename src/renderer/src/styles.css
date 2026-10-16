@@ -21,6 +21,7 @@
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-subtle-foreground: var(--subtle-foreground);
+  --color-code: var(--code);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -59,6 +60,8 @@
   /* Third text tier (timings, line numbers, placeholders): use this, not an alpha on muted-foreground; it holds 4.5:1 */
   --subtle-foreground: oklch(0.55 0.016 285.938);
   --link: oklch(0.5 0.15 255);
+  /* Inline code: the logo's coral, deepened to hold 4.5:1 on white */
+  --code: oklch(0.55 0.15 28);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -106,6 +109,7 @@
   --muted-foreground: oklch(0.705 0.015 286.067);
   --subtle-foreground: oklch(0.62 0.015 286.067);
   --link: oklch(0.78 0.1 250);
+  --code: oklch(0.76 0.12 28);
   --accent: oklch(0.29 0.006 286);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.704 0.191 22.216);
@@ -273,6 +277,15 @@
 
 [data-prose] :is(code, kbd, pre) {
   letter-spacing: 0;
+}
+
+[data-prose] a code {
+  color: inherit;
+}
+
+/* Inline code inside bold text or headings stays at a medium weight; bold mono outweighs the words around it */
+[data-prose] :is(strong, [data-streamdown='strong'], [data-streamdown^='heading']) code {
+  font-weight: 500;
 }
 
 /* CJK emphasis can't be italic; weight carries it */
