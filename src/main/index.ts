@@ -50,7 +50,7 @@ import {
 import { attach, clampCascade, from, getFocusedWindow, getWindows, onBeforeQuit } from './window'
 
 const APP_NAME = app.isPackaged ? 'Pi Dot' : 'Pi Dot Dev'
-/** The dev build's icon is on cream, to tell it from the installed app. */
+/** The dev build's icon is on graphite, to tell it from the installed app. */
 const APP_ICON = app.isPackaged ? appIcon : devIcon
 
 if (!app.isPackaged) {

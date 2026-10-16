@@ -2,8 +2,8 @@
   <!-- macOS icon grid: an 824px tile inset 100px, with the system icons' soft drop shadow. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1F1F24"/>
-      <stop offset="100%" stop-color="#121214"/>
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#ECEAE6"/>
     </linearGradient>
     <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
       <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.3"/>
@@ -19,6 +19,6 @@
       <path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/>
       <path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/>
     </g>
-    <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.12" stroke-width="3"/>
+    <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#000" stroke-opacity="0.06" stroke-width="3"/>
   </g>
 </svg>
