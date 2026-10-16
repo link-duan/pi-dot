@@ -17,7 +17,7 @@ export function FileCardLine({
 }) {
   return (
     <div className={cn('flex items-baseline gap-2 py-px pr-2 whitespace-pre-wrap', className)}>
-      <span className="shrink-0 px-2 text-right text-xs text-muted-foreground/50 tabular-nums select-none">
+      <span className="shrink-0 px-2 text-right text-xs text-subtle-foreground tabular-nums select-none">
         <span className="inline-block" style={{ width: `${gutterCh}ch` }}>
           {n ?? ''}
         </span>

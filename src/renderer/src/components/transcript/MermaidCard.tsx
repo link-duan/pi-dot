@@ -114,7 +114,7 @@ export function MermaidCard({
           <GitGraph className="size-3.5" />
           <span>mermaid</span>
           {isIncomplete && (
-            <span className="ml-1 flex items-center gap-1 text-[11px] text-muted-foreground/70">
+            <span className="ml-1 flex items-center gap-1 text-[11px] text-subtle-foreground">
               <Loader2 className="size-3 animate-spin" />
               <span>generating</span>
             </span>

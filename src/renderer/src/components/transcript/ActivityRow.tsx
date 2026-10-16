@@ -74,7 +74,7 @@ export function ActivityRow({
         ) : null}
       </span>
       {showMeta && meta ? (
-        <span className="shrink-0 text-muted-foreground/60 tabular-nums">{meta}</span>
+        <span className="shrink-0 text-subtle-foreground tabular-nums">{meta}</span>
       ) : null}
       {showMeta && stats ? <DiffStatsLabel stats={stats} /> : null}
       {expandable ? (

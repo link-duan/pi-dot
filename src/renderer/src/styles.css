@@ -20,6 +20,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -54,7 +55,9 @@
   --secondary: oklch(0.967 0.001 286.375);
   --secondary-foreground: oklch(0.145 0 0);
   --muted: oklch(0.967 0.001 286.375);
-  --muted-foreground: oklch(0.552 0.016 285.938);
+  --muted-foreground: oklch(0.45 0.016 285.938);
+  /* Third text tier (timings, line numbers, placeholders): use this, not an alpha on muted-foreground; it holds 4.5:1 */
+  --subtle-foreground: oklch(0.55 0.016 285.938);
   --accent: oklch(0.967 0.001 286.375);
   --accent-foreground: oklch(0.145 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -100,6 +103,7 @@
   --secondary-foreground: var(--foreground);
   --muted: oklch(0.29 0.006 286);
   --muted-foreground: oklch(0.705 0.015 286.067);
+  --subtle-foreground: oklch(0.62 0.015 286.067);
   --accent: oklch(0.29 0.006 286);
   --accent-foreground: var(--foreground);
   --destructive: oklch(0.704 0.191 22.216);

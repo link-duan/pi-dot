@@ -121,7 +121,7 @@ export function PromptEditorField({
               id={id}
               aria-placeholder={placeholder}
               placeholder={
-                <div className="pointer-events-none absolute top-1.5 left-1.5 text-muted-foreground/60 select-none">
+                <div className="pointer-events-none absolute top-1.5 left-1.5 text-subtle-foreground select-none">
                   {placeholder}
                 </div>
               }

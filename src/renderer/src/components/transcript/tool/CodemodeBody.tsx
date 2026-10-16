@@ -105,7 +105,7 @@ export function CodemodeBody({
       ) : null}
       {body.error ? (
         <div
-          className="flex min-w-0 items-center gap-1.5 px-3 py-1.5 text-destructive/80"
+          className="flex min-w-0 items-center gap-1.5 px-3 py-1.5 text-destructive"
           title={body.error}
         >
           <AlertCircle className="size-3 shrink-0" />
@@ -124,7 +124,7 @@ function ScriptFold({ code, onOpen }: { code: string; onOpen: () => void }) {
     <button
       type="button"
       aria-expanded={false}
-      className="flex w-full min-w-0 items-center gap-1.5 px-3 py-1.5 text-left text-muted-foreground/70 hover:text-muted-foreground focus-visible:bg-accent/50 focus-visible:outline-none"
+      className="flex w-full min-w-0 items-center gap-1.5 px-3 py-1.5 text-left text-subtle-foreground hover:text-muted-foreground focus-visible:bg-accent/50 focus-visible:outline-none"
       onClick={onOpen}
     >
       <CodeXml className="size-3 shrink-0" />
@@ -142,7 +142,7 @@ function OutputText({ text }: { text: string }) {
     <pre className="break-all whitespace-pre-wrap text-muted-foreground">
       {text.split(/^(==> .+ <==)$/m).map((part, index) =>
         index % 2 ? (
-          <span key={index} className="text-muted-foreground/45 select-none">
+          <span key={index} className="text-subtle-foreground select-none">
             {part}
           </span>
         ) : (
@@ -164,7 +164,7 @@ function CodemodeCallRow({ call, summary }: { call: CodemodeCall; summary: strin
       title={call.error}
     >
       {createElement(getToolIcon(call.name), {
-        className: cn('size-3 shrink-0', failed ? 'text-destructive/80' : 'text-muted-foreground'),
+        className: cn('size-3 shrink-0', failed ? 'text-destructive' : 'text-muted-foreground'),
       })}
       {/* Children skip their own colors while running so the shimmer gradient shows through. */}
       <span
@@ -183,7 +183,7 @@ function CodemodeCallRow({ call, summary }: { call: CodemodeCall; summary: strin
           <span
             className={cn(
               'ml-auto shrink-0 pl-2 tabular-nums',
-              !running && (failed ? 'text-destructive/80' : 'text-muted-foreground/60'),
+              !running && (failed ? 'text-destructive' : 'text-subtle-foreground'),
             )}
           >
             {meta}
