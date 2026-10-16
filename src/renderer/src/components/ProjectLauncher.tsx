@@ -1,16 +1,28 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Folder, FolderOpen, Search, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { FolderOpen, X } from 'lucide-react'
 import { Navigate } from 'react-router'
+import type { RecentProject } from '@shared/protocol'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
+import {
+  Command,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from '@/components/ui/command'
+import { Kbd } from '@/components/ui/kbd'
 import { Spinner } from '@/components/ui/spinner'
+import { formatRelativeTime } from '@/lib/format'
 import { displayPath, folderName } from '@/lib/path'
 import { cn } from '@/lib/utils'
 import { PATH } from '@/router'
 import { useSession } from '@/session/store'
 import { PiLogo } from './PiLogo'
 
+const OPEN_FOLDER = 'open-folder'
+
+/** The first screen of a Window without a folder: recent projects to pick up, or a new one to open. */
 export function ProjectLauncher() {
   const connection = useSession((state) => state.connection)
   const error = useSession((state) => state.error)
@@ -19,250 +31,184 @@ export function ProjectLauncher() {
   const cwd = useSession((state) => state.cwd)
   const busy = connection === 'connecting'
 
-  const [recentProjects, setRecentProjects] = useState<string[]>([])
+  const [projects, setProjects] = useState<RecentProject[]>([])
   const [query, setQuery] = useState('')
-  const [selectedIndex, setSelectedIndex] = useState(-1)
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
+  const [selected, setSelected] = useState('')
+  const [opening, setOpening] = useState<string | null>(null)
 
   useEffect(() => {
-    void window.pi.getRecentProjects().then(setRecentProjects)
+    void window.pi.getRecentProjects().then(setProjects)
   }, [])
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return recentProjects
-    return recentProjects.filter((path) => {
-      const name = folderName(path).toLowerCase()
-      const full = path.toLowerCase()
-      return name.includes(q) || full.includes(q)
-    })
-  }, [recentProjects, query])
-
-  const onQueryChange = (value: string) => {
-    setQuery(value)
-    setSelectedIndex(-1)
-  }
-
-  useEffect(() => {
-    if (selectedIndex >= 0) {
-      const el = itemRefs.current[selectedIndex]
-      el?.scrollIntoView({ block: 'nearest' })
-    }
-  }, [selectedIndex])
-
-  const removeProject = useCallback(async (event: React.MouseEvent, path: string) => {
-    event.stopPropagation()
-    await window.pi.removeRecentProject(path)
-    setRecentProjects((prev) => prev.filter((p) => p !== path))
-  }, [])
-
-  const onKeyDown = (event: React.KeyboardEvent) => {
-    if (filtered.length === 0) return
-    if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setSelectedIndex((prev) => {
-        if (prev === -1) return 0
-        return prev + 1 < filtered.length ? prev + 1 : 0
-      })
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setSelectedIndex((prev) => {
-        if (prev === -1) return filtered.length - 1
-        return prev - 1 >= 0 ? prev - 1 : filtered.length - 1
-      })
-    } else if (event.key === 'Enter') {
-      event.preventDefault()
-      const target = selectedIndex >= 0 ? filtered[selectedIndex] : filtered[0]
-      if (target) void openCwd(target)
-    } else if (event.key === 'Escape' && query) {
-      event.preventDefault()
-      onQueryChange('')
-    }
-  }
 
   // A Window bound to a folder shows its session, at startup or on reload.
   if (cwd) return <Navigate to={PATH.session} replace />
 
+  const q = query.trim().toLowerCase()
+  const filtered = q ? projects.filter((p) => p.cwd.toLowerCase().includes(q)) : projects
+
+  const open = (path: string) => {
+    if (busy) return
+    setOpening(path)
+    void openCwd(path).finally(() => setOpening(null))
+  }
+
+  const remove = (path: string) => {
+    void window.pi.removeRecentProject(path)
+    setProjects((prev) => prev.filter((p) => p.cwd !== path))
+  }
+
+  const onKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape' && query) {
+      event.preventDefault()
+      setQuery('')
+    } else if (
+      event.key === 'Backspace' &&
+      event.metaKey &&
+      !query &&
+      selected &&
+      selected !== OPEN_FOLDER
+    ) {
+      event.preventDefault()
+      remove(selected)
+    }
+  }
+
   return (
-    <main
-      className="flex h-full flex-col bg-background text-foreground select-none"
-      onKeyDown={onKeyDown}
-    >
-      {/* Frameless window drag area - provides breathing room for macOS native traffic lights */}
+    <main className="flex h-full flex-col bg-background text-foreground select-none">
+      {/* Room for the macOS traffic lights, and a handle to drag the frameless window. */}
       <div className="app-drag h-10 w-full shrink-0" />
 
-      <div className="flex flex-1 justify-center px-6 pt-[12vh] pb-10">
-        {recentProjects.length > 0 ? (
-          <div className="flex w-full max-w-[460px] flex-col gap-4">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="size-10 shrink-0 overflow-hidden rounded-lg shadow-xs ring-1 ring-foreground/10">
-                  <PiLogo className="block size-10" />
-                </div>
-                <div>
-                  <h1 className="text-base font-semibold tracking-tight text-foreground">Pi Dot</h1>
-                  <p className="text-xs text-muted-foreground">
-                    Open a local project to get started
-                  </p>
-                </div>
-              </div>
-
-              <Button
-                disabled={busy}
-                onClick={() => void openFolder()}
-                variant="outline"
-                size="sm"
-                className="gap-1.5 rounded-md text-xs font-medium shadow-none hover:bg-accent"
-              >
-                <FolderOpen className="size-3.5 text-muted-foreground" />
-                <span>Open folder</span>
-              </Button>
-            </div>
-
-            {/* Recent projects area */}
-            <div className="flex flex-col gap-2">
-              {/* Filter bar */}
-              {recentProjects.length >= 2 ? (
-                <div className="relative flex items-center">
-                  <Search className="pointer-events-none absolute left-3 size-3.5 text-muted-foreground" />
-                  <Input
-                    autoFocus
-                    value={query}
-                    onChange={(e) => onQueryChange(e.target.value)}
-                    placeholder="Filter recent projects..."
-                    className="h-8.5 w-full rounded-md border-input/60 bg-card/40 pr-8 pl-8.5 text-xs placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/50"
-                  />
-                  {query ? (
-                    <button
-                      type="button"
-                      aria-label="Clear filter"
-                      onClick={() => onQueryChange('')}
-                      className="absolute right-2.5 flex size-4 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {/* Projects Card List */}
-              <div
-                className="overflow-hidden rounded-lg border border-border/60 bg-card/40 backdrop-blur-xs"
-                onMouseLeave={() => setSelectedIndex(-1)}
-              >
-                {filtered.length === 0 ? (
-                  <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                    No matching projects found
-                  </div>
-                ) : (
-                  <ScrollArea className="max-h-72">
-                    <ScrollAreaViewport className="divide-y divide-border/30">
-                      {filtered.map((path, index) => {
-                        const isSelected = index === selectedIndex
-                        const name = folderName(path)
-                        const rel = displayPath(path, null, window.pi.homedir)
-
-                        return (
-                          <div key={path} className="group relative flex items-center">
-                            <button
-                              ref={(el) => {
-                                itemRefs.current[index] = el
-                              }}
-                              type="button"
-                              disabled={busy}
-                              onKeyDown={(event) => {
-                                if (event.key !== 'Enter' && event.key !== ' ') return
-                                event.preventDefault()
-                                event.stopPropagation()
-                                if (!busy) void openCwd(path)
-                              }}
-                              onClick={() => {
-                                if (!busy) void openCwd(path)
-                              }}
-                              onMouseEnter={() => setSelectedIndex(index)}
-                              onMouseLeave={() => setSelectedIndex(-1)}
-                              className={cn(
-                                'flex h-8 w-full cursor-pointer items-center gap-2.5 px-3 pr-8 text-left transition-colors outline-none',
-                                'first:rounded-t-[7px] last:rounded-b-[7px]',
-                                isSelected
-                                  ? 'bg-accent text-accent-foreground'
-                                  : 'hover:bg-accent/60',
-                                busy && 'pointer-events-none opacity-60',
-                              )}
-                            >
-                              <Folder className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-
-                              <span className="shrink-0 text-xs font-medium text-foreground">
-                                {name}
-                              </span>
-
-                              <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
-                                {rel}
-                              </span>
-
-                              {busy && isSelected ? <Spinner className="size-3" /> : null}
-                            </button>
-                            {!busy ? (
-                              <button
-                                type="button"
-                                aria-label="Remove from recent"
-                                disabled={busy}
-                                onKeyDown={(e) => e.stopPropagation()}
-                                onClick={(e) => void removeProject(e, path)}
-                                className="absolute right-2 flex size-4 items-center justify-center rounded text-muted-foreground/40 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-muted hover:text-foreground focus-visible:opacity-100"
-                              >
-                                <X className="size-3" />
-                              </button>
-                            ) : null}
-                          </div>
-                        )
-                      })}
-                    </ScrollAreaViewport>
-                    <ScrollAreaScrollbar />
-                  </ScrollArea>
-                )}
-              </div>
-            </div>
-
-            {error ? (
-              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                <p className="whitespace-pre-wrap">{error}</p>
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          /* Empty / First-run Hero Welcome */
-          <div className="flex w-full max-w-sm flex-col items-center pt-[6vh] text-center">
-            <div className="mb-5 size-12 overflow-hidden rounded-xl shadow-xs ring-1 ring-foreground/10">
-              <PiLogo className="block size-12" />
-            </div>
-
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Pi Dot</h1>
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Open a local folder to start a coding session.
-            </p>
-
-            <div className="mt-6 w-full max-w-64">
-              <Button
-                disabled={busy}
-                onClick={() => void openFolder()}
-                size="default"
-                className="w-full gap-2 rounded-md text-xs font-medium shadow-xs"
-              >
-                <FolderOpen className="size-4" />
-                <span>Open folder</span>
-              </Button>
-            </div>
-
-            {error ? (
-              <div className="mt-4 w-full rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
-                <p className="whitespace-pre-wrap">{error}</p>
-              </div>
-            ) : null}
-          </div>
+      <div
+        className={cn(
+          'flex min-h-0 flex-1 flex-col items-center px-6',
+          // A list grows downward from a fixed top; a lone button sits a little above center.
+          projects.length > 0 ? 'pt-[12vh] pb-10' : 'justify-center pb-[12vh]',
         )}
+      >
+        <PiLogo className="size-8 shrink-0" />
+
+        {projects.length > 0 ? (
+          <Command
+            shouldFilter={false}
+            value={selected}
+            onValueChange={setSelected}
+            onKeyDown={onKeyDown}
+            className="mt-10 min-h-0 max-w-[480px] bg-transparent"
+          >
+            <CommandInput
+              autoFocus
+              value={query}
+              onValueChange={setQuery}
+              placeholder="Search recent projects…"
+              className="px-2.5"
+            />
+            <CommandList className="px-0">
+              {q ? null : (
+                <CommandItem
+                  value={OPEN_FOLDER}
+                  disabled={busy}
+                  onSelect={() => void openFolder()}
+                  className="cursor-pointer"
+                >
+                  <FolderOpen className="text-muted-foreground" />
+                  Open folder…
+                  <CommandShortcut>⌘O</CommandShortcut>
+                </CommandItem>
+              )}
+              {filtered.length > 0 ? (
+                <CommandGroup heading={q ? undefined : 'Recent'} className="mt-3">
+                  {filtered.map((project) => (
+                    <ProjectItem
+                      key={project.cwd}
+                      project={project}
+                      opening={opening === project.cwd}
+                      disabled={busy}
+                      onOpen={() => open(project.cwd)}
+                      onRemove={() => remove(project.cwd)}
+                    />
+                  ))}
+                </CommandGroup>
+              ) : q ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No matching projects
+                </p>
+              ) : null}
+            </CommandList>
+          </Command>
+        ) : (
+          <Button
+            autoFocus
+            variant="outline"
+            disabled={busy}
+            onClick={() => void openFolder()}
+            className="mt-6 gap-2"
+          >
+            <FolderOpen className="text-muted-foreground" />
+            Open folder
+            <Kbd>⌘O</Kbd>
+          </Button>
+        )}
+
+        {error ? (
+          <p className="mt-4 w-full max-w-[480px] px-2.5 text-xs whitespace-pre-wrap text-destructive">
+            {error}
+          </p>
+        ) : null}
       </div>
     </main>
+  )
+}
+
+function ProjectItem({
+  project,
+  opening,
+  disabled,
+  onOpen,
+  onRemove,
+}: {
+  project: RecentProject
+  opening: boolean
+  disabled: boolean
+  onOpen: () => void
+  onRemove: () => void
+}) {
+  const parent = project.cwd.slice(0, project.cwd.lastIndexOf('/')) || '/'
+
+  return (
+    <CommandItem
+      value={project.cwd}
+      disabled={disabled && !opening}
+      onSelect={() => {
+        if (!disabled) onOpen()
+      }}
+      className="group cursor-pointer"
+    >
+      <span className="shrink-0">{folderName(project.cwd)}</span>
+      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+        {displayPath(parent, null, window.pi.homedir)}
+      </span>
+
+      {opening ? (
+        <Spinner className="size-3.5 text-muted-foreground" />
+      ) : (
+        <span className="relative flex shrink-0 items-center justify-end">
+          {/* The last activity gives way to the remove button on hover. */}
+          <span className="text-xs text-muted-foreground tabular-nums group-hover:invisible">
+            {project.lastActive ? formatRelativeTime(project.lastActive) : null}
+          </span>
+          <button
+            type="button"
+            aria-label="Remove from recent"
+            onClick={(event) => {
+              event.stopPropagation()
+              onRemove()
+            }}
+            className="invisible absolute right-0 flex size-5 items-center justify-center rounded text-muted-foreground group-hover:visible hover:text-foreground"
+          >
+            <X className="size-3.5" />
+          </button>
+        </span>
+      )}
+    </CommandItem>
   )
 }

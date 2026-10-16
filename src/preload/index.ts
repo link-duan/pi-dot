@@ -8,6 +8,7 @@ import type {
   FileHit,
   LoopStart,
   MessageRef,
+  RecentProject,
   SessionEvent,
   SessionListItem,
   SessionSnapshot,
@@ -29,7 +30,7 @@ import type {
 const api: PiApi = {
   homedir: homedir(),
   chooseFolder: () => ipcRenderer.invoke(IPC.chooseFolder) as Promise<string | null>,
-  getRecentProjects: () => ipcRenderer.invoke(IPC.getRecentProjects) as Promise<string[]>,
+  getRecentProjects: () => ipcRenderer.invoke(IPC.getRecentProjects) as Promise<RecentProject[]>,
   removeRecentProject: (cwd: string) =>
     ipcRenderer.invoke(IPC.removeRecentProject, cwd) as Promise<void>,
   getSnapshot: () => ipcRenderer.invoke(IPC.getSnapshot) as Promise<SessionSnapshot | null>,

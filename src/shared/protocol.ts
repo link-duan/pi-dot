@@ -324,6 +324,12 @@ export type StartResult =
   | { kind: 'focused' }
   | { kind: 'cancelled' }
 
+/** A recently opened folder, and when its latest session last changed. */
+export interface RecentProject {
+  cwd: string
+  lastActive: string | null
+}
+
 export interface SessionListItem {
   id: string
   path: string

@@ -1,5 +1,6 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { getAgentDir } from '@earendil-works/pi-coding-agent'
 import {
   app,
   BrowserWindow,
@@ -30,7 +31,7 @@ import { resolveImagePath } from './image-preview'
 import { isInPlansDir, readPlan } from './plan-mode'
 import { readRecentProjects, removeRecentProject } from './recent-projects'
 import { searchProjectFiles } from './search-files'
-import { listProjectSessions, withRunning } from './sessions'
+import { describeProject, listProjectSessions, withRunning } from './sessions'
 import { statPaths } from './stat-paths'
 import {
   cancelLogin,
@@ -175,6 +176,11 @@ function installMenu(): void {
             accelerator: 'CmdOrCtrl+Shift+N',
             click: () => createWindow(),
           },
+          {
+            label: 'Open Folder…',
+            accelerator: 'CmdOrCtrl+O',
+            click: () => getFocusedWindow()?.send('openFolder'),
+          },
           { type: 'separator' },
           { role: 'close' },
           ...(!isMac
@@ -230,7 +236,10 @@ function registerIpc(): void {
     return result.canceled ? null : (result.filePaths[0] ?? null)
   })
 
-  ipcMain.handle(IPC.getRecentProjects, () => readRecentProjects())
+  ipcMain.handle(IPC.getRecentProjects, () => {
+    const agentDir = getAgentDir()
+    return Promise.all(readRecentProjects().map((cwd) => describeProject(cwd, agentDir)))
+  })
   ipcMain.handle(IPC.removeRecentProject, (_event, cwd: string) => removeRecentProject(cwd))
 
   ipcMain.handle(IPC.getSnapshot, (event) => from(event.sender)?.host?.snapshot() ?? null)

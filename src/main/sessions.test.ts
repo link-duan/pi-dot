@@ -1,5 +1,10 @@
+import { mkdtempSync, utimesSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { toSessionListItem, withRunning } from './sessions'
+// Not exported from the package root; reached by path to keep `sessionDirOf` in step with the SDK.
+import { getDefaultSessionDir } from '../../node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.js'
+import { describeProject, sessionDirOf, toSessionListItem, withRunning } from './sessions'
 
 describe('toSessionListItem', () => {
   it('serializes Date modified and drops blank name/firstMessage', () => {
@@ -62,7 +67,48 @@ describe('withRunning', () => {
   it('prepends running files that are not on disk yet', () => {
     const next = withRunning([idle], ['/tmp/new.jsonl'])
     expect(next).toHaveLength(2)
-    expect(next[0]).toMatchObject({ path: '/tmp/new.jsonl', running: true, messageCount: 0 })
+    expect(next[0]).toMatchObject({
+      path: '/tmp/new.jsonl',
+      running: true,
+      messageCount: 0,
+    })
     expect(next[1]).toBe(idle)
+  })
+})
+
+describe('sessionDirOf', () => {
+  it('matches where the SDK keeps sessions', () => {
+    const agentDir = mkdtempSync(join(tmpdir(), 'pi-agent-'))
+    expect(sessionDirOf('/Users/me/code/pi', agentDir)).toBe(
+      getDefaultSessionDir('/Users/me/code/pi', agentDir),
+    )
+  })
+})
+
+describe('describeProject', () => {
+  it('takes the latest change among session files', async () => {
+    const agentDir = mkdtempSync(join(tmpdir(), 'pi-agent-'))
+    const dir = getDefaultSessionDir('/work/app', agentDir)
+    for (const [file, iso] of [
+      ['a.jsonl', '2026-01-01T00:00:00.000Z'],
+      ['b.jsonl', '2026-03-01T00:00:00.000Z'],
+    ]) {
+      writeFileSync(join(dir, file), '')
+      utimesSync(join(dir, file), new Date(iso), new Date(iso))
+    }
+    writeFileSync(join(dir, 'notes.txt'), '')
+
+    expect(await describeProject('/work/app', agentDir)).toEqual({
+      cwd: '/work/app',
+      lastActive: '2026-03-01T00:00:00.000Z',
+    })
+  })
+
+  it('has no activity for a project never chatted in', async () => {
+    const agentDir = mkdtempSync(join(tmpdir(), 'pi-agent-'))
+    expect(await describeProject('/work/app', agentDir)).toEqual({
+      cwd: '/work/app',
+      lastActive: null,
+    })
   })
 })

@@ -175,6 +175,7 @@ export function bindIpc(): void {
         .newSession()
         .then(() => useSession.getState().requestComposerFocus())
     }
+    if (command === 'openFolder') void useSession.getState().openFolder()
     if (command === 'openSettings' && router.state.location.pathname !== PATH.settings) {
       void router.navigate(PATH.settings)
     }

@@ -16,7 +16,7 @@ applySystemTheme()
 bindIpc()
 const snapshot = await window.pi.getSnapshot()
 if (snapshot) applyLiveSnapshot(snapshot)
-else useSession.setState({ lastCwd: (await window.pi.getRecentProjects())[0] ?? null })
+else useSession.setState({ lastCwd: (await window.pi.getRecentProjects())[0]?.cwd ?? null })
 releaseIpcQueue()
 void loadSettings()
 

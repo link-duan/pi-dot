@@ -5,6 +5,7 @@ import type {
   LoopStart,
   MessageRef,
   ModelSelection,
+  RecentProject,
   SessionEvent,
   SessionListItem,
   SessionSnapshot,
@@ -32,7 +33,7 @@ export interface ImagePreview {
 export interface PiApi {
   homedir: string
   chooseFolder(): Promise<string | null>
-  getRecentProjects(): Promise<string[]>
+  getRecentProjects(): Promise<RecentProject[]>
   removeRecentProject(cwd: string): Promise<void>
   getSnapshot(): Promise<SessionSnapshot | null>
   start(cwd: string): Promise<StartResult>
