@@ -1,5 +1,6 @@
 import type { CodemodeToolDetails } from '@earendil-works/pi-coding-agent'
-import { asRecord } from '@/lib/format'
+import { parseStreamingJson } from '@earendil-works/pi-ai/utils/json-parse'
+import { asRecord, toolSummary } from '@/lib/format'
 import { extractToolImages, type ToolImageItem } from './images'
 
 export type CodemodeCall = CodemodeToolDetails['calls'][number]
@@ -102,6 +103,15 @@ export function codemodeSummary(calls: CodemodeCall[]): string {
 export function formatDuration(ms: number | undefined): string {
   if (ms === undefined) return ''
   return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+// The SDK sends args as compact JSON cut at 200 characters; a partial parse still reads the main argument.
+export function codemodeCallSummary(
+  call: CodemodeCall,
+  cwd?: string | null,
+  home?: string | null,
+): string {
+  return toolSummary(call.name, parseStreamingJson(call.args), cwd, home) || call.args
 }
 
 export function codemodeCallMeta(call: CodemodeCall): string {

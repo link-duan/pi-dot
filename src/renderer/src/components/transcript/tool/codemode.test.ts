@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { resolveToolViewModel } from './model'
-import { codemodeCallMeta, codemodeSummary, resolveCodemodeBody } from './codemode'
+import {
+  codemodeCallMeta,
+  codemodeCallSummary,
+  codemodeSummary,
+  resolveCodemodeBody,
+} from './codemode'
 
 const code =
   'const values = await Promise.all([tools.read({path:"a.txt"}), tools.read({path:"b.txt"})]);\ntext(values);'
@@ -260,5 +265,21 @@ describe('codemode view model', () => {
     expect(codemodeCallMeta({ ...calls[0]!, status: 'error', durationMs: 1 })).toBe('1ms failed')
     expect(codemodeCallMeta({ ...calls[1]!, cost: 0.0042 })).toBe('8ms $0.0042')
     expect(codemodeCallMeta({ ...calls[1]!, durationMs: undefined, status: 'running' })).toBe('')
+  })
+
+  it('summarizes nested call args by their main argument', () => {
+    const call = { id: 'c/1', name: 'read', status: 'ok' as const }
+    expect(
+      codemodeCallSummary(
+        { ...call, args: '{"path":"/repo/src/a.ts","offset":76,"limit":27}' },
+        '/repo',
+      ),
+    ).toBe('src/a.ts:76:102')
+    expect(
+      codemodeCallSummary({ ...call, name: 'bash', args: '{"command":"rg \\"x\\" src","tim...' }),
+    ).toBe('rg "x" src')
+    expect(
+      codemodeCallSummary({ ...call, name: 'models.classify', args: '{"labels":["a"]}' }),
+    ).toBe('{"labels":["a"]}')
   })
 })
