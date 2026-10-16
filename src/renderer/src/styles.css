@@ -87,20 +87,21 @@
 }
 
 .dark {
-  --background: oklch(0 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.16 0.005 260);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
+  /* Off-black page and off-white text: pure white on pure black glares and halos */
+  --background: oklch(0.18 0.004 286);
+  --foreground: oklch(0.92 0 0);
+  --card: oklch(0.21 0.005 286);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.24 0.006 286);
+  --popover-foreground: var(--foreground);
+  --primary: var(--foreground);
   --primary-foreground: oklch(0.13 0 0);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
+  --secondary: oklch(0.29 0.006 286);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.29 0.006 286);
   --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.29 0.006 286);
+  --accent-foreground: var(--foreground);
   --destructive: oklch(0.704 0.191 22.216);
   --warning: oklch(0.828 0.189 84.429);
   --border: oklch(1 0 0 / 14%);
@@ -126,7 +127,7 @@
   --ansi-12: #79c0ff;
   --ansi-13: #d2a8ff;
   --ansi-14: #56d4dd;
-  --ansi-15: #ffffff;
+  --ansi-15: #e6edf3;
   color-scheme: dark;
 }
 
@@ -242,7 +243,7 @@
 
 /* Reading text (assistant replies, Plan documents): softer than headings, so long passages don't glare on black */
 [data-prose] {
-  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  color: color-mix(in oklch, var(--foreground) 87%, transparent);
   text-wrap: pretty;
 }
 

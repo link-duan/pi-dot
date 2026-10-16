@@ -61,7 +61,7 @@ if (!app.isPackaged) {
 }
 
 function windowBackground(): string {
-  return nativeTheme.shouldUseDarkColors ? '#09090b' : '#ffffff'
+  return nativeTheme.shouldUseDarkColors ? '#111113' : '#ffffff'
 }
 
 function requireWindow(event: Electron.IpcMainInvokeEvent) {
