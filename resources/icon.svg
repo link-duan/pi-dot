@@ -1,14 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- macOS icon grid: an 824px tile inset 100px, with the system icons' soft drop shadow. -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#1F1F24"/>
       <stop offset="100%" stop-color="#121214"/>
     </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+    <clipPath id="tile">
+      <rect x="100" y="100" width="824" height="824" rx="185" ry="185"/>
+    </clipPath>
   </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-  <g fill="none" stroke="#F4F0E6" stroke-width="84" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M270 388H754"/>
-    <path d="M400 388V752"/>
-    <path d="M640 388V688Q640 752 728 752"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" ry="185" fill="url(#bg)" filter="url(#shadow)"/>
+  <g clip-path="url(#tile)">
+    <g transform="translate(512 512) scale(0.91) translate(-400 -400)">
+      <path fill="#F09082" d="M165.29 165.29H517.36V400H400V282.65H165.29Z"/>
+      <path fill="#4D9ABF" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z"/>
+      <path fill="#F1BE58" d="M517.36 400H634.72V634.72H517.36Z"/>
+    </g>
+    <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.12" stroke-width="3"/>
   </g>
 </svg>

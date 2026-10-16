@@ -6,7 +6,9 @@ res="$root/resources"
 setdir="$res/icon.iconset"
 
 rsvg-convert -w 1024 -h 1024 "$res/icon.svg" -o "$res/icon.png"
-rsvg-convert -w 1024 -h 1024 "$res/icon-dock.svg" -o "$res/icon-dock.png"
+# The dev build's icon: the same mark on cream, to tell it from the installed app.
+sed -e 's/#1F1F24/#FBF8F1/' -e 's/#121214/#ECE5D6/' "$res/icon.svg" |
+  rsvg-convert -w 1024 -h 1024 -o "$res/icon-dev.png"
 
 rm -rf "$setdir"
 mkdir "$setdir"

@@ -1,18 +1,10 @@
+/** The Pi mark in the current text color, its three blocks told apart by opacity. */
 export function PiIcon({ className = 'size-5' }: { className?: string }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <path d="M5.2 6.9H18.8" />
-      <path d="M8.9 6.9V17.2" />
-      <path d="M15.6 6.9V15.3Q15.6 17.2 18.1 17.2" />
+    <svg viewBox="165 165 470 470" fill="currentColor" className={className} aria-hidden>
+      <path d="M165.29 165.29H517.36V400H400V282.65H165.29Z" />
+      <path opacity="0.65" d="M165.29 282.65H282.65V400H400V517.36H282.65V634.72H165.29Z" />
+      <path opacity="0.4" d="M517.36 400H634.72V634.72H517.36Z" />
     </svg>
   )
 }

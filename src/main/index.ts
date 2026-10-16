@@ -21,7 +21,8 @@ import type {
   UiResponse,
 } from '@shared/protocol'
 import type { GeneralChange, ModelSettingsPatch } from '@shared/settings'
-import appIcon from '../../resources/icon-dock.png?asset'
+import appIcon from '../../resources/icon.png?asset'
+import devIcon from '../../resources/icon-dev.png?asset'
 import type { AgentHost } from './agent-host'
 import { applyAgentEnv } from './agent-env'
 import { saveClipboardImage } from './clipboard-image'
@@ -48,7 +49,13 @@ import {
 } from './settings-host'
 import { attach, clampCascade, from, getFocusedWindow, getWindows, onBeforeQuit } from './window'
 
+const APP_NAME = app.isPackaged ? 'Pi Dot' : 'Pi Dot Dev'
+/** The dev build's icon is on cream, to tell it from the installed app. */
+const APP_ICON = app.isPackaged ? appIcon : devIcon
+
 if (!app.isPackaged) {
+  // Its own data folder, so the dev build holds its own single-instance lock beside the installed app.
+  app.setPath('userData', join(app.getPath('appData'), APP_NAME))
   app.commandLine.appendSwitch('remote-debugging-port', '9222')
 }
 
@@ -94,7 +101,7 @@ function createWindow(): BrowserWindow {
     minWidth: 720,
     minHeight: 560,
     title: 'Pi Dot',
-    icon: appIcon,
+    icon: APP_ICON,
     show: false,
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
@@ -418,8 +425,8 @@ if (!app.requestSingleInstanceLock()) {
 
   app.whenReady().then(() => {
     applyAgentEnv()
-    app.setName('Pi Dot')
-    app.dock?.setIcon(appIcon)
+    app.setName(APP_NAME)
+    app.dock?.setIcon(APP_ICON)
     installMenu()
     registerIpc()
     createWindow()
