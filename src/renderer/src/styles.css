@@ -275,7 +275,8 @@
   letter-spacing: 0.02em;
 }
 
-[data-prose] :is(code, kbd, pre) {
+/* Monospace never tracks: code cards' line numbers are sized in ch and wrap if it does */
+[data-prose] :is(code, kbd, pre, .font-mono) {
   letter-spacing: 0;
 }
 
