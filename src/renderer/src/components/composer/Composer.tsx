@@ -69,7 +69,11 @@ const SEND: Record<SendAction['kind'], { label: string; tooltip: string; placeho
     tooltip: 'Start the loop',
     placeholder: 'Describe what to repeat...',
   },
-  steer: { label: 'Steer', tooltip: 'Steer · ⌥Enter for follow-up' },
+  steer: {
+    label: 'Steer',
+    tooltip: 'Steer · ⌥Enter for follow-up',
+    placeholder: 'Steer this turn, or ⌥Enter to follow up',
+  },
   send: { label: 'Send', tooltip: 'Send' },
 }
 
@@ -120,7 +124,8 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
   )
   const placeholder = noModels
     ? 'Connect a provider to start…'
-    : (SEND[action.kind].placeholder ?? (planMode ? 'Describe what to plan...' : 'Message...'))
+    : (SEND[action.kind].placeholder ??
+      (planMode ? 'What should we plan?' : 'Ask anything, @ to add files, / for commands'))
   const canSend = connection === 'ready' && hasDraft && !noModels
 
   const submit = useCallback(

@@ -5,6 +5,7 @@ import { estimateTurnMs, turnRanges } from '@shared/turns'
 import { useNavigate } from 'react-router'
 import { PiIcon } from '@/components/PiIcon'
 import { Button } from '@/components/ui/button'
+import { folderName } from '@/lib/path'
 import { PATH } from '@/router'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
@@ -50,6 +51,7 @@ export function Transcript({
 }) {
   const removeSteering = useSession((state) => state.removeSteering)
   const noModels = useSession((state) => state.connection === 'ready' && state.models.length === 0)
+  const cwd = useSession((state) => state.cwd)
   const navigate = useNavigate()
   const {
     messages,
@@ -121,7 +123,9 @@ export function Transcript({
                   </Button>
                 </>
               ) : (
-                <p className="mt-3 text-sm text-muted-foreground">Send pi a prompt.</p>
+                <p className="mt-3 text-sm text-muted-foreground">
+                  What's next for <span className="font-medium">{folderName(cwd ?? '')}</span>?
+                </p>
               )}
             </div>
           ) : (
