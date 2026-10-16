@@ -23,7 +23,11 @@ export function ActivityRow({
 }: {
   icon: LucideIcon
   label: string
-  summary: string
+  /**
+   * A node summary paints its own shimmer and truncates its own text: `background-clip: text` on
+   * an ancestor clips to the text where it was laid out, so moving text under it would show unmoved.
+   */
+  summary: ReactNode
   /** Commands, paths and patterns: set in the code face, like inline code in prose. */
   summaryIsCode?: boolean
   meta?: string
@@ -53,17 +57,20 @@ export function ActivityRow({
   )
 
   const showMeta = !(open && hideMetaWhenOpen)
+  const nodeSummary = showMeta && summary != null && typeof summary === 'object'
   const text = (
     <span className="flex min-w-0 items-baseline gap-2">
       <span
         className={cn(
           'flex min-w-0 items-baseline gap-2',
-          running && 'shimmer text-muted-foreground',
+          running && 'text-muted-foreground',
+          running && !nodeSummary && 'shimmer',
         )}
       >
         <span
           className={cn(
             'whitespace-nowrap',
+            running && nodeSummary && 'shimmer',
             error ? 'text-destructive' : !running && 'text-foreground/75',
             summary ? 'shrink-0' : 'min-w-0 truncate',
           )}
@@ -73,7 +80,8 @@ export function ActivityRow({
         {showMeta && summary ? (
           <span
             className={cn(
-              'min-w-0 truncate',
+              // A node summary truncates its own text; clipping only across leaves it room to move.
+              nodeSummary ? 'min-w-0 overflow-x-clip' : 'min-w-0 truncate',
               summaryIsCode && 'font-mono text-[0.85em]',
               !running && 'text-muted-foreground',
             )}

@@ -184,7 +184,7 @@ export const catalogModel = chat(
     user('please use /skill:react-doctor on @file:src/app.ts:1-3'),
     user('Walk through the transcript states.'),
     assistant([
-      { type: 'thinking', thinking: 'Plan the reply, then call tools.' },
+      { type: 'thinking', thinking: 'Plan the reply, then call tools.', durationMs: 4_200 },
       {
         type: 'text',
         text: [
@@ -286,18 +286,51 @@ export const catalogModel = chat(
   },
 )
 
-export const thinkingModel = chat(
-  [
-    user('What should we change?'),
-    assistant([{ type: 'thinking', thinking: 'Considering the layout and error treatment.' }]),
-  ],
-  {
-    isStreaming: true,
-    assistantStreaming: true,
-    turnActive: true,
-    turnStartedAt: clock - 4_200,
-  },
-)
+const thinkingDemoText = [
+  'The user wants the error banner to stop covering the transcript.',
+  '**Where it renders**',
+  'It sits in the header above the scroller, so it pushes every message down.',
+  'Moving it into the Composer card keeps it next to the send that failed.',
+  '**Edge cases**',
+  'A long message should truncate, with the full text in a tooltip.',
+  'Dismissing it must not clear the draft.',
+].join('\n')
+const thinkingQuestion = user('What should we change?')
+const thinkingReply = assistant([])
+export const THINKING_DEMO_TICK_MS = 50
+const THINKING_DEMO_CHARS = 3
+/** Ticks the finished reply stays before it replays. */
+const THINKING_DEMO_HOLD = 60
+
+/** The Thinking tab `step` ticks in: thinking types out line by line, then gets its time and the answer. */
+export function thinkingDemo(step: number): AgentMessage[] {
+  const typing = Math.ceil(thinkingDemoText.length / THINKING_DEMO_CHARS)
+  const tick = step % (typing + THINKING_DEMO_HOLD)
+  const content: ContentBlock[] =
+    tick < typing
+      ? [
+          {
+            type: 'thinking',
+            thinking: thinkingDemoText.slice(0, (tick + 1) * THINKING_DEMO_CHARS),
+          },
+        ]
+      : [
+          {
+            type: 'thinking',
+            thinking: thinkingDemoText,
+            durationMs: typing * THINKING_DEMO_TICK_MS,
+          },
+          { type: 'text', text: 'Move the banner into the Composer card.' },
+        ]
+  return [thinkingQuestion, { ...thinkingReply, content }]
+}
+
+export const thinkingModel = chat(thinkingDemo(0), {
+  isStreaming: true,
+  assistantStreaming: true,
+  turnActive: true,
+  turnStartedAt: clock - 4_200,
+})
 
 export const runningToolModel = chat(
   [user('Read the file.'), assistant([tool('read-run', 'read', { path: src })])],

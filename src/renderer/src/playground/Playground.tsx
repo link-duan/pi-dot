@@ -37,6 +37,8 @@ import {
   playgroundSkills,
   playgroundThinkingLevels,
   runningToolModel,
+  THINKING_DEMO_TICK_MS,
+  thinkingDemo,
   thinkingModel,
   waitingModel,
   workingModel,
@@ -283,6 +285,19 @@ function usePlaygroundSession(model: ChatState, plan = '', session?: Partial<Win
   }, [model, plan, session])
 }
 
+/** Plays the Thinking tab's reply on a loop, so the collapsed row's rolling summary shows. */
+function useThinkingDemo(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return
+    let step = 0
+    const id = window.setInterval(() => {
+      const messages = thinkingDemo(++step)
+      useSession.setState((state) => patchChat(state, PLAYGROUND_FILE, { messages }))
+    }, THINKING_DEMO_TICK_MS)
+    return () => window.clearInterval(id)
+  }, [enabled])
+}
+
 export function Playground() {
   const navigate = useNavigate()
   // In the URL, so a reload stays on the same tab.
@@ -303,6 +318,7 @@ export function Playground() {
     [pane, openedAt],
   )
   usePlaygroundSession(model, pane.plan, pane.session)
+  useThinkingDemo(pane.model === thinkingModel)
   const chat = useChat()
   const activeModel = chat.messages.length > 0 || chat.steeringQueue.length > 0 ? chat : model
 

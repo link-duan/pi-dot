@@ -77,7 +77,14 @@ function ContentBlockView({
       if (hideThinking) return null
       const thinking = block.thinking
       if (!thinking?.trim() && !isLatest) return null
-      return <ThinkingRow thinking={thinking} inProgress={isLatest} animateIn={isLive} />
+      return (
+        <ThinkingRow
+          thinking={thinking}
+          durationMs={block.durationMs}
+          inProgress={isLatest}
+          animateIn={isLive}
+        />
+      )
     }
 
     case 'text': {
