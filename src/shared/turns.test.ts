@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AgentMessage } from './protocol'
-import { alignPersistedAt, estimateTurnMs, persistRecordsFromEntries, userTurns } from './turns'
+import { alignPersistedAt, estimateTurnMs, persistRecordsFromEntries, turnRanges } from './turns'
 
 const user = (timestamp: number): AgentMessage => ({ role: 'user', content: 'hi', timestamp })
 const assistant = (timestamp: number): AgentMessage => ({
@@ -9,12 +9,27 @@ const assistant = (timestamp: number): AgentMessage => ({
   timestamp,
 })
 
-describe('userTurns', () => {
+describe('turnRanges', () => {
   it('groups messages from each user through the next user', () => {
     const messages = [user(1), assistant(2), user(3), assistant(4), assistant(5)]
-    expect(userTurns(messages)).toEqual([
+    expect(turnRanges(messages)).toEqual([
       { start: 0, end: 1 },
       { start: 2, end: 4 },
+    ])
+  })
+
+  it("starts a turn where the user changed a loop's prompt", () => {
+    const loopEdit: AgentMessage = {
+      role: 'custom',
+      customType: 'pi-dot-loop',
+      content: '',
+      display: true,
+      details: { edited: true },
+      timestamp: 3,
+    }
+    expect(turnRanges([user(1), assistant(2), loopEdit, assistant(4)])).toEqual([
+      { start: 0, end: 1 },
+      { start: 2, end: 3 },
     ])
   })
 })

@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -19,10 +20,13 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer'
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import type { ChatState } from '@/chat/state'
 import { cn } from '@/lib/utils'
 import { pendingQuestion } from '@/session/state'
 import { useChat, useSession } from '@/session/store'
 import { FollowUpQueue } from './FollowUpQueue'
+import { LoopBadge } from './LoopBadge'
+import { LoopCard } from './LoopCard'
 import { ComposerActions } from './ComposerActions'
 import { CARD } from './composer-card'
 import { PlanReview } from './PlanReview'
@@ -38,11 +42,46 @@ import { ModelSelect } from './ModelSelect'
 
 const initialConfig = promptEditorConfig('pi-composer')
 
-/** What sending does: reply to a waiting question, steer the run, or start one. */
-type SendAction = 'reply' | 'steer' | 'send'
+/**
+ * What sending does: reply to a waiting question, change the loop's prompt, start a loop, steer
+ * the run, or start one.
+ */
+type SendAction =
+  | { kind: 'reply'; questionId: string }
+  | { kind: 'editLoop' }
+  | { kind: 'startLoop'; ms: number | null }
+  | { kind: 'steer' }
+  | { kind: 'send' }
 
-const SEND_LABELS: Record<SendAction, { label: string; tooltip: string }> = {
-  reply: { label: 'Reply', tooltip: 'Reply to the questions' },
+function sendAction(
+  questionId: string | null,
+  loopDraft: ChatState['loopDraft'],
+  isStreaming: boolean,
+): SendAction {
+  // A waiting question blocks the run, so a steer would only land after it is answered.
+  if (questionId) return { kind: 'reply', questionId }
+  if (loopDraft?.kind === 'edit') return { kind: 'editLoop' }
+  if (loopDraft) return { kind: 'startLoop', ms: loopDraft.ms }
+  return { kind: isStreaming ? 'steer' : 'send' }
+}
+
+/** Without its own placeholder, an action shows the message one. */
+const SEND: Record<SendAction['kind'], { label: string; tooltip: string; placeholder?: string }> = {
+  reply: {
+    label: 'Reply',
+    tooltip: 'Reply to the questions',
+    placeholder: 'Or type a reply to all questions...',
+  },
+  editLoop: {
+    label: 'Save loop prompt',
+    tooltip: 'Change the loop prompt',
+    placeholder: 'Edit the loop prompt...',
+  },
+  startLoop: {
+    label: 'Start loop',
+    tooltip: 'Start the loop',
+    placeholder: 'Describe what to repeat...',
+  },
   steer: { label: 'Steer', tooltip: 'Steer · ⌥Enter for follow-up' },
   send: { label: 'Send', tooltip: 'Send' },
 }
@@ -71,49 +110,59 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
   const isStreaming = useChat((state) => state.isStreaming)
   const planMode = useChat((state) => state.planMode)
   const setPlanMode = useSession((state) => state.setPlanMode)
+  const loopDraft = useChat((state) => state.loopDraft)
+  const setLoopDraft = useSession((state) => state.setLoopDraft)
+  const setLoop = useSession((state) => state.setLoop)
+  const editLoop = useSession((state) => state.editLoop)
   const compact = useSession((state) => state.compact)
   const newSession = useSession((state) => state.newSession)
   const noModels = useSession((state) => state.connection === 'ready' && state.models.length === 0)
   const runCommand = useCallback(
     (name: string) => {
       if (name === 'plan') setPlanMode(true)
+      if (name === 'loop') setLoopDraft({ kind: 'start', ms: null })
       if (name === 'compact') void compact()
       if (name === 'new') void newSession()
     },
-    [compact, newSession, setPlanMode],
+    [compact, newSession, setLoopDraft, setPlanMode],
   )
   const hasDraft = draft.trim().length > 0
-  const action: SendAction = questionId ? 'reply' : isStreaming ? 'steer' : 'send'
+  const action = useMemo(
+    () => sendAction(questionId, loopDraft, isStreaming),
+    [isStreaming, loopDraft, questionId],
+  )
   const placeholder = noModels
     ? 'Connect a provider to start…'
-    : questionId
-      ? 'Or type a reply to all questions...'
-      : planMode
-        ? 'Describe what to plan...'
-        : 'Message...'
+    : (SEND[action.kind].placeholder ?? (planMode ? 'Describe what to plan...' : 'Message...'))
   const canSend = connection === 'ready' && hasDraft && !noModels
 
   const submit = useCallback(
     async (next: string, mode?: 'followUp') => {
       if (connection !== 'ready') return
       try {
-        // A waiting question blocks the run, so a steer would only land after it is answered.
-        if (questionId) {
-          await answerQuestion(questionId, { kind: 'message', text: next })
-        } else if (isStreaming) {
-          try {
-            if (mode === 'followUp') {
-              await followUp(next)
-            } else {
-              await steer(next)
+        switch (action.kind) {
+          case 'reply':
+            await answerQuestion(action.questionId, { kind: 'message', text: next })
+            break
+          case 'editLoop':
+            await editLoop(next)
+            setLoopDraft(null)
+            break
+          case 'startLoop':
+            await setLoop({ prompt: next, ms: action.ms })
+            setLoopDraft(null)
+            break
+          case 'steer':
+            try {
+              await (mode === 'followUp' ? followUp(next) : steer(next))
+            } catch (error) {
+              const message = error instanceof Error ? error.message : String(error)
+              if (!message.includes('Session is not streaming')) throw error
+              await send(next)
             }
-          } catch (error) {
-            const message = error instanceof Error ? error.message : String(error)
-            if (!message.includes('Session is not streaming')) throw error
+            break
+          case 'send':
             await send(next)
-          }
-        } else {
-          await send(next)
         }
       } catch (error) {
         console.error('Failed to submit prompt', error)
@@ -123,7 +172,19 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
       setDraft('')
       onSend?.()
     },
-    [answerQuestion, connection, editor, followUp, isStreaming, onSend, questionId, send, steer],
+    [
+      action,
+      answerQuestion,
+      connection,
+      editLoop,
+      editor,
+      followUp,
+      onSend,
+      send,
+      setLoop,
+      setLoopDraft,
+      steer,
+    ],
   )
 
   useLayoutEffect(() => {
@@ -150,7 +211,7 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
     }
   }, [editor])
 
-  const handleEditFollowUp = useCallback(
+  const fillComposer = useCallback(
     (text: string) => {
       editor.update(() => $setComposerText(text))
       editor.focus()
@@ -158,22 +219,38 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
     [editor],
   )
 
+  const exitLoopDraft = useCallback(() => {
+    // Leaving an edit drops the prompt it loaded; a new loop keeps what was typed.
+    if (loopDraft?.kind === 'edit') {
+      editor.update($clearEditor, { discrete: true })
+      setDraft('')
+    }
+    setLoopDraft(null)
+  }, [editor, loopDraft, setLoopDraft])
+
   // Text main or the store hands over: a forked message, or an extension's setEditorText.
   const composerFill = useSession((state) => state.composerFill)
   useEffect(() => {
     if (!composerFill) return
-    handleEditFollowUp(composerFill.text)
+    fillComposer(composerFill.text)
     // Taken once; a remounted Composer must not fill it again.
     useSession.setState({ composerFill: null })
-  }, [composerFill, handleEditFollowUp])
+  }, [composerFill, fillComposer])
 
   return (
     <div className="pointer-events-none relative z-10 -mt-6 shrink-0 px-4 pt-1 pb-3">
       <div className="pointer-events-auto mx-auto max-w-3xl">
-        <FollowUpQueue onEdit={handleEditFollowUp} canEdit={() => !hasDraft} />
+        <FollowUpQueue onEdit={fillComposer} canEdit={() => !hasDraft} />
         <QuestionCard />
         <ExtensionDialogCard />
         <PlanReview />
+        <LoopCard
+          canEdit={!hasDraft}
+          onEdit={(prompt) => {
+            setLoopDraft({ kind: 'edit' })
+            fillComposer(prompt)
+          }}
+        />
         <ComposerActions />
         <ExtensionWidgets placement="aboveEditor" className={cn(CARD, 'px-3 py-2')} />
       </div>
@@ -203,7 +280,8 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
         <div className="flex items-center justify-between gap-2 px-0.5 text-xs">
           <div className="flex min-w-0 flex-1 items-center gap-0.5">
             {planMode ? <PlanBadge onExit={() => setPlanMode(false)} /> : null}
-            <ModelSelect className={planMode ? undefined : '-ml-1'} />
+            <LoopBadge onExit={exitLoopDraft} />
+            <ModelSelect className="first:-ml-1" />
             <ContextUsageRing />
             <ExtensionStatuses />
           </div>
@@ -239,13 +317,13 @@ function SessionComposer({ onSend }: { onSend?: () => void }) {
                       size="icon-sm"
                       className="-mr-1 rounded-[calc(var(--radius-2xl)-5px)] transition-opacity"
                       disabled={!canSend}
-                      aria-label={SEND_LABELS[action].label}
+                      aria-label={SEND[action.kind].label}
                     />
                   }
                 >
                   <ArrowUp className="size-3.5" />
                 </TooltipTrigger>
-                <TooltipContent>{SEND_LABELS[action].tooltip}</TooltipContent>
+                <TooltipContent>{SEND[action.kind].tooltip}</TooltipContent>
               </Tooltip>
             )}
           </div>
@@ -332,7 +410,7 @@ export function PlanBadge({ onExit }: { onExit: () => void }) {
   const isStreaming = useChat((state) => state.isStreaming)
   return (
     <span
-      className="-ml-0.5 inline-flex h-6 shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-7px)] bg-plan/10 pr-0.5 pl-1.5 text-xs font-medium text-plan"
+      className="inline-flex h-6 shrink-0 items-center gap-1 rounded-[calc(var(--radius-2xl)-7px)] bg-plan/10 pr-0.5 pl-1.5 text-xs font-medium text-plan first:-ml-0.5"
       title={`Plan mode · Shift+Tab to exit${isStreaming ? ' · applies to the next message' : ''}`}
     >
       <ListChecks className="size-3" />

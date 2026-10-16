@@ -78,10 +78,44 @@ export interface SessionState {
   /** Plan mode in effect for the current (or last) run. */
   planMode: boolean
   plan: PlanRef
+  loop: LoopRef
 }
 
 /** A session's current Plan File; once built it is read-only and the next plan is a new file. */
 export type PlanRef = { path: string; built: boolean } | null
+
+/** What starts a /loop: its prompt, and the interval the user fixed, or null to let the model pace it. */
+export interface LoopStart {
+  prompt: string
+  ms: number | null
+}
+
+/**
+ * A session's running /loop; `fixed` when the user set the interval, else `reason` is why the
+ * model picked its delay. `nextAt` is null while a run is going or the loop waits for one to
+ * settle; `editPending` while a prompt change has yet to land in the session.
+ */
+export type LoopRef = {
+  prompt: string
+  ms: number
+  fixed: boolean
+  reason?: string
+  nextAt: number | null
+  editPending: boolean
+} | null
+
+/** The custom messages a loop adds; `details.edited` marks the user changing its prompt. */
+export const LOOP_MESSAGE_TYPE = 'pi-dot-loop'
+
+/** The tool a self-paced loop schedules its next iteration (or ends) with. */
+export const SCHEDULE_WAKEUP_TOOL = 'schedule_wakeup'
+
+/** A loop interval in its largest whole unit: 90s, 5m, 1h. */
+export function formatInterval(ms: number): string {
+  if (ms % 3_600_000 === 0) return `${ms / 3_600_000}h`
+  if (ms % 60_000 === 0) return `${ms / 60_000}m`
+  return `${Math.round(ms / 1000)}s`
+}
 
 /** The user message that approves a plan; the approved Plan File itself reaches the model hidden. */
 export const PLAN_APPROVED_PROMPT = 'I approved the plan. Implement it.'
@@ -209,11 +243,22 @@ export interface CompactionSummaryMessage {
   timestamp: number
 }
 
+/** Where the user changed a running loop's prompt; other extension messages stay in main. */
+export interface LoopEditMessage {
+  role: 'custom'
+  customType: typeof LOOP_MESSAGE_TYPE
+  content: string
+  display: boolean
+  details: { edited: true }
+  timestamp: number
+}
+
 export type AgentMessage =
   | UserMessage
   | AssistantMessage
   | ToolResultMessage
   | CompactionSummaryMessage
+  | LoopEditMessage
 
 /** Finds a message in the session's branch. */
 export type MessageRef = Pick<AgentMessage, 'role' | 'timestamp'>
@@ -241,6 +286,7 @@ export type SessionEventBody =
     }
   | { type: 'context_usage'; usage: ContextUsage | null }
   | { type: 'plan_mode'; active: boolean; plan: PlanRef }
+  | { type: 'loop'; loop: LoopRef }
   | { type: 'session_name'; name?: string }
   | { type: 'queue_update'; steering: string[]; followUp: string[] }
   | { type: 'auto_retry_start'; attempt: number; maxAttempts: number; delayMs: number }
@@ -292,5 +338,16 @@ const MESSAGE_ROLES = new Set<string>(['user', 'assistant', 'toolResult', 'compa
 
 export function isAgentMessage(value: unknown): value is AgentMessage {
   if (!value || typeof value !== 'object') return false
-  return MESSAGE_ROLES.has((value as { role?: unknown }).role as string)
+  const role = (value as { role?: unknown }).role
+  return role === 'custom' ? isLoopEdit(value) : MESSAGE_ROLES.has(role as string)
+}
+
+/** The message where the user changed a running loop's prompt; it starts a turn of its own. */
+export function isLoopEdit(value: unknown): value is LoopEditMessage {
+  const message = value as { role?: unknown; customType?: unknown; details?: { edited?: unknown } }
+  return (
+    message?.role === 'custom' &&
+    message.customType === LOOP_MESSAGE_TYPE &&
+    message.details?.edited === true
+  )
 }

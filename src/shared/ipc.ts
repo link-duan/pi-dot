@@ -7,6 +7,8 @@ export const IPC = {
   stop: 'pi:stop',
   prompt: 'pi:prompt',
   approvePlan: 'pi:approvePlan',
+  setLoop: 'pi:setLoop',
+  editLoop: 'pi:editLoop',
   answerQuestion: 'pi:answerQuestion',
   respondUi: 'pi:respondUi',
   retrust: 'pi:retrust',

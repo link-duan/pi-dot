@@ -200,4 +200,42 @@ describe('resolveToolViewModel', () => {
       expect(model.body.resultText).toBe('20°C, Sunny')
     }
   })
+
+  it('shows a scheduled wakeup as its reason and the delay settled on', () => {
+    const model = resolveToolViewModel({
+      name: 'schedule_wakeup',
+      args: { delaySeconds: 5, reason: 'watching CI' },
+      result: {
+        content: [{ type: 'text', text: 'Next iteration in 1m' }],
+        details: { ms: 60_000 },
+      },
+    })
+    expect(model).toMatchObject({ label: 'Schedule Wakeup', summary: 'watching CI', meta: 'in 1m' })
+    expect(model.body).toBeNull()
+  })
+
+  it('shows a stopped wakeup as the loop ending', () => {
+    const model = resolveToolViewModel({
+      name: 'schedule_wakeup',
+      args: { stop: true },
+      result: { content: [{ type: 'text', text: 'The loop ended.' }], details: {} },
+    })
+    expect(model).toMatchObject({ meta: 'Loop ended', body: null })
+  })
+
+  it('shows a failed wakeup as an error', () => {
+    const model = resolveToolViewModel({
+      name: 'schedule_wakeup',
+      args: {},
+      live: {
+        toolCallId: '1',
+        toolName: 'schedule_wakeup',
+        args: {},
+        status: 'done',
+        isError: true,
+        result: 'No self-paced loop is running.',
+      },
+    })
+    expect(model.body).toEqual({ kind: 'error', message: 'No self-paced loop is running.' })
+  })
 })

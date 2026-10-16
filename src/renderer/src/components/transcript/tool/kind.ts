@@ -1,4 +1,5 @@
 import {
+  AlarmClock,
   FilePenLine,
   FilePlus,
   FileText,
@@ -12,7 +13,7 @@ import {
   Wrench,
   type LucideIcon,
 } from 'lucide-react'
-import { ASK_USER_TOOL, CREATE_PLAN_TOOL } from '@shared/protocol'
+import { ASK_USER_TOOL, CREATE_PLAN_TOOL, SCHEDULE_WAKEUP_TOOL } from '@shared/protocol'
 import { isImageFile } from '@/lib/path'
 
 export function isEditTool(name: string): boolean {
@@ -48,6 +49,7 @@ const TOOL_LABELS: Record<string, string> = {
   ls: 'Ls',
   [CREATE_PLAN_TOOL]: 'Create Plan',
   [ASK_USER_TOOL]: 'Ask User',
+  [SCHEDULE_WAKEUP_TOOL]: 'Schedule Wakeup',
 }
 
 export function toolLabel(name: string): string {
@@ -65,6 +67,7 @@ export function getToolIcon(name: string, path?: string | null, hasImage = false
   const lower = name.toLowerCase()
   if (lower === 'codemode') return SquareCode
   if (lower === ASK_USER_TOOL) return MessageCircleQuestion
+  if (lower === SCHEDULE_WAKEUP_TOOL) return AlarmClock
   if (isShellTool(name)) return Terminal
   if (lower === 'grep') return Search
   if (lower === 'find') return FolderSearch

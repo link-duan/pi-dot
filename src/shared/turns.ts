@@ -1,10 +1,16 @@
-import { isAgentMessage, type AgentMessage } from './protocol'
+import { isAgentMessage, isLoopEdit, type AgentMessage } from './protocol'
 
-export function userTurns(messages: AgentMessage[]): Array<{ start: number; end: number }> {
+/** A user message starts a turn, and so does the user changing a loop's prompt, which runs it. */
+export function startsTurn(message: AgentMessage): boolean {
+  return message.role === 'user' || isLoopEdit(message)
+}
+
+/** Each turn runs from a message that starts one through the message before the next. */
+export function turnRanges(messages: AgentMessage[]): Array<{ start: number; end: number }> {
   const turns: Array<{ start: number; end: number }> = []
   let start = -1
   for (let i = 0; i < messages.length; i++) {
-    if (messages[i]?.role !== 'user') continue
+    if (!startsTurn(messages[i]!)) continue
     if (start >= 0) turns.push({ start, end: i - 1 })
     start = i
   }

@@ -2,6 +2,7 @@ import {
   isAgentMessage,
   type AgentMessage,
   type NotifyLevel,
+  type LoopRef,
   type PlanRef,
   type SessionEventBody,
   type TextContent,
@@ -43,6 +44,13 @@ export interface ChatState {
   planActive: boolean
   /** The session's current Plan File, as main replayed it from the transcript. */
   plan: PlanRef
+  /** The session's running /loop. */
+  loop: LoopRef
+  /**
+   * The Loop toggle: the next message starts a loop at this interval (null to self-pace), or
+   * changes the running loop's prompt.
+   */
+  loopDraft: { kind: 'start'; ms: number | null } | { kind: 'edit' } | null
   /** The session's name, once the auto title or an extension sets it. */
   sessionName?: string
   /** Extension dialogs waiting for the user, oldest first. */
@@ -89,6 +97,8 @@ export function createChatState(): ChatState {
     planMode: false,
     planActive: false,
     plan: null,
+    loop: null,
+    loopDraft: null,
     uiRequests: [],
     ui: EMPTY_UI,
     extensionLines: [],
@@ -104,6 +114,7 @@ export function hydrateMessages(
     followUpQueue?: string[]
     planMode?: boolean
     plan?: PlanRef
+    loop?: LoopRef
     sessionName?: string
     ui?: { requests: UiRequest[]; state: UiState }
   },
@@ -129,6 +140,8 @@ export function hydrateMessages(
     planMode: Boolean(options?.planMode),
     planActive: Boolean(options?.planMode),
     plan: options?.plan ?? null,
+    loop: options?.loop ?? null,
+    loopDraft: null,
     sessionName: options?.sessionName,
     uiRequests: options?.ui?.requests ?? [],
     ui: options?.ui?.state ?? EMPTY_UI,
@@ -243,6 +256,14 @@ export function applySessionEvent(state: ChatState, event: SessionEventBody): Ch
 
     case 'plan_mode':
       return { ...state, planActive: event.active, plan: event.plan }
+
+    case 'loop':
+      // A prompt being edited has no loop left to change once it ends.
+      return {
+        ...state,
+        loop: event.loop,
+        loopDraft: !event.loop && state.loopDraft?.kind === 'edit' ? null : state.loopDraft,
+      }
 
     case 'session_name':
       return { ...state, sessionName: event.name }

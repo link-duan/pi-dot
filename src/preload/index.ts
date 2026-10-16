@@ -6,6 +6,7 @@ import type {
   AskReply,
   ConnectionStatus,
   FileHit,
+  LoopStart,
   MessageRef,
   SessionEvent,
   SessionListItem,
@@ -38,6 +39,10 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.prompt, text, sessionFile, planMode) as Promise<void>,
   approvePlan: (sessionFile: string, message: string) =>
     ipcRenderer.invoke(IPC.approvePlan, sessionFile, message) as Promise<void>,
+  setLoop: (sessionFile: string, loop: LoopStart | null) =>
+    ipcRenderer.invoke(IPC.setLoop, sessionFile, loop) as Promise<void>,
+  editLoop: (sessionFile: string, prompt: string) =>
+    ipcRenderer.invoke(IPC.editLoop, sessionFile, prompt) as Promise<void>,
   answerQuestion: (sessionFile: string, toolCallId: string, reply: AskReply) =>
     ipcRenderer.invoke(IPC.answerQuestion, sessionFile, toolCallId, reply) as Promise<void>,
   respondUi: (sessionFile: string, id: string, response: UiResponse) =>

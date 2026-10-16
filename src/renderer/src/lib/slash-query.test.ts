@@ -59,7 +59,7 @@ describe('filterSlashItems', () => {
   })
 
   it('lists commands before skills', () => {
-    expect(names('')).toEqual(['/plan', '/compact', '/new', 'planner', 'tdd'])
+    expect(names('')).toEqual(['/plan', '/loop', '/compact', '/new', 'planner', 'tdd'])
     expect(names('pl')).toEqual(['/plan', 'planner'])
     expect(names('td')).toEqual(['tdd'])
   })
@@ -77,6 +77,7 @@ describe('filterSlashItems', () => {
     ]
     const items = filterSlashItems([], '', commands)
     expect(items.map((item) => (item.kind === 'extension' ? item.command : item.kind))).toEqual([
+      'command',
       'command',
       'command',
       'command',

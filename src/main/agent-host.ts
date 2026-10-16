@@ -30,6 +30,7 @@ import {
   type AskReply,
   type CommandInfo,
   type ContextUsage,
+  type LoopStart,
   type MessageRef,
   type ModelInfo,
   type ModelSelection,
@@ -47,6 +48,7 @@ import { createAskUser, type AskUser } from './ask-user'
 import { createExtensionUi, type ExtensionUi } from './extension-ui'
 import { builtinExtensions } from './agent-extensions'
 import { readConfig } from './config'
+import { createLoop, type LoopControl } from './loop'
 import { createPlanMode, replayPlan, type PlanMode } from './plan-mode'
 import { generateSessionTitle } from './session-title'
 import { SerialQueue } from '@shared/queue'
@@ -92,6 +94,7 @@ export class AgentHost {
   private ops = new SerialQueue()
   private planModes = new WeakMap<SessionManager, PlanMode>()
   private askUsers = new WeakMap<SessionManager, AskUser>()
+  private loops = new WeakMap<SessionManager, LoopControl>()
 
   /** `trusted`: whether the project's own extensions, settings and skills load. */
   constructor(
@@ -167,6 +170,8 @@ export class AgentHost {
         this.planModes.set(sessionManager, planMode)
         const askUser = createAskUser()
         this.askUsers.set(sessionManager, askUser)
+        const loop = createLoop()
+        this.loops.set(sessionManager, loop)
         const services = await createAgentSessionServices({
           cwd,
           agentDir: nextAgentDir,
@@ -179,6 +184,7 @@ export class AgentHost {
               ...builtinExtensions,
               { name: 'plan-mode', factory: planMode.extension, builtin: true },
               { name: 'ask-user', factory: askUser.extension, builtin: true },
+              { name: 'loop', factory: loop.extension, builtin: true },
             ],
           },
         })
@@ -224,6 +230,18 @@ export class AgentHost {
     if (!this.requireActive(sessionFile).ui.respond(id, response)) {
       throw new Error('No extension dialog is waiting')
     }
+  }
+
+  async setLoop(sessionFile: string, loop: LoopStart | null): Promise<void> {
+    this.loopOf(sessionFile)?.set(loop)
+  }
+
+  async editLoop(sessionFile: string, prompt: string): Promise<void> {
+    this.loopOf(sessionFile)?.edit(prompt)
+  }
+
+  private loopOf(sessionFile: string): LoopControl | undefined {
+    return this.loops.get(this.requireActive(sessionFile).session.sessionManager)
   }
 
   async answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void> {
@@ -501,6 +519,7 @@ export class AgentHost {
       followUpQueue: [...session.getFollowUpMessages()],
       planMode: planMode?.active ?? false,
       plan: planMode?.plan ?? null,
+      loop: this.loops.get(session.sessionManager)?.ref ?? null,
     }
   }
 
@@ -815,6 +834,9 @@ export class AgentHost {
     const unsubscribePlan = planMode?.onChange(({ active, plan }) => {
       this.emit({ type: 'plan_mode', sessionFile: live.sessionFile, active, plan })
     })
+    const unsubscribeLoop = this.loops.get(session.sessionManager)?.onChange((loop) => {
+      this.emit({ type: 'loop', sessionFile: live.sessionFile, loop })
+    })
     const unsubscribeSession = session.subscribe((event) => {
       const mapped = toSessionEvent(event, live.sessionFile)
       if (mapped) this.emit(mapped)
@@ -836,6 +858,7 @@ export class AgentHost {
     live.unsubscribe = () => {
       unsubscribeSession()
       unsubscribePlan?.()
+      unsubscribeLoop?.()
     }
   }
 

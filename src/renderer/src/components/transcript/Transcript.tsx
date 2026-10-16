@@ -1,7 +1,7 @@
 import { Fragment, useImperativeHandle, useMemo, useRef, type Ref, type RefObject } from 'react'
 import type { ChatState, RetryState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
-import { estimateTurnMs, userTurns } from '@shared/turns'
+import { estimateTurnMs, turnRanges } from '@shared/turns'
 import { useNavigate } from 'react-router'
 import { PiIcon } from '@/components/PiIcon'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { PATH } from '@/router'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 import { MessageRow } from './MessageRow'
 import { ScrollToBottomButton } from './ScrollToBottomButton'
+import { DividerRow } from './message/DividerRow'
 import { ExtensionLineRow } from './message/ExtensionLineRow'
 import { SteeringRow } from './message/SteeringRow'
 import { TurnActions } from './TurnActions'
@@ -33,6 +34,7 @@ export type TranscriptModel = Pick<
   | 'retry'
   | 'steeringQueue'
   | 'extensionLines'
+  | 'loop'
 >
 
 export function Transcript({
@@ -61,6 +63,7 @@ export function Transcript({
     retry,
     steeringQueue = [],
     extensionLines,
+    loop,
   } = model
   const contentRef = useRef<HTMLDivElement>(null)
   const { showScrollBottom, scrollToBottom, onScroll, onWheel } = useStickyToBottom({
@@ -72,7 +75,7 @@ export function Transcript({
   useImperativeHandle(ref, () => ({ scrollToBottom }), [scrollToBottom])
 
   const hasMessages = messages.length > 0
-  const turns = userTurns(messages)
+  const turns = turnRanges(messages)
   const streamingIndex = assistantStreaming ? lastAssistantIndex(messages) : -1
   const toolResults = useMemo(() => {
     const map: Record<string, ToolResultMessage> = {}
@@ -208,6 +211,8 @@ export function Transcript({
                   }
                 />
               ))}
+              {/* Below the going run, until the change's own message lands after it. */}
+              {loop?.editPending ? <DividerRow label="Loop prompt changed" /> : null}
             </div>
           )}
         </div>

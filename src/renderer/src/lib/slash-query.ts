@@ -20,6 +20,7 @@ export interface SlashCommand {
 /** Built-in commands the Composer handles itself; they are never sent to the agent. */
 export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'plan', description: 'Plan before making changes', scope: 'message' },
+  { name: 'loop', description: 'Repeat the next message on an interval', scope: 'session' },
   { name: 'compact', description: 'Summarize the conversation to free context', scope: 'session' },
   { name: 'new', description: 'Start a new session', scope: 'session' },
 ]

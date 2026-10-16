@@ -2,7 +2,7 @@ import { memo } from 'react'
 import type { ToolLiveState } from '@/chat/state'
 import type { AgentMessage, ToolResultMessage } from '@shared/protocol'
 import { AssistantRow } from './message/AssistantRow'
-import { CompactionRow } from './message/CompactionRow'
+import { DividerRow } from './message/DividerRow'
 import { UserRow } from './message/UserRow'
 
 export const MessageRow = memo(function MessageRow({
@@ -34,10 +34,13 @@ export const MessageRow = memo(function MessageRow({
       )
 
     case 'compactionSummary':
-      return <CompactionRow />
+      return <DividerRow label="Context Compacted" />
 
     case 'toolResult':
       return null
+
+    case 'custom':
+      return <DividerRow label="Loop prompt changed" />
 
     default:
       return null

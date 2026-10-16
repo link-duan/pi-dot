@@ -168,6 +168,7 @@ export function applySnapshot<T extends WindowState>(
         ...cached,
         planActive: snapshot.state.planMode,
         plan: snapshot.state.plan,
+        loop: snapshot.state.loop,
         sessionName: snapshot.state.sessionName,
         steeringQueue: [...steeringQueue],
         followUpQueue: [...followUpQueue],
@@ -181,6 +182,7 @@ export function applySnapshot<T extends WindowState>(
         followUpQueue,
         planMode: snapshot.state.planMode,
         plan: snapshot.state.plan,
+        loop: snapshot.state.loop,
         sessionName: snapshot.state.sessionName,
         ui: snapshot.ui,
       })

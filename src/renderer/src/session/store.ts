@@ -5,6 +5,7 @@ import { parsePlan } from '@shared/plan-file'
 import type {
   AgentMessage,
   AskReply,
+  LoopStart,
   MessageRef,
   ModelSelection,
   SessionListItem,
@@ -69,6 +70,11 @@ interface SessionStore extends WindowState {
   deleteSession: (sessionPath: string) => Promise<boolean>
   requestComposerFocus: () => void
   setPlanMode: (on: boolean) => void
+  setLoopDraft: (draft: ChatState['loopDraft']) => void
+  /** Starts a /loop with its first message, or stops the running one. */
+  setLoop: (loop: LoopStart | null) => Promise<void>
+  /** Changes the running loop's prompt. */
+  editLoop: (prompt: string) => Promise<void>
   /** Leaves Plan Mode and asks the agent to implement the approved Plan File. */
   approvePlan: () => Promise<void>
   /** Re-reads the Plan File while the Plan Mode toggle is on; `open` shows it if it has content. */
@@ -570,6 +576,33 @@ export const useSession = create<SessionStore>((set, get) => ({
     if (!file) return
     // Leaving Plan Mode drops the review; Build leaves it through approvePlan instead.
     set((state) => ({ ...patchChat(state, file, { planMode: on }), ...(on ? null : noPlanReview) }))
+  },
+
+  setLoopDraft: (draft) => {
+    const file = get().sessionFile
+    if (file) set((state) => patchChat(state, file, { loopDraft: draft }))
+  },
+
+  setLoop: async (loop) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.setLoop(file, loop)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      throw error
+    }
+  },
+
+  editLoop: async (prompt) => {
+    const file = get().sessionFile
+    if (!file) return
+    try {
+      await window.pi.editLoop(file, prompt)
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) })
+      throw error
+    }
   },
 
   approvePlan: async () => {

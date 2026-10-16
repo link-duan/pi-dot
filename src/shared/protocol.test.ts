@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   asThinkingLevel,
   isAgentMessage,
+  isLoopEdit,
   parseThinkingLevels,
   THINKING_LEVEL_LABELS,
 } from './protocol'
@@ -14,6 +15,14 @@ describe('isAgentMessage', () => {
   it('rejects unknown roles', () => {
     expect(isAgentMessage({ role: 'system' })).toBe(false)
     expect(isAgentMessage(null)).toBe(false)
+  })
+
+  it("accepts a loop's prompt change but not its hidden reminders", () => {
+    const loop = { role: 'custom', customType: 'pi-dot-loop', content: '', timestamp: 1 }
+    expect(isAgentMessage({ ...loop, details: { edited: true } })).toBe(true)
+    expect(isLoopEdit({ ...loop, details: { edited: true } })).toBe(true)
+    expect(isAgentMessage(loop)).toBe(false)
+    expect(isLoopEdit(loop)).toBe(false)
   })
 })
 

@@ -1,6 +1,13 @@
 import type { ToolLiveState } from '@/chat/state'
 import { asRecord, asText, prettyJson, toolReadPreview, toolSummary } from '@/lib/format'
-import { ASK_USER_TOOL, askQuestions, type AskQuestion, type AskReply } from '@shared/protocol'
+import {
+  ASK_USER_TOOL,
+  askQuestions,
+  formatInterval,
+  SCHEDULE_WAKEUP_TOOL,
+  type AskQuestion,
+  type AskReply,
+} from '@shared/protocol'
 import type { LucideIcon } from 'lucide-react'
 import {
   codemodeSummary,
@@ -103,6 +110,16 @@ export function resolveToolViewModel(params: ResolveToolParams): ToolViewModel {
       meta = 'Waiting for you'
     } else if (rawError) {
       body = { kind: 'error', message: asText(resolved) }
+    }
+  } else if (name === SCHEDULE_WAKEUP_TOOL) {
+    const record = asRecord(payload)
+    summary = typeof record?.reason === 'string' ? record.reason : ''
+    if (rawError) body = { kind: 'error', message: asText(resolved) }
+    else if (record?.stop === true) meta = 'Loop ended'
+    else {
+      // The delay the loop settled on, after clamping the one asked for.
+      const ms = (asRecord(resolved)?.details as { ms?: number } | undefined)?.ms
+      if (ms) meta = `in ${formatInterval(ms)}`
     }
   } else if (!collapsedAttempt) {
     const fileDiff = isEditTool(name)

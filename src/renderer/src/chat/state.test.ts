@@ -52,6 +52,17 @@ describe('hydrateMessages', () => {
 })
 
 describe('applySessionEvent', () => {
+  it('drops a loop prompt edit once the loop ends, but keeps a new loop toggle', () => {
+    const loop = { prompt: 'check', ms: 60_000, fixed: true, nextAt: null, editPending: false }
+    const editing = { ...createChatState(), loop, loopDraft: { kind: 'edit' as const } }
+    expect(applySessionEvent(editing, { type: 'loop', loop: null }).loopDraft).toBeNull()
+    const toggled = { ...editing, loopDraft: { kind: 'start' as const, ms: null } }
+    expect(applySessionEvent(toggled, { type: 'loop', loop: null }).loopDraft).toEqual({
+      kind: 'start',
+      ms: null,
+    })
+  })
+
   it('does not duplicate user messages across start and end', () => {
     let state = createChatState()
     state = applySessionEvent(state, { type: 'message_start', message: user('hi') })

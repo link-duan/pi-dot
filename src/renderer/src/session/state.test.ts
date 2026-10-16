@@ -46,6 +46,7 @@ function snapshot(file: string, extra: Partial<SessionSnapshot> = {}): SessionSn
       messageCount: 0,
       planMode: false,
       plan: { path: '/plans/a_1.plan.md', built: false },
+      loop: null,
     },
     messages: [],
     models: [{ id: 'm', name: 'Model', provider: 'p' }],
@@ -240,6 +241,17 @@ describe('plan mode', () => {
     state = applyEvent(state, { type: 'plan_mode', sessionFile: fileA, active: false, plan: built })
     expect(activeChat(state).planActive).toBe(false)
     expect(activeChat(state).plan).toEqual(built)
+  })
+
+  it('takes the loop from the snapshot and loop events', () => {
+    const on = snapshot(fileA)
+    const loop = { prompt: 'check CI', ms: 60_000, fixed: true, nextAt: 1000, editPending: false }
+    on.state.loop = loop
+    let state = applySnapshot(createWindowState(), on, createChatState())
+    expect(activeChat(state).loop).toEqual(loop)
+
+    state = applyEvent(state, { type: 'loop', sessionFile: fileA, loop: null })
+    expect(activeChat(state).loop).toBeNull()
   })
 
   it('takes the session name from the snapshot and session_name events', () => {

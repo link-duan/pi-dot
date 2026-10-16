@@ -2,6 +2,7 @@ import type {
   AskReply,
   ConnectionStatus,
   FileHit,
+  LoopStart,
   MessageRef,
   ModelSelection,
   SessionEvent,
@@ -38,6 +39,10 @@ export interface PiApi {
   stop(): Promise<{ cancelled: boolean }>
   prompt(text: string, sessionFile: string, planMode: boolean): Promise<void>
   approvePlan(sessionFile: string, message: string): Promise<void>
+  /** Starts a /loop and sends its prompt, replacing a running one; null stops it. */
+  setLoop(sessionFile: string, loop: LoopStart | null): Promise<void>
+  /** Changes the running loop's prompt; the model is told the user changed it. */
+  editLoop(sessionFile: string, prompt: string): Promise<void>
   answerQuestion(sessionFile: string, toolCallId: string, reply: AskReply): Promise<void>
   respondUi(sessionFile: string, id: string, response: UiResponse): Promise<void>
   /** Asks again whether to trust the folder; `started` when it was rebound. */
