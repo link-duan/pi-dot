@@ -1,11 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="UTF-8" />
     <title>Pi Dot</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script>
+      // The system's language and region: picks CJK glyphs and punctuation, and drives :lang() typography
+      document.documentElement.lang = navigator.language
       document.documentElement.classList.toggle(
         'dark',
         window.matchMedia('(prefers-color-scheme: dark)').matches,

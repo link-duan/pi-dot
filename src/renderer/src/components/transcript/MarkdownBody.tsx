@@ -106,7 +106,7 @@ export function MarkdownBody({
 } & Pick<StreamdownProps, 'BlockComponent' | 'parseMarkdownIntoBlocksFn'>) {
   return (
     <Streamdown
-      className={cn('leading-relaxed select-text [text-autospace:normal]', className)}
+      className={cn('select-text [text-autospace:normal]', className)}
       animated={animation}
       isAnimating={streaming}
       caret={streaming ? 'block' : undefined}

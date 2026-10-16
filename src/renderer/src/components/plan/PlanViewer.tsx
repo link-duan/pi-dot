@@ -32,7 +32,7 @@ export function PlanViewer() {
         <div className="app-drag absolute inset-x-0 top-0 z-10 h-9" />
         <ScrollArea className="flex-1">
           <ScrollAreaViewport>
-            <article className="mx-auto max-w-2xl px-6 pt-20 pb-32 [text-autospace:normal]">
+            <article className="mx-auto max-w-2xl px-6 pt-20 pb-32">
               <DialogTitle className="text-[28px] leading-tight font-semibold tracking-tight">
                 {name}
               </DialogTitle>

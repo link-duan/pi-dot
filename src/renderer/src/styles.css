@@ -250,7 +250,74 @@
 /* Reading text (assistant replies, Plan documents): softer than headings, so long passages don't glare on black */
 [data-prose] {
   color: color-mix(in oklch, var(--foreground) 87%, transparent);
+  font-size: 15px;
+  line-height: 1.65;
+  /* Reading text sets its own tracking; body's -0.01em is tuned for UI labels */
+  letter-spacing: 0;
+  overflow-wrap: break-word;
   text-wrap: pretty;
+  /* A gap between CJK and Latin, whether or not the writer typed a space */
+  text-autospace: normal;
+  /* Compress full-width punctuation at line starts and in runs */
+  text-spacing-trim: trim-start;
+  /* Latin keeps Inter's true italic; CJK, which has none, is never slanted by the browser */
+  font-synthesis-style: none;
+}
+
+/* CJK has no ascenders or descenders, so it needs more leading and a touch of tracking.
+   :lang() follows the system language set on <html>; Chromium takes one language per :lang() */
+[data-prose]:is(:lang(zh), :lang(ja), :lang(ko)) {
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+}
+
+[data-prose] :is(code, kbd, pre) {
+  letter-spacing: 0;
+}
+
+/* CJK emphasis can't be italic; weight carries it */
+[data-prose]:is(:lang(zh), :lang(ja), :lang(ko)) em {
+  font-weight: 500;
+}
+
+/* Streamdown's heading margins are fixed px; these scale with the text */
+[data-prose] [data-streamdown^='heading'] {
+  margin: 0 0 0.5em;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+/* Only a heading after other content takes a top margin; Plan headings, each first in its block, keep their own */
+[data-prose] [data-streamdown^='heading']:not(:first-child) {
+  margin-top: 1.5em;
+}
+
+[data-prose] [data-streamdown='list-item'] {
+  padding-block: 0.3em;
+}
+
+[data-prose] :is(ul, ol) :is(ul, ol) {
+  margin-block: 0;
+}
+
+[data-prose] [data-streamdown='ordered-list'] > li::marker {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-prose] [data-streamdown='blockquote'] {
+  border-left-width: 2px;
+  padding-left: 1em;
+}
+
+[data-prose] hr {
+  margin-block: 1.5em;
+  border-color: var(--border);
+}
+
+[data-prose] table {
+  font-size: 0.93em;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
 }
 
 [data-prose] :is([data-streamdown^='heading'], strong) {
@@ -285,12 +352,6 @@
   color: var(--muted-foreground);
 }
 
-/* Plan documents read as a document, not a chat message */
-[data-plan-document] {
-  font-size: 15px;
-  line-height: 1.75;
-}
-
 /* Spacing comes from the blocks' content below, not Streamdown's space-y */
 [data-plan-document] [data-plan-block] {
   margin: 0;
@@ -312,8 +373,12 @@
 [data-plan-document] [data-streamdown^='heading'] {
   margin: 2em 0 0.6em;
   font-weight: 600;
-  letter-spacing: -0.01em;
   line-height: 1.35;
+}
+
+/* Large Latin headings tighten slightly; CJK keeps the prose tracking */
+[data-plan-document] [data-streamdown^='heading']:not(:lang(zh), :lang(ja), :lang(ko)) {
+  letter-spacing: -0.01em;
 }
 
 /* The heading's own bottom margin sets the gap to what follows */
@@ -346,10 +411,6 @@
 
 [data-plan-document] [data-plan-block]:first-child [data-streamdown^='heading']:first-child {
   margin-top: 0;
-}
-
-[data-plan-document] [data-streamdown='list-item'] {
-  padding-block: 0.3em;
 }
 
 /* Wide content grows out of the text column, centered on it, and never scrolls vertically */

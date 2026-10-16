@@ -43,7 +43,11 @@ export function ThinkingRow({
       {thinking.trim() ? (
         <div className="mt-2">
           <ScrollFade ref={bodyRef} className="max-h-80 text-muted-foreground">
-            <MarkdownBody className="space-y-3" text={thinking} streaming={inProgress} />
+            <MarkdownBody
+              className="space-y-3 leading-relaxed"
+              text={thinking}
+              streaming={inProgress}
+            />
           </ScrollFade>
         </div>
       ) : null}
