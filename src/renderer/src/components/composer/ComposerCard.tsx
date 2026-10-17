@@ -1,4 +1,4 @@
-import { useCallback, useEffect, type ComponentProps, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ComponentProps, type ReactNode } from 'react'
 import {
   $getRoot,
   COMMAND_PRIORITY_NORMAL,
@@ -39,6 +39,7 @@ export function ComposerCard({
   children: ReactNode
 }) {
   const [editor] = useLexicalComposerContext()
+  const [card, setCard] = useState<HTMLFormElement | null>(null)
   const take = useCallback(
     (handler: (text: string) => void) => {
       const text = serializeEditorState(editor.getEditorState()).trim()
@@ -56,6 +57,7 @@ export function ComposerCard({
 
   return (
     <form
+      ref={setCard}
       className={cn(
         'pointer-events-auto relative mx-auto max-w-3xl rounded-2xl border bg-card/90 px-1.5 pt-1 pb-1 backdrop-blur-md dark:bg-card/95',
         planMode ? 'border-plan/50' : 'border-border',
@@ -72,6 +74,7 @@ export function ComposerCard({
     >
       <PromptEditorField
         {...field}
+        anchor={card}
         className="composer-editor block max-h-[calc(8.5lh+0.5rem)] min-h-[calc(1lh+0.75rem)] w-full scroll-fade overflow-y-auto px-1.5 py-1.5 leading-relaxed text-foreground outline-none"
       />
       <ComposerKeyPlugin

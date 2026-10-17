@@ -20,10 +20,12 @@ import { serializeEditorState } from './serialize'
 
 /**
  * The editable area with `/` skill and `@` file pickers and file-chip paste.
- * Must sit inside a `LexicalComposer`; the pickers open above the nearest positioned ancestor.
+ * Must sit inside a `LexicalComposer`; the pickers open above `anchor`, by default the editor,
+ * and flip below it when there is no room.
  */
 export function PromptEditorField({
   id,
+  anchor,
   placeholder,
   className,
   onChange,
@@ -31,6 +33,8 @@ export function PromptEditorField({
   scope,
 }: {
   id?: string
+  /** What the pickers align to; defaults to the editor. */
+  anchor?: Element | null
   placeholder: string
   className?: string
   onChange?: (text: string, state: EditorState) => void
@@ -39,6 +43,8 @@ export function PromptEditorField({
   scope?: SlashScope
 }) {
   const [editor] = useLexicalComposerContext()
+  const [editorBox, setEditorBox] = useState<HTMLDivElement | null>(null)
+  const pickerAnchor = anchor ?? editorBox
   const cwd = useSession((state) => state.cwd)
   const skills = useSession((state) => state.skills)
   const commands = useSession((state) => state.commands)
@@ -97,6 +103,7 @@ export function PromptEditorField({
     <>
       {filePicker ? (
         <FilePicker
+          anchor={pickerAnchor}
           hits={fileHits}
           index={filePicker.index}
           onHover={(index) => setFilePicker((prev) => (prev ? { ...prev, index } : prev))}
@@ -104,6 +111,7 @@ export function PromptEditorField({
         />
       ) : picker ? (
         <SkillPicker
+          anchor={pickerAnchor}
           skills={skills}
           commands={onCommand ? commands : null}
           scope={scope}
@@ -114,7 +122,7 @@ export function PromptEditorField({
         />
       ) : null}
 
-      <div className="relative">
+      <div ref={setEditorBox} className="relative">
         <RichTextPlugin
           contentEditable={
             <ContentEditable
