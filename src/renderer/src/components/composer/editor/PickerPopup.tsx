@@ -38,7 +38,7 @@ export function PickerPopup({
             <ScrollArea>
               <ScrollAreaViewport
                 ref={listRef}
-                className="h-auto! max-h-[min(16rem,calc(var(--available-height)-1.75rem))] scroll-fade overscroll-contain pr-2.5"
+                className="h-auto! max-h-[min(16rem,calc(var(--available-height)-0.875rem))] scroll-fade overscroll-contain pr-2.5"
               >
                 {children}
               </ScrollAreaViewport>
