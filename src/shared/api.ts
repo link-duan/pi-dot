@@ -82,6 +82,7 @@ export interface PiApi {
   deleteSession(sessionPath: string): Promise<SessionSnapshot>
   openExternal(url: string): Promise<void>
   openPath(path: string): Promise<void>
+  setMinWidth(width: number): void
   readPlan(path: string): Promise<string>
   searchFiles(cwd: string, query: string): Promise<FileHit[]>
   statPaths(paths: string[]): Promise<Array<{ path: string; isDirectory: boolean }>>

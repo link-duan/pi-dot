@@ -185,7 +185,7 @@ export function SessionSwitcher({ cwd }: { cwd: string }) {
         anchor={barRef}
         align="center"
         sideOffset={6}
-        className="w-[32rem] gap-0 overflow-hidden rounded-2xl p-0"
+        className="w-[min(32rem,calc(100vw-1.5rem))] gap-0 overflow-hidden rounded-2xl p-0"
         initialFocus={searchRef}
         finalFocus={() => {
           if (!returnToComposer.current) return false

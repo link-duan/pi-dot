@@ -35,6 +35,7 @@ export const IPC = {
   deleteSession: 'pi:deleteSession',
   openExternal: 'pi:openExternal',
   openPath: 'pi:openPath',
+  setMinWidth: 'pi:setMinWidth',
   readPlan: 'pi:readPlan',
   searchFiles: 'pi:searchFiles',
   statPaths: 'pi:statPaths',

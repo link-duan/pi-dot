@@ -1,4 +1,5 @@
-import { createHashRouter, Outlet, RouterProvider } from 'react-router'
+import { useEffect } from 'react'
+import { createHashRouter, Outlet, RouterProvider, useLocation } from 'react-router'
 import { Toaster } from './components/ui/sonner'
 import { TooltipProvider } from './components/ui/tooltip'
 
@@ -10,7 +11,12 @@ export const PATH = {
   playground: '/playground',
 } as const
 
+/** Narrowest window each page lays out in; the rest share the default. */
+const MIN_WIDTH: Record<string, number> = { [PATH.settings]: 720 }
+
 function Shell() {
+  const { pathname } = useLocation()
+  useEffect(() => window.pi.setMinWidth(MIN_WIDTH[pathname] ?? 480), [pathname])
   return (
     <TooltipProvider>
       <Outlet />

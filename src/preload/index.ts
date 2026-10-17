@@ -92,6 +92,7 @@ const api: PiApi = {
     ipcRenderer.invoke(IPC.deleteSession, sessionPath) as Promise<SessionSnapshot>,
   openExternal: (url: string) => ipcRenderer.invoke(IPC.openExternal, url) as Promise<void>,
   openPath: (path: string) => ipcRenderer.invoke(IPC.openPath, path) as Promise<void>,
+  setMinWidth: (width: number) => ipcRenderer.send(IPC.setMinWidth, width),
   readPlan: (path: string) => ipcRenderer.invoke(IPC.readPlan, path) as Promise<string>,
   searchFiles: (cwd: string, query: string) =>
     ipcRenderer.invoke(IPC.searchFiles, cwd, query) as Promise<FileHit[]>,

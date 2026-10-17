@@ -99,7 +99,7 @@ function createWindow(): BrowserWindow {
     width: cascaded?.width ?? 960,
     height: cascaded?.height ?? 740,
     ...(cascaded ? { x: cascaded.x, y: cascaded.y } : {}),
-    minWidth: 720,
+    minWidth: 480,
     minHeight: 560,
     title: 'Pi Dot',
     icon: APP_ICON,
@@ -333,6 +333,15 @@ function registerIpc(): void {
   ipcMain.handle(IPC.openExternal, async (_event, url: string) => {
     if (!/^https?:\/\//.test(url)) return
     await shell.openExternal(url)
+  })
+
+  ipcMain.on(IPC.setMinWidth, (event, width: number) => {
+    const window = typeof width === 'number' ? from(event.sender)?.window : undefined
+    if (!window) return
+    window.setMinimumSize(width, 560)
+    // Electron doesn't grow a window that is already below the new minimum.
+    const bounds = window.getBounds()
+    if (bounds.width < width) window.setBounds({ ...bounds, width })
   })
 
   ipcMain.handle(IPC.openPath, async (_event, path: string) => {
