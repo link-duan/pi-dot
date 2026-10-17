@@ -2,6 +2,9 @@ import type { ReactNode, Ref } from 'react'
 import { Popover } from '@base-ui/react/popover'
 import { ScrollArea, ScrollAreaScrollbar, ScrollAreaViewport } from '@/components/ui/scroll-area'
 
+/** Keep clear of the title bar overlay: ChatPage's `h-11` strip with the traffic lights. */
+const TITLE_BAR = 44
+
 /**
  * The frame of the `/` and `@` pickers: a scrolling list above `anchor`, flipped below it and
  * shortened when there is no room. Focus stays in the editor, which owns the picker's keys.
@@ -23,7 +26,7 @@ export function PickerPopup({
           side="top"
           align="start"
           sideOffset={8}
-          collisionPadding={8}
+          collisionPadding={{ top: TITLE_BAR + 8, right: 8, bottom: 8, left: 8 }}
           className="isolate z-50 data-anchor-hidden:hidden"
         >
           <Popover.Popup
