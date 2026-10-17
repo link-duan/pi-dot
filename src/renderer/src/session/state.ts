@@ -91,11 +91,20 @@ export const noPlanReview = {
   planSource: '',
 } satisfies Partial<WindowState>
 
-/** Saved comments plus the draft, if it has text: what Build and feedback send. */
+/** Saved comments plus the draft, if it has text: what Build and feedback send. A draft editing a saved comment takes its place. */
 export function reviewComments(state: WindowState): PlanComment[] {
-  return state.planDraft?.text.trim()
-    ? [...state.planComments, state.planDraft]
-    : state.planComments
+  const draft = state.planDraft
+  if (!draft?.text.trim()) return state.planComments
+  return state.planComments.some((comment) => comment.id === draft.id)
+    ? state.planComments.map((comment) => (comment.id === draft.id ? draft : comment))
+    : [...state.planComments, draft]
+}
+
+/** The draft holds typing that would be lost: a new comment's text, or an edit that changed one. */
+export function draftDirty(state: WindowState): boolean {
+  const draft = state.planDraft
+  if (!draft?.text.trim()) return false
+  return state.planComments.find((comment) => comment.id === draft.id)?.text !== draft.text
 }
 
 /**

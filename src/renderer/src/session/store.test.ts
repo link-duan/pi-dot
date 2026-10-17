@@ -233,6 +233,15 @@ describe('plan review', () => {
     expect(useSession.getState().planDraft).toBeNull()
   })
 
+  it('saves an edited comment in place of the original', () => {
+    setup({})
+    const other = { ...comment, id: 'c2', start: 6, end: 11, quote: 'world' }
+    useSession.setState({ planComments: [comment, other] })
+    useSession.getState().setPlanDraft({ ...comment, text: 'edited' })
+    useSession.getState().commitPlanDraft()
+    expect(useSession.getState().planComments).toEqual([{ ...comment, text: 'edited' }, other])
+  })
+
   it('drops the review when Plan Mode is turned off', () => {
     setup({})
     useSession.getState().setPlanMode(false)

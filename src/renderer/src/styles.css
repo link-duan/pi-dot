@@ -178,6 +178,12 @@
   color: var(--foreground);
 }
 
+/* The quote of the comment being hovered or edited */
+::highlight(plan-comment-active) {
+  background-color: color-mix(in oklch, var(--plan) 55%, transparent);
+  color: var(--foreground);
+}
+
 /* Window Drag Regions */
 .app-drag {
   -webkit-app-region: drag;
@@ -427,14 +433,14 @@
   margin-top: 0;
 }
 
-/* Wide content grows out of the text column, centered on it, and never scrolls vertically */
+/* Wide content stays in the text column, scrolling sideways if it must, never vertically */
 [data-plan-document] [data-wide] {
-  width: max-content;
-  min-width: 100%;
-  max-width: calc(100vw - 4rem);
   max-height: none;
-  margin-left: 50%;
-  translate: -50% 0;
+}
+
+/* Headers wrap like cells, so a table fits the column instead of scrolling */
+[data-plan-document] th {
+  white-space: normal;
 }
 
 [data-plan-document] [data-wide] [data-slot='scroll-area-viewport'] {
