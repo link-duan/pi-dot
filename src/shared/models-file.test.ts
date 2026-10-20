@@ -35,10 +35,10 @@ const sample = `{
 const commented = `{
   // custom gateway
   "providers": {
-    "sm-grok-fe": {
+    "my-gateway": {
       "api": "openai-responses",
       "models": [
-        { "id": "grok-4.6" },
+        { "id": "my-model" },
       ],
     },
     // keep this provider
@@ -65,8 +65,8 @@ describe('parseModelsFile', () => {
     const parsed = parseModelsFile(commented)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
-      expect(Object.keys(parsed.value.providers)).toEqual(['sm-grok-fe', 'ollama'])
-      expect(parsed.value.providers['sm-grok-fe']?.api).toBe('openai-responses')
+      expect(Object.keys(parsed.value.providers)).toEqual(['my-gateway', 'ollama'])
+      expect(parsed.value.providers['my-gateway']?.api).toBe('openai-responses')
     }
   })
 })
@@ -113,7 +113,7 @@ describe('form round-trip', () => {
 
 describe('jsonc edits', () => {
   it('patches a provider field without dropping comments or sibling providers', () => {
-    const next = patchProviderForm(commented, 'sm-grok-fe', {
+    const next = patchProviderForm(commented, 'my-gateway', {
       name: '',
       baseUrl: 'https://example.com',
       api: 'openai-responses',
@@ -126,7 +126,7 @@ describe('jsonc edits', () => {
     expect(next).toContain('"ollama"')
     const parsed = parseModelsFile(next)
     expect(parsed.ok).toBe(true)
-    if (parsed.ok) expect(parsed.value.providers['sm-grok-fe']?.baseUrl).toBe('https://example.com')
+    if (parsed.ok) expect(parsed.value.providers['my-gateway']?.baseUrl).toBe('https://example.com')
   })
 
   it('adds, replaces, and deletes providers and models in text', () => {

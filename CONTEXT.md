@@ -1,4 +1,4 @@
-# pi-ui
+# Pi Dot
 
 Desktop UI for agent conversations in local project folders. Each Window binds at most one folder.
 

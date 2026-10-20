@@ -1,15 +1,3 @@
 {
-  "pendant.showThinking": true,
-  "pendant.scm.commitMessageInstructions": {
-    "model": "sm-grok/grok-4.6",
-    "thinking": "medium"
-  },
-  "editor.defaultFormatter": "oxc.oxc-vscode",
-  "pendant.chat.promptSuggestionsEnabled": true,
-  "pendant.chat.promptSuggestions": {
-    "model": "sm-grok/grok-4.6",
-    "thinking": "low"
-  },
-  "pendant.chat.promptSuggestionLanguage": "",
-  "pendant.autoGenerateSessionNames": true
+  "editor.defaultFormatter": "oxc.oxc-vscode"
 }

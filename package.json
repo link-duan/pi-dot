@@ -1,8 +1,16 @@
 {
-  "name": "pi-ui",
+  "name": "pi-dot",
   "version": "0.1.0",
   "private": true,
+  "description": "A beautifully designed desktop app for the pi coding agent.",
+  "homepage": "https://github.com/link-duan/pi-dot",
+  "bugs": "https://github.com/link-duan/pi-dot/issues",
   "license": "MIT",
+  "author": "link-duan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/link-duan/pi-dot.git"
+  },
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
